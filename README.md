@@ -142,8 +142,8 @@ is too young, pinned incompatibly, or cannot be evaluated, the affected upgrade
 would be held. A security exception for one package would not automatically
 waive the policy for all of its dependencies.
 
-The first executor would support bottled `homebrew/core` formulae on Apple Silicon macOS at
-`/opt/homebrew`. Casks, third-party taps, and other platforms would
+The first executor would support bottled `homebrew/core` formulae on Apple
+Silicon macOS at `/opt/homebrew`. Casks, third-party taps, and other platforms would
 be reported as unsupported until their adapters meet the same requirements.
 They remain part of the intended product scope. Unrelated installed packages
 would stay outside a Brewfile run, but their dependency requirements would
@@ -185,7 +185,9 @@ transactional upgrades or automatic rollback.
 - [Installer experiment](docs/installer-proof.md): reproducible historical
   bottle installation in an expendable macOS VM.
 - [Boundary experiments](docs/installer-boundaries.md): native post-install
-  workers, reproduced concurrency limitations and the pending design decision.
+  workers, shared consumers and accepted concurrency limitations.
+- [Execution and recovery](docs/execution-recovery.md): drift reporting,
+  interrupted upgrades and text-only recovery commands.
 
 The historical installation proof comes first. A working latest-only updater
 would not satisfy the design.

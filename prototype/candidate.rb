@@ -115,6 +115,12 @@ module BrewCooldown
         true
       end
 
+      def identity
+        { "name" => @name, "version" => @version, "rebuild" => rebuild,
+          "platform" => TAG.to_s, "index_sha256" => @index_sha256,
+          "bottle_sha256" => bottle.resource.checksum.hexdigest }
+      end
+
       private
 
       def registry_json(kind, digest)

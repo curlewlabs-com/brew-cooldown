@@ -137,7 +137,8 @@ brew ruby -- test/integration/shared_consumer.rb upgrade
 
 ## Remaining acceptance work
 
-Adapter identity changes, inventory changes before apply, interpreter upgrades,
-interruption and journal reconciliation remain unproven. The complete release
+The [execution experiments](execution-recovery.md) cover pin drift,
+interruption, journal reconciliation and subsequent completion. Adapter
+identity changes and interpreter upgrades remain unproven. The complete release
 bar remains in [verification](verification.md). These experiments do not yet
 make this a replacement for a scheduled Brewfile job.
