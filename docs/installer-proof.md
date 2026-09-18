@@ -74,8 +74,10 @@ The historical packages only process fixed test strings in the disposable
 VM. This experiment does not certify those releases free of vulnerabilities.
 An absent advisory match is not such evidence. Destroy the VM afterward.
 
-Post-install subprocesses are not yet constrained and recipes defining hooks
-are refused. Shared consumers, compatibility evidence, locking, interruption,
-inventory races and Homebrew compatibility fingerprints still need the broader
-[acceptance checks](verification.md). Passing this experiment alone does not
-pass the executor feasibility gate.
+This baseline experiment continues to refuse recipes defining hooks. The
+separate [boundary experiments](installer-boundaries.md) exercise a constrained
+native hook worker and reproduce a concurrency gap in Homebrew's package
+locking. Shared consumers, compatibility evidence, interruption, inventory
+races and Homebrew compatibility fingerprints still need the broader
+[acceptance checks](verification.md). Neither experiment enables unattended
+execution.

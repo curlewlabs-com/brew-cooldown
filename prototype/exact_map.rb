@@ -5,8 +5,8 @@ require "install"
 
 module BrewCooldown
   module Prototype
-    # Process-local experiment. Unknown lookups fail instead of falling through
-    # to the current API; this does not yet cover post-install subprocesses.
+    # Unknown lookups fail instead of falling through to the current API.
+    # postinstall.rb supplies the separate resolver for native hook workers.
     class ExactMap
       attr_reader :candidates
 
@@ -47,7 +47,7 @@ module BrewCooldown
     end
 
     class << self
-      attr_accessor :active_map
+      attr_accessor :active_map, :worker_plan
     end
 
     module ResolverGuard
@@ -103,7 +103,9 @@ module BrewCooldown
       end
 
       def post_install
-        raise Refused, "post-install worker is not yet constrained"
+        raise Refused, "post-install worker has no candidate map" unless Prototype.worker_plan
+
+        super
       end
 
       private

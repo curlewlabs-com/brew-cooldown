@@ -4,6 +4,10 @@ Conservative Homebrew upgrades with configurable release-age delays and
 expedited updates for verified security fixes.
 
 **Status: installer feasibility work.** There is no installable release yet.
+Historical installation and an ordinary post-install hook work in a disposable
+VM. The [boundary experiments](docs/installer-boundaries.md) found a Homebrew
+locking gap that requires an explicit concurrency contract before unattended
+execution can proceed.
 The behavior and command examples below describe the proposed tool. Read the
 [system design](docs/design.md) for the architecture and the
 [installer experiment](docs/installer-proof.md) for executable feasibility
@@ -180,6 +184,8 @@ transactional upgrades or automatic rollback.
   order, including progress through frequent root and dependency releases.
 - [Installer experiment](docs/installer-proof.md): reproducible historical
   bottle installation in an expendable macOS VM.
+- [Boundary experiments](docs/installer-boundaries.md): native post-install
+  workers, reproduced concurrency limitations and the pending design decision.
 
 The historical installation proof comes first. A working latest-only updater
 would not satisfy the design.

@@ -6,6 +6,12 @@ boundary. The installation adapter must pass the feasibility checks in
 [Homebrew integration](homebrew-integration.md) before this design can become
 an unattended updater.
 
+The [boundary experiments](installer-boundaries.md) now demonstrate a native
+post-install hook, but expose a concurrency assumption the current package
+locks cannot enforce. The execution contract below remains the target; it
+has not been weakened to permit that interference. Unattended execution needs
+the operating-contract decision recorded with those results.
+
 ## Decisions
 
 Build a deterministic planner and a constrained Homebrew executor over

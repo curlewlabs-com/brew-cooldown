@@ -1,0 +1,20 @@
+[
+  {
+    "name": "pcre2",
+    "version": "10.46",
+    "opt_aliases": [],
+    "index_sha256": "79a93b7c7b012ae4202d2f77d0d55ce4f10a60b05a89f9b9908495d5493dc03b"
+  },
+  {
+    "name": "ncurses",
+    "version": "6.5",
+    "opt_aliases": [],
+    "index_sha256": "35bad1376c2496549154d0e6043b2e60600d9187a4e1e6bc60cbb5d759d1a74c"
+  },
+  {
+    "name": "fish",
+    "version": "4.0.6",
+    "opt_aliases": [],
+    "index_sha256": "ec48c0556cfdcbc0f4a2cfcf76dce9e469b3c4652e73a9ae086027e32c9aff1f"
+  }
+]
