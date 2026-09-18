@@ -1,0 +1,30 @@
+{
+  "baseline": [
+    {
+      "name": "pcre2",
+      "version": "10.46",
+      "opt_aliases": [],
+      "index_sha256": "79a93b7c7b012ae4202d2f77d0d55ce4f10a60b05a89f9b9908495d5493dc03b"
+    },
+    {
+      "name": "ripgrep",
+      "version": "15.0.0",
+      "opt_aliases": ["rg"],
+      "index_sha256": "b64d4197bf1e80df69fe7a5800af8c0177a985867b3206dec94f5a3a282e9df6"
+    }
+  ],
+  "upgrade": [
+    {
+      "name": "pcre2",
+      "version": "10.47",
+      "opt_aliases": [],
+      "index_sha256": "ed919c293246084c50acf40f516cefc10b4090cac5677d3cfe2cb87e98b91b10"
+    },
+    {
+      "name": "ripgrep",
+      "version": "15.1.0",
+      "opt_aliases": ["rg"],
+      "index_sha256": "1fc50dd7e04cd1f0841cad3788d2b14ebcb703cd4633dea2a0b79991fc278acc"
+    }
+  ]
+}

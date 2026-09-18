@@ -1,8 +1,9 @@
 # Verification and implementation order
 
-Status: acceptance criteria, not test results. The repository contains design
-documents only. Read [system design](design.md) for the behavior being checked
-and [Homebrew integration](homebrew-integration.md) for inspected evidence.
+Status: acceptance criteria. The [installer experiment](installer-proof.md)
+records execution results and remaining gaps. Read [system design](design.md)
+for the behavior being checked and
+[Homebrew integration](homebrew-integration.md) for the integration contract.
 
 ## Prove the installation boundary first
 

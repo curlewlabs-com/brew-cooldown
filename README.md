@@ -3,10 +3,11 @@
 Conservative Homebrew upgrades with configurable release-age delays and
 expedited updates for verified security fixes.
 
-**Status: design proposal.** There is no implementation or installable release
-yet. The behavior and command examples below describe the proposed tool. Read
-the [system design](docs/design.md) for the architecture and
-[Homebrew integration](docs/homebrew-integration.md) for its feasibility work.
+**Status: installer feasibility work.** There is no installable release yet.
+The behavior and command examples below describe the proposed tool. Read the
+[system design](docs/design.md) for the architecture and the
+[installer experiment](docs/installer-proof.md) for executable feasibility
+work and its remaining limitations.
 
 ## Why
 
@@ -177,6 +178,8 @@ transactional upgrades or automatic rollback.
   exact installation strategy, security evidence, and adapter boundaries.
 - [Verification](docs/verification.md): feasibility checks and implementation
   order, including progress through frequent root and dependency releases.
+- [Installer experiment](docs/installer-proof.md): reproducible historical
+  bottle installation in an expendable macOS VM.
 
 The historical installation proof comes first. A working latest-only updater
 would not satisfy the design.
