@@ -111,10 +111,33 @@ recovery after the contending command fails. Unexpected failures or incomplete
 restoration fail the experiment. `lock_peer.rb` is its subprocess helper; do not
 run the reinstall mode independently. Destroy the VM after the experiments.
 
+## Shared consumer result
+
+The shared-consumer experiment passed on the same platform and Homebrew
+commit. It installed fish 4.7.1 with PCRE2 10.47_1, then upgraded PCRE2 to
+10.48 while retaining fish's receipt and canonical link. Matching recorded
+Homebrew compatibility identifiers and the required candidate library paths
+supported the change. Native linkage inspection and a PCRE-backed fish command
+passed afterward. A candidate without the required compatibility evidence was
+rejected before mutation; an attempt to reinstall the retained consumer was
+also rejected.
+
+This is evidence for the exercised dependency edge, not an inferred ABI promise
+for every package. Installed receipts supply consumer requirements. Where the
+recorded build differs, missing compatibility metadata remains a constraint
+for the planner to resolve with another candidate or explain to the user.
+
+Start a separate expendable VM without fish or PCRE2 and run:
+
+```sh
+brew ruby -- test/integration/shared_consumer.rb baseline
+brew ruby -- test/integration/shared_consumer.rb insufficient_evidence
+brew ruby -- test/integration/shared_consumer.rb upgrade
+```
+
 ## Remaining acceptance work
 
-The shared-consumer upgrade and refusal experiments, adapter identity change,
-inventory change before apply, interpreter upgrades, interruption and journal
-reconciliation remain unproven. The complete release bar remains in
-[verification](verification.md). Passing the hook experiment does not satisfy
-that bar or make this a replacement for a scheduled Brewfile job.
+Adapter identity changes, inventory changes before apply, interpreter upgrades,
+interruption and journal reconciliation remain unproven. The complete release
+bar remains in [verification](verification.md). These experiments do not yet
+make this a replacement for a scheduled Brewfile job.

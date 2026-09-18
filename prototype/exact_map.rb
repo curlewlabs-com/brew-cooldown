@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "candidate"
+require_relative "compatibility"
 require "install"
 
 module BrewCooldown
@@ -24,6 +25,8 @@ module BrewCooldown
       def validate(formula)
         candidate = candidates[formula.full_name]
         raise Refused, "formula substitution: #{formula.full_name}" unless candidate&.formula.equal?(formula)
+        return unless candidate.install?
+
         raise Refused, "local bottle fallback" if formula.local_bottle_path
         raise Refused, "bottle substitution: #{formula.full_name}" unless formula.bottle.equal?(candidate.bottle)
       end
@@ -34,9 +37,7 @@ module BrewCooldown
         candidates.each_value do |candidate|
           candidate.runtime_dependencies.each do |dependency|
             selected = resolve(dependency.fetch("full_name"))
-            unless selected.pkg_version.to_s == dependency.fetch("pkg_version")
-              raise Refused, "dependency differs from bottle build: #{selected.full_name}"
-            end
+            Compatibility.validate!(dependency, candidates.fetch(selected.full_name))
           end
         end
         Prototype.active_map = self
@@ -79,6 +80,9 @@ module BrewCooldown
     module InstallerGuard
       def initialize(formula, **options)
         Prototype.active_map.validate(formula)
+        unless Prototype.active_map.candidates.fetch(formula.full_name).install?
+          raise Refused, "#{formula.full_name}: retained consumer cannot be installed outside the plan"
+        end
         super
         Prototype.active_map.validate(self.formula)
       end

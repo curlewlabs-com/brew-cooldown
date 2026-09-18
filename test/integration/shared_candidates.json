@@ -1,0 +1,29 @@
+{
+  "baseline": [
+    {
+      "name": "pcre2",
+      "version": "10.47_1",
+      "rebuild": 1,
+      "index_sha256": "28c90d3ee4a1fdaf9fe22a01882badf3d0f456dabedbaba306abdb047541ccd6"
+    },
+    {
+      "name": "fish",
+      "version": "4.7.1",
+      "index_sha256": "d55dd4cb2b1ac228a5959f3158a500cfd4cee10923bc1bb1642efd180885fe9c"
+    }
+  ],
+  "upgrade": [
+    {
+      "name": "pcre2",
+      "version": "10.48",
+      "index_sha256": "096441a24379be19ac7133ee2218a23bfb84cb7985decdb5f20248db31e885f3"
+    }
+  ],
+  "insufficient_evidence": [
+    {
+      "name": "pcre2",
+      "version": "10.46",
+      "index_sha256": "79a93b7c7b012ae4202d2f77d0d55ce4f10a60b05a89f9b9908495d5493dc03b"
+    }
+  ]
+}
