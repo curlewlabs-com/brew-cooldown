@@ -4,6 +4,8 @@ Status: acceptance criteria. The [installer experiment](installer-proof.md)
 records execution results and remaining gaps. Read [system design](design.md)
 for the behavior being checked and
 [Homebrew integration](homebrew-integration.md) for the integration contract.
+The [boundary experiments](installer-boundaries.md) record the native hook
+result and the concurrency failure currently blocking unattended execution.
 
 ## Prove the installation boundary first
 

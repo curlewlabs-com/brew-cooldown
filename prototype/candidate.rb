@@ -20,11 +20,11 @@ module BrewCooldown
         @name = record.fetch("name")
         @version = record.fetch("version")
         @index_sha256 = record.fetch("index_sha256")
-        raise Refused, "unsupported test identity" unless %w[pcre2 ripgrep].include?(@name)
+        raise Refused, "unsupported test identity" unless %w[pcre2 ripgrep fish ncurses].include?(@name)
         raise Refused, "invalid index digest" unless @index_sha256.match?(/\A[0-9a-f]{64}\z/)
       end
 
-      def prepare
+      def prepare(allow_hooks: false)
         # Homebrew may bootstrap gh automatically; the experiment may not add
         # prerequisites outside its fixed package map.
         unless (HOMEBREW_PREFIX/"opt/gh/bin/gh").executable?
@@ -62,17 +62,17 @@ module BrewCooldown
         # does not establish that Homebrew's builders produced these bytes.
         Homebrew::Attestation.check_core_attestation(staged)
         staged.with_verified_snapshot(staged.cached_download) do |snapshot|
-          contents = Utils::Bottles.formula_contents(snapshot, name: @name)
+          @contents = Utils::Bottles.formula_contents(snapshot, name: @name)
           @formula = Formulary.from_contents(
-            @name, HOMEBREW_CELLAR/@name/@version/".brew/#{@name}.rb", contents,
+            @name, HOMEBREW_CELLAR/@name/@version/".brew/#{@name}.rb", @contents,
             tap: CoreTap.instance, from_metadata: true
           )
         end
         unless formula.full_name == @name && formula.pkg_version.to_s == @version
           raise Refused, "recipe identity differs"
         end
-        if formula.post_install_defined? || formula.post_install_steps_defined?
-          raise Refused, "hook execution is not yet constrained"
+        if !allow_hooks && (formula.post_install_defined? || formula.post_install_steps_defined?)
+          raise Refused, "hook worker not enabled for this experiment"
         end
 
         formula.bottle_specification.root_url(DOMAIN)
@@ -97,6 +97,13 @@ module BrewCooldown
         Utils::Attestation.check_attestation(bottle)
         puts "Prepared #{@name} #{@version}: verified official bottle and recipe"
         self
+      end
+
+      def worker_record
+        {
+          "name" => @name, "version" => @version, "path" => formula.path.to_s,
+          "recipe" => @contents, "recipe_sha256" => Digest::SHA256.hexdigest(@contents)
+        }
       end
 
       private
