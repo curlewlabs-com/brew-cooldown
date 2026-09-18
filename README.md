@@ -4,7 +4,9 @@ Conservative Homebrew upgrades with configurable release-age delays and
 expedited updates for verified security fixes.
 
 **Status: design proposal.** There is no implementation or installable release
-yet. The behavior and command examples below describe the proposed tool.
+yet. The behavior and command examples below describe the proposed tool. Read
+the [system design](docs/design.md) for the architecture and
+[Homebrew integration](docs/homebrew-integration.md) for its feasibility work.
 
 ## Why
 
@@ -72,9 +74,10 @@ age evidence, applicable delay, and earliest eligibility time. A changed
 Homebrew package revision would need its own age assessment; an old upstream
 version alone would not establish the age of a newly changed package.
 
-Missing or ambiguous age evidence would hold the affected upgrade and explain
-what could not be established. A missing date would never count as an old
-release.
+When publication dates are unavailable but the exact package identity can be
+verified, the full cooldown would start at its first verified observation.
+Unverifiable package identity would block the upgrade. A missing date would
+never count as an old release or cause a permanent wait by itself.
 
 ## Make progress without chasing the latest release
 
@@ -94,9 +97,11 @@ one rather than installing each intervening release. Dependency selection
 would consider eligible historical versions too, so a fresh dependency release
 would not automatically block an otherwise usable upgrade.
 
-This requires retaining or recovering exact package candidates, their
-dependency metadata, and verifiable installation artifacts after they are
-superseded. Remembering a version number or its eligibility date is not enough.
+The tool would recover exact candidates, dependency metadata, and installation
+artifacts from Homebrew's history and registry. It would reuse Homebrew's
+caches instead of maintaining a separate release database or package archive.
+Its own durable state would be limited to fallback observation times, clock
+validation, and the journal needed to reconcile an interrupted upgrade.
 Current security evidence would still be checked before installation; an
 earlier eligibility decision would not preserve approval for a release later
 found to be compromised.
@@ -132,10 +137,12 @@ is too young, pinned incompatibly, or cannot be evaluated, the affected upgrade
 would be held. A security exception for one package would not automatically
 waive the policy for all of its dependencies.
 
-The intended scope includes formulae, casks, and their required runtime
-dependencies. Support would depend on being able to identify and evaluate the
-actual candidate. Unsupported packages or sources would be reported as held,
-with a reason. Unrelated installed packages would stay outside a Brewfile run.
+The first executor would support bottled `homebrew/core` formulae on macOS at
+standard Homebrew prefixes. Casks, third-party taps, and other platforms would
+be reported as unsupported until their adapters meet the same requirements.
+They remain part of the intended product scope. Unrelated installed packages
+would stay outside a Brewfile run, but their dependency requirements would
+still constrain changes to shared libraries.
 
 ## Automation and visibility
 
@@ -150,15 +157,11 @@ deferred would remain visible on subsequent runs.
 
 ## Homebrew integration and boundaries
 
-Selecting older eligible releases is a core design requirement. Homebrew
-documents historical formula installation through `brew version-install` and
-`brew extract`, but maintaining extracted formulae becomes the caller's
-responsibility. These are building blocks to evaluate, not proof that arbitrary
-historical packages and their dependencies can be installed reliably. See
-[Homebrew's versioning documentation](https://docs.brew.sh/Versions).
-
-The installation strategy remains to be proven for formulae, casks, and their
-dependencies. The project would not silently fall back to checking only the
+Selecting older eligible releases is a core design requirement. A constrained
+Homebrew adapter would install exact official bottles under their original
+package identities, with every dependency operation bound to the evaluated
+plan. That installation boundary still needs to be proven in disposable
+environments. The project would not silently fall back to checking only the
 latest release when historical installation is unavailable.
 
 The policy would apply only to upgrades performed through `brew-cooldown`.
@@ -166,19 +169,17 @@ Manual `brew upgrade` commands, application self-updaters, and updates to
 Homebrew itself would remain outside its control. It would not provide
 transactional upgrades or automatic rollback.
 
-## Before implementation
+## Design and implementation
 
-The detailed design needs to establish reliable age sources, historical
-candidate and artifact availability, compatible dependency selection, and the
-evidence required for security exceptions. It also needs to show how Homebrew's
-actual installation operations can be constrained to the evaluated versions
-without breaking other installed packages. Those decisions belong in design
-documents before an executable upgrade path is added.
+- [System design](docs/design.md): policy, upstream data ownership, dependency
+  selection, command behavior, and interrupted-operation recovery.
+- [Homebrew integration](docs/homebrew-integration.md): inspected capabilities,
+  exact installation strategy, security evidence, and adapter boundaries.
+- [Verification](docs/verification.md): feasibility checks and implementation
+  order, including progress through frequent root and dependency releases.
 
-An implementation must demonstrate progress through frequent package and
-dependency releases while preserving every selected candidate's cooldown.
-Historical installation is a feasibility gate for that promise, not a feature
-to defer until after a latest-only updater ships.
+The historical installation proof comes first. A working latest-only updater
+would not satisfy the design.
 
 Distribution through Homebrew is a goal for a future release. This project is
 independent of Homebrew and does not imply endorsement or acceptance into its
