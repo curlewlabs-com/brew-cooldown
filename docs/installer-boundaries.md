@@ -105,9 +105,10 @@ brew ruby -- test/integration/lock_boundary.rb
 The hook refusal experiment uses deliberately altered hook fixtures after
 preparing the official candidate map. Those fixtures are never installation
 candidates or represented as signed recipes. They attempt an unplanned formula
-lookup, installer construction and recursive brew invocation. It also changes
-the handoff without changing its digest. Refusals must preserve package
-receipts and `opt` links; the original official hook must still succeed.
+lookup, installer construction, recursive brew invocation and a worker write
+to the handoff. It also changes the handoff without changing its digest.
+Refusals must preserve package receipts and `opt` links. The original official
+hook must still succeed.
 
 The lock experiment exits nonzero with `BLOCKED` when it reproduces the native
 concurrency gap. A failure before reaching its lock observation is a test

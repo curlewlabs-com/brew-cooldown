@@ -34,7 +34,8 @@ end
 probes = {
   "unplanned lookup" => ['Formula["zlib"]', "BrewCooldownWorker::Refused", "unplanned post-install lookup"],
   "recursive installer" => ['FormulaInstaller.new(Formula["fish"])', "BrewCooldownWorker::Refused", "package installation"],
-  "recursive brew" => ['system HOMEBREW_BREW_FILE.to_s, "--version"', "BuildError", "Failed executing"]
+  "recursive brew" => ['system HOMEBREW_BREW_FILE.to_s, "--version"', "BuildError", "Failed executing"],
+  "worker handoff write" => ['File.write(ENV.fetch("HOMEBREW_COOLDOWN_WORKER_PLAN"), "[]")', "Errno::EPERM", "Operation not permitted"]
 }
 
 probes.each do |description, (body, error_class, message)|
