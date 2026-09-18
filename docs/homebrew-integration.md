@@ -1,9 +1,10 @@
 # Homebrew integration
 
-Status: selected integration design with an unproven execution adapter. This
-document separates observed Homebrew capabilities from the behavior we need
-to establish in disposable environments. No host packages were changed during
-the design investigation.
+Status: selected integration design with an experimental execution adapter.
+This document separates observed Homebrew capabilities from the behavior we
+need to establish in disposable environments. See the
+[installer experiment](installer-proof.md) for execution evidence and the
+remaining feasibility work.
 
 ## Findings that shape the design
 

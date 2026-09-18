@@ -1,7 +1,8 @@
 # System design
 
-Status: proposed architecture for review. No executable behavior exists yet.
-The installation adapter must pass the feasibility checks in
+Status: architecture for implementation. The
+[installer experiment](installer-proof.md) exercises the initial execution
+boundary. The installation adapter must pass the feasibility checks in
 [Homebrew integration](homebrew-integration.md) before this design can become
 an unattended updater.
 
