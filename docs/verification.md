@@ -5,7 +5,8 @@ records execution results and remaining gaps. Read [system design](design.md)
 for the behavior being checked and
 [Homebrew integration](homebrew-integration.md) for the integration contract.
 The [boundary experiments](installer-boundaries.md) record the native hook
-result and the concurrency failure currently blocking unattended execution.
+result and the accepted concurrency limitation. Drift and partial failure
+checks must verify actionable, text-only recovery output.
 
 ## Prove the installation boundary first
 

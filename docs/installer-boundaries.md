@@ -2,8 +2,9 @@
 
 Status: the ordinary post-install experiment passed. The concurrency experiment
 found that Homebrew package locks do not protect all relevant peer operations.
-Unattended execution remains blocked under the current design. These are
-destructive experiments for an expendable VM, not supported upgrade commands.
+The operating contract accepts this limitation and recommends avoiding
+overlapping mutations. These are destructive experiments for an expendable
+VM, not supported upgrade commands.
 
 ## Observed post-install behavior
 
@@ -65,29 +66,24 @@ process interruption was injected, and this is not journal reconciliation.
 Taking locks earlier in our own adapter cannot make an independent Homebrew
 process take them earlier. An inventory check can detect a change but cannot
 prevent a peer from changing state immediately afterward. A tool-specific
-lock only coordinates callers that participate in it. These results block
-the stronger concurrency contract in the
-[system design](design.md#applying-a-plan).
-They do not establish that serial historical installation is impossible.
+lock only coordinates callers that participate in it. The
+[system design](design.md#applying-a-plan) accepts this interference risk and
+requires drift reporting with text-only recovery choices.
 
-## Decision needed before unattended execution
+## Operating contract
 
-The operating contract must explicitly choose how the prefix is shared:
+Avoid overlapping package-changing Homebrew commands. Use native package
+locks before our own mutations and inspect inventory again, but do not try to
+enforce exclusive prefix ownership. A native peer can still change a pin or
+move an active keg. Detect drift where possible, report partial results, and
+print commands for restoring a retained installation or repairing forward.
+The user chooses and runs any repair; its effects and cooldown implications
+must be explicit.
 
-- Require a managed prefix with an exclusive writer, with all package mutations
-  routed through the same scheduler or lock. This can avoid depending on an
-  upstream change, but needs enforceable host integration; merely asking users
-  not to run brew is not an isolation mechanism.
-- Support ordinary concurrent Homebrew writers after the required native
-  operations honor the same locks before mutation. That requires upstream
-  changes or a different isolation boundary, beyond a process-local adapter.
-- Accept interference from concurrent Homebrew commands, detect it where
-  possible, and report partial failures. This weakens the current guarantee
-  and must be an explicit product decision, not a hidden fallback.
-
-No option requires a private artifact archive or release database. Broader
-planner and unattended-executor implementation is paused at this feasibility
-boundary rather than silently selecting an operating contract.
+The concurrency experiment remains useful evidence of this limitation. It no
+longer blocks implementation. Continue attempting valid candidates and
+independent components, with specific errors when progress is not possible.
+This decision needs neither upstream coordination nor another artifact store.
 
 ## Reproduce
 
@@ -110,9 +106,9 @@ to the handoff. It also changes the handoff without changing its digest.
 Refusals must preserve package receipts and `opt` links. The original official
 hook must still succeed.
 
-The lock experiment exits nonzero with `BLOCKED` when it reproduces the native
-concurrency gap. A failure before reaching its lock observation is a test
-error, not proof of the gap. `lock_peer.rb` is its subprocess helper; do not
+The lock experiment reports the observed native concurrency gap and verifies
+recovery after the contending command fails. Unexpected failures or incomplete
+restoration fail the experiment. `lock_peer.rb` is its subprocess helper; do not
 run the reinstall mode independently. Destroy the VM after the experiments.
 
 ## Remaining acceptance work
