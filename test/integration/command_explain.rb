@@ -12,7 +12,10 @@ version = BrewCooldown::Prototype::CaskRetained.new("codex").cask.version.to_s
 Dir.mktmpdir("cooldown-explain-") do |directory|
   brewfile = Pathname(directory)/"Brewfile"
   brewfile.write("cask \"codex\"\n")
-  with_env(XDG_STATE_HOME: (Pathname(directory)/"state").to_s) do
+  cache = Pathname(directory)/"cache"
+  # A fresh native cache proves source history and artifact discovery do not
+  # depend on downloads left behind by the historical installation fixtures.
+  with_env(XDG_STATE_HOME: (Pathname(directory)/"state").to_s, HOMEBREW_CACHE: cache.to_s) do
     stdout, status = Open3.capture2(launcher, "explain", "cask:homebrew/cask/codex", "--brewfile", brewfile.to_s, "--json", err: STDERR)
     result = JSON.parse(stdout)
     puts JSON.pretty_generate(result)
@@ -23,7 +26,12 @@ Dir.mktmpdir("cooldown-explain-") do |directory|
       explanation.fetch("installed").fetch("build").fetch("version") == version
     raise "Explanation discarded the full plan" unless result.fetch("scope").any? && result.fetch("components").any? &&
       result.fetch("installed_security").any? { |row| row["coverage"] == "unsupported_package" }
+    raise "Cold-cache qualification needs historical candidate discovery" unless result.fetch("candidates").any? do |row|
+      row.fetch("package").fetch("name") == "codex" && row.fetch("decision")["age_source"] == "homebrew_source_commit"
+    end
+    raise "Qualification did not use its fresh native cache" unless (cache/"downloads").directory? &&
+      (cache/"downloads").children.any?
   end
 end
 raise "Explanation changed packages or pins" unless BrewCooldown::Prototype::Inventory.capture == before
-puts "PASS: native package explanation, full assessment and unchanged installed state"
+puts "PASS: cold-cache native package explanation, full assessment and unchanged installed state"
