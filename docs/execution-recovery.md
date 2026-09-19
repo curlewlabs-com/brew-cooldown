@@ -55,23 +55,23 @@ release on death. A private temporary file is flushed, renamed over the active
 journal and its directory synced. Failure to persist an intended operation
 prevents that mutation. Failure to persist its result leaves it unconfirmed.
 
-The journal records selected identities, package kind and baseline inventory, with
-package states `pending`, `started`, `completed` or `failed`. Persist `started`
-before unlinking the old package. Persist `completed` only after native finish,
-receipt and link verification, and required consumer linkage checks. The
-journal stores evidence references and inventory fingerprints, not recipes or
-artifacts. Homebrew owns reusable downloads.
+The journal records selected identities, package kind and baseline inventory,
+with package states `pending`, `started`, `completed` or `failed`. Persist
+`started` before unlinking the old package. Persist `completed` only after
+native finish, receipt and link verification, and required consumer linkage
+checks. The journal stores evidence references and inventory fingerprints, not
+recipes or artifacts. Homebrew owns reusable downloads.
 
 The tool owns changes only to the planned packages. A component holds its native
-formula locks until completion; native per-installer cleanup must not release them
-early. A new invocation reads an unfinished journal before any mutation.
+formula locks until completion; native per-installer cleanup must not release
+them early. A new invocation reads an unfinished journal before any mutation.
 During a journaled package operation, native implicit dependency installation
-and unlinking a different package fail before those mutations. Dependencies
-must already have completed their own journaled operation.
-Unstarted work is not presented as failed and an installed receipt alone does
-not prove that a hook completed. An interrupted `started` operation remains
-unconfirmed even if its selected keg exists. The operator can repair that
-state and explicitly accept the current inventory to enable a fresh plan.
+and unlinking a different package fail before those mutations. Dependencies must
+already have completed their own journaled operation. Unstarted work is not
+presented as failed and an installed receipt alone does not prove that a hook
+completed. An interrupted `started` operation remains unconfirmed even if its
+selected keg exists. The operator can repair that state and explicitly accept
+the current inventory to enable a fresh plan.
 
 ## Recovery output
 

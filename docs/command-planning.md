@@ -155,7 +155,7 @@ holds the first component's native Ruby lock while PCRE2 and ripgrep upgrade.
 Use a minimal fixture prefix for that mode: additional installed consumers can
 connect Ruby and PCRE2 through shared runtime dependencies. In that connected
 graph, holding either package's lock correctly holds the entire component and
-does not exercise independent progress. Full-Brewfile qualification is a separate
-check.
-`test/integration/command_recovery.rb` checks inspection and acknowledgment of
-unfinished work, including rejection when inventory or the journal set changes.
+does not exercise independent progress. Full-Brewfile qualification is a
+separate check. `test/integration/command_recovery.rb` checks inspection and
+acknowledgment of unfinished work, including rejection when inventory or the
+journal set changes.

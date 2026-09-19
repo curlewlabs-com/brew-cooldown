@@ -1,9 +1,9 @@
 # Scheduled adoption
 
 The checkout performs policy-selected formula and cask upgrades on the validated
-runtime. It replaces the upgrade phase for a qualified, installed Brewfile scope;
-provisioning remains a separate operation. A partial result remains an error for
-the scheduler even when independent upgrades succeed.
+runtime. It replaces the upgrade phase for a qualified, installed Brewfile
+scope; provisioning remains a separate operation. A partial result remains an
+error for the scheduler even when independent upgrades succeed.
 
 ## Casks and shared formula dependencies
 
@@ -71,10 +71,10 @@ scheduler's policy reviewable independently of later default changes:
 Before activation, provision the consumer's actual Brewfile in an expendable
 Apple Silicon VM using ordinary Homebrew. Run `brew update`, then validate the
 resulting runtime and full workload through
-`test/integration/brewfile_acceptance.rb`, with
-`HOMEBREW_COOLDOWN_DISPOSABLE=1` and `HOMEBREW_COOLDOWN_TEST_BREWFILE` naming the
-provisioned file. This exercises the checkout commands and conservative profile;
-the consumer's Brewfile stays outside this repository. It changes no scheduler.
+`test/integration/brewfile_acceptance.rb`, with `HOMEBREW_COOLDOWN_DISPOSABLE=1`
+and `HOMEBREW_COOLDOWN_TEST_BREWFILE` naming the provisioned file. This
+exercises the checkout commands and conservative profile; the consumer's
+Brewfile stays outside this repository. It changes no scheduler.
 
 Qualify both an up-to-date installation and an installation with an eligible
 historical baseline. For the latter, set
@@ -98,9 +98,9 @@ git clone https://github.com/curlewlabs-com/brew-cooldown.git /path/to/brew-cool
 /path/to/brew-cooldown/bin/brew-cooldown --help
 ```
 
-Repository access is required while the project is private. There is no separate
-Ruby installation step: the launcher uses Homebrew's portable Ruby. Invoke the
-launcher by its checkout path, or add the checkout's `bin` directory to `PATH`.
+There is no separate Ruby installation step: the launcher uses Homebrew's
+portable Ruby. Invoke the launcher by its checkout path, or add the checkout's
+`bin` directory to `PATH`.
 The launcher locates its Ruby files relative to itself, so copying or symlinking
 the launcher alone into another directory does not install the tool.
 
@@ -119,8 +119,8 @@ checks it again before applying each selected operation.
 
 ## Scheduler contract
 
-After qualification and activation review, a job refreshes Homebrew, then invokes
-the upgrade command:
+After qualification and activation review, a job refreshes Homebrew, then
+invokes the upgrade command:
 
 ```sh
 set -eu
@@ -145,12 +145,12 @@ containing an evidenced installed-vulnerability fix; their dependencies still
 need eligibility. Cask advisory coverage is explicitly unsupported, so this
 mode cannot promise expedited cask fixes.
 
-Avoid overlapping package-changing Homebrew commands. After a failed run, inspect
-its diagnostics and use `brew-cooldown recover` to inspect any unfinished
-operation. Follow [the recovery procedure](execution-recovery.md) to choose a
-repair and acknowledge the resulting state. The job must not substitute a plain
-`brew upgrade` or `brew bundle install --upgrade` after a cooldown failure:
-those commands select versions outside the assessed policy.
+Avoid overlapping package-changing Homebrew commands. After a failed run,
+inspect its diagnostics and use `brew-cooldown recover` to inspect any
+unfinished operation. Follow [the recovery procedure](execution-recovery.md) to
+choose a repair and acknowledge the resulting state. The job must not substitute
+a plain `brew upgrade` or `brew bundle install --upgrade` after a cooldown
+failure: those commands select versions outside the assessed policy.
 
 Provision newly declared packages explicitly before the next scheduled upgrade.
 Keep the scheduler's state directory stable across runs so fallback observation

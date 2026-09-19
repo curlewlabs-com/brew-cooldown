@@ -179,9 +179,10 @@ that the selected graph needs no such repair before allowing execution.
 
 Recipes with recursive package-manager invocation, unbounded external install
 hooks, or unsupported service behavior cannot be enabled until the adapter can
-enforce the same map across those operations. The initial prototype must
-exercise representative ordinary post-install hooks before its scope is
-declared viable; an adapter that only installs trivial leaves is insufficient.
+enforce the same map across those operations. An adapter that only installs
+trivial leaves is insufficient: the
+[boundary experiments](installer-boundaries.md) exercise a representative
+ordinary post-install hook through the constrained worker.
 
 Homebrew's current dependency checks use more than declared package names and
 can accept already installed versions according to bottle metadata. The

@@ -1,10 +1,12 @@
 # Historical installer experiment
 
-Status: the baseline and historical upgrade experiment passed; the broader
-executor feasibility gate remains open. This is a destructive integration
-experiment for an expendable Apple Silicon macOS Tahoe VM. It is not a
-user-facing command or a supported executor. Do not run it on a workstation
-or a shared runner.
+Status: the baseline and historical upgrade experiment passed. It established
+the installation boundary that `upgrade` now uses; the experiments that
+followed are recorded in [installer boundaries](installer-boundaries.md),
+[execution and recovery](execution-recovery.md) and
+[cask execution](cask-execution.md). This is a destructive integration
+experiment for an expendable Apple Silicon macOS Tahoe VM, not a user-facing
+command. Do not run it on a workstation or a shared runner.
 
 ## Observed result
 
@@ -31,11 +33,12 @@ or the remaining execution cases below.
 
 ## Reproduce in a disposable VM
 
-The experiment uses the Homebrew checkout named in the integration test and
-the normal `/opt/homebrew` prefix. It requires a Homebrew-installed `gh`,
-GitHub credentials for Homebrew's attestation verifier, and network access to
-Homebrew's official registry and GitHub. It must start without PCRE2 or
-ripgrep installed. The VM can otherwise have its usual packages installed.
+The experiment uses the Homebrew checkout recorded in
+`lib/brew_cooldown/validated_homebrew.rb` and the normal `/opt/homebrew` prefix.
+It requires a Homebrew-installed `gh`, GitHub credentials for Homebrew's
+attestation verifier, and network access to Homebrew's official registry and
+GitHub. It must start without PCRE2 or ripgrep installed. The VM can otherwise
+have its usual packages installed.
 
 `test/integration/candidates.json` pins official OCI indexes for the baseline
 and upgrade. These are test inputs, not a retained production history catalog.
