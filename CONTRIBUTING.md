@@ -69,8 +69,9 @@ run them in. Never set that variable on a machine you care about.
 
 `upgrade` runs only on the Homebrew commit the installer adapter was qualified
 against. Supporting a newer commit means rerunning the VM experiments on it and
-then moving the recorded commit in the same pull request as the evidence. A
-version range is never a substitute for that run.
+then moving `VALIDATED_HOMEBREW_COMMIT` in
+`lib/brew_cooldown/validated_homebrew.rb` in the same pull request as the
+evidence. A version range is never a substitute for that run.
 
 ## Submitting
 
