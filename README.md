@@ -188,6 +188,8 @@ transactional upgrades or automatic rollback.
   workers, shared consumers and accepted concurrency limitations.
 - [Execution and recovery](docs/execution-recovery.md): drift reporting,
   interrupted upgrades and text-only recovery commands.
+- [Policy core](docs/policy-core.md): deterministic eligibility, fallback clocks
+  and dependency selection, separate from installation.
 
 The historical installation proof comes first. A working latest-only updater
 would not satisfy the design.
