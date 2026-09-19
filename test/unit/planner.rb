@@ -49,6 +49,28 @@ new_root = option("app", "1.0.2", dependencies: [requirement("library", "1.0.2")
 old_library = option("library", "1.0.1")
 young_library = option("library", "1.0.2", status: :cooldown)
 
+# Recipe-only changes share the package version but have independent clocks.
+# Among mature recipes, publication order wins over arbitrary digest order.
+earlier = old_root.with(dependencies: [], release: old_root.release.with(identity: "a" * 64,
+  published_at: Time.iso8601("2026-08-01T00:00:00Z")))
+later = earlier.with(release: earlier.release.with(identity: "f" * 64,
+  published_at: Time.iso8601("2026-08-02T00:00:00Z")))
+result = resolve([base_root.with(dependencies: []), earlier, later], roots: ["app"]).first
+raise "Newest eligible recipe was not selected" unless result.selected.fetch(package("app")).release.identity == later.release.identity
+
+# Runtime package presence cannot override another consumer's bottle contract.
+runtime_root = old_root.with(dependencies: [BrewCooldown::RuntimeRequirement.new(package: package("library"))])
+result = resolve([base_root.with(dependencies: []), runtime_root], roots: ["app"]).first
+raise "A missing cask runtime dependency became optional" unless result.status == :unchanged
+result = resolve([base_root, base_library, runtime_root, old_library], roots: ["app"]).first
+assert_version(result, "app", "1.0.1")
+assert_version(result, "library", "1.0.0")
+runtime_consumer = option("runtime-consumer", "1.0.0", retained: true,
+  dependencies: [BrewCooldown::RuntimeRequirement.new(package: package("library"))])
+bottle_consumer = option("bottle-consumer", "1.0.0", retained: true, dependencies: [requirement("library", "1.0.0")])
+result = resolve([base_library, old_library, runtime_consumer, bottle_consumer], roots: ["library"]).first
+assert_version(result, "library", "1.0.0")
+
 # A newer root cannot strand an older eligible dependency closure.
 result = resolve([base_root, base_library, old_root, new_root, old_library, young_library], roots: ["app"]).fetch(0)
 raise "Historical closure did not resolve" unless result.status == :resolved

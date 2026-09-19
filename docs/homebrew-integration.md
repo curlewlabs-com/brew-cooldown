@@ -214,10 +214,12 @@ version-aware advisory source is supported.
 
 ## Casks and third-party taps
 
-The first plan reports these packages as `unsupported_executor` rather than
-silently ignoring them. A future cask adapter must retain exact recipe and
-download digests, support historical downloads, honor platform requirements
-and pins, and constrain uninstall/install hooks. `version :latest`, mutable
+The planner evaluates official casks using reachable recipe history and native
+download verification. Their command executor is being connected to the
+[validated cask adapter](cask-execution.md). Third-party taps remain
+`unsupported_executor`. Cask execution must retain exact recipe and download
+digests, honor platform requirements and pins, and constrain uninstall/install
+hooks. `version :latest`, mutable
 downloads without verified digests, application self-updaters, and privileged
 installers cannot inherit formula guarantees.
 

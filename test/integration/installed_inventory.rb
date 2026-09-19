@@ -11,7 +11,7 @@ raise "Inventory read changed installed state" unless before == after
 raise "Native inventory has errors; see diagnostics above" unless inventory.errors.empty?
 raise "Expected installed core formulae" unless inventory.records.keys.any? { |package| package.tap == "homebrew/core" }
 inventory.records.each_value do |record|
-  next unless record.retained
+  next unless record.retained && record.installed.package.kind == :formula
 
   raise "Executor inferred installed rebuild identity" unless record.retained.rebuild.nil?
 end

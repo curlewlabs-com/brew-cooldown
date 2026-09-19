@@ -4,6 +4,8 @@ require_relative "registry"
 require_relative "advisories"
 require_relative "candidate_evidence"
 require_relative "current_formula"
+require_relative "cask_history"
+require_relative "cask_evidence"
 require_relative "installed_inventory"
 require_relative "compatibility"
 require_relative "build_order"
@@ -39,6 +41,10 @@ module BrewCooldown
           package = pending.shift
           next unless visited.add?(package)
 
+          if package.kind == :cask && package.tap == "homebrew/cask"
+            collect_cask(package, pending)
+            next
+          end
           unless package.kind == :formula && package.tap == "homebrew/core"
             record_error(package, "discover", ArgumentError.new("Exact bottled core execution is unavailable for this package"))
             next
@@ -83,6 +89,44 @@ module BrewCooldown
       end
 
       private
+
+      def collect_cask(package, pending)
+        baseline = @inventory.records[package]&.installed
+        return if baseline&.pinned
+
+        current = CurrentCask.fetch(package.name, log: @log)
+        history = CaskHistory.new(current:, log: @log)
+        history.entries.each do |entry|
+          begin
+            candidate = history.candidate(entry)
+            version = Version.new(candidate.cask.version.to_s)
+            next if baseline && version <= Version.new(baseline.build.version)
+            raise RegistryError, "#{package.name}: historical candidate exceeds current cask version; possible rollback" if version > Version.new(current.fetch("version"))
+
+            candidate.prepare
+            release = CaskEvidence.release(package, candidate, published_at: entry.published_at)
+            first_seen = @observations.first_seen(release, now: @now) unless release.published_at
+            assessment = @advisories.assess(release:, installed: baseline)
+            decision = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
+                             .evaluate(release:, installed: baseline, now: @now, security: assessment.evidence, first_seen:)
+            dependencies = CaskEvidence.requirements(candidate.cask)
+            @domains[package] ||= []
+            @domains[package] << Option.new(release:, decision:, dependencies:, compatibility_version: nil, retained: false)
+            @prepared[release.identity] = candidate
+            @decisions << { package: package.to_h, build: release.build.to_h, identity: release.identity, decision: decision.to_h,
+              security: { coverage: assessment.coverage, evidence: assessment.evidence.to_h, advisories: [] } }
+            next unless decision.eligible?
+
+            dependencies.each { |requirement| pending << requirement.package unless @domains.fetch(requirement.package, []).any?(&:retained) }
+          rescue GitHub::API::RateLimitExceededError, GitHub::API::AuthenticationFailedError, GitHub::API::MissingAuthenticationError
+            raise
+          rescue StandardError => error
+            record_error(package, "prepare_cask_candidate", error, commit: entry.commit)
+          end
+        end
+      rescue StandardError => error
+        record_error(package, "discover_cask_history", error)
+      end
 
       def possible_advance?(tag, baseline, current_scheme)
         return true unless baseline && current_scheme == baseline.build.scheme

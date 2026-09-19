@@ -1,8 +1,9 @@
 # Cask execution
 
 Status: the native historical Codex install and upgrade experiment passed.
-Integration with policy, discovery and component recovery is the next step.
-The command does not yet execute casks.
+Historical discovery and policy selection are connected to `plan`. Component
+execution and recovery integration are the next step; the command does not yet
+execute casks.
 
 ## Source, artifact and age
 

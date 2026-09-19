@@ -4,6 +4,9 @@ module BrewCooldown
   module HomebrewAdapter
     module Compatibility
       def self.call(requirement, option)
+        return false unless requirement.package == option.release.package
+        return true if requirement.is_a?(RuntimeRequirement)
+
         required = requirement.build
         selected = option.release.build
         # Native installed-dependency requirements use PkgVersion, not the
