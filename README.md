@@ -192,6 +192,8 @@ transactional upgrades or automatic rollback.
   bottle installation in an expendable macOS VM.
 - [Boundary experiments](docs/installer-boundaries.md): native post-install
   workers, shared consumers and accepted concurrency limitations.
+- [Cask execution](docs/cask-execution.md): historical native installation
+  evidence and the cask adapter design.
 - [Execution and recovery](docs/execution-recovery.md): drift reporting,
   interrupted upgrades and text-only recovery commands.
 - [Policy core](docs/policy-core.md): deterministic eligibility, fallback clocks
