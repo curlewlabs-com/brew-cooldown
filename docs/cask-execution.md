@@ -13,6 +13,13 @@ recipe at an immutable commit, verify its content identity, and evaluate the
 original Ruby with Homebrew's cask loader. Do not synthesize a current API recipe
 with an older version substituted into it.
 
+Walk that history from its newest commit, a page at a time, and stop at the
+installed version. Older commits were superseded before this installation, and
+a higher version further back is one Homebrew later rolled back, so neither can
+be a candidate. Stopping there also bounds the GitHub requests by the commits
+since installation instead of by the age of the cask. A cask without an
+installed baseline still walks its whole history.
+
 The recipe supplies the platform-specific vendor URL and checksum. Downloads
 use Homebrew's cask cache, checksum verification and quarantine behavior.
 Require a concrete version and checksum before using a release-age decision.

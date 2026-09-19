@@ -40,11 +40,18 @@ undated = fixture.fetch("commits").first.merge("commit" => { "committer" => {} }
 fallback = BrewCooldown::HomebrewAdapter::CaskHistory.new(current:, log:, request: ->(_url) { [undated] }).entries.first
 raise "Missing publication time became an age" unless fallback.published_at.nil?
 begin
-  BrewCooldown::HomebrewAdapter::CaskHistory.new(current:, log:, request: ->(_url) { [undated, undated] }).entries
+  BrewCooldown::HomebrewAdapter::CaskHistory.new(current:, log:, request: ->(_url) { [undated, undated] }).entries.to_a
 rescue BrewCooldown::HomebrewAdapter::RegistryError
   duplicate_rejected = true
 end
 raise "Repeated history accepted" unless duplicate_rejected
+begin
+  BrewCooldown::HomebrewAdapter::CaskHistory.new(current:, log:, request: ->(_url) { [] }).entries.first
+rescue BrewCooldown::HomebrewAdapter::RegistryError => error
+  raise unless error.message.include?("history is empty")
+  empty_rejected = true
+end
+raise "Empty official history looked like a cask without releases" unless empty_rejected
 
 # A retained historical download must not evade Homebrew's current rollback.
 begin
@@ -60,12 +67,22 @@ raise "Candidate ahead of current Homebrew accepted" unless rollback_rejected
 full_page = 100.times.map do |index|
   fixture.fetch("commits").first.merge("sha" => index.to_s(16).rjust(40, "0"))
 end
-paginated = BrewCooldown::HomebrewAdapter::CaskHistory.new(current:, log:, request: lambda do |url|
+pages = []
+paginated_history = BrewCooldown::HomebrewAdapter::CaskHistory.new(current:, log:, request: lambda do |url|
   page = URI.decode_www_form(URI(url).query).to_h.fetch("page")
+  pages << page
   page == "1" ? full_page : fixture.fetch("commits")
-end).entries
+end)
+paginated = paginated_history.entries.to_a
 raise "History pagination dropped a later candidate" unless paginated.last.commit == fixture.fetch("commits").last.fetch("sha") &&
   paginated.length == full_page.length + fixture.fetch("commits").length
+
+# Discovery stops at the installed version and revalidation at the selected
+# commit. Neither may pay for the older pages of a long-lived cask's history.
+pages.clear
+found = paginated_history.entries.find { |record| record.commit == full_page.last.fetch("sha") }
+raise "Early stop lost the requested commit" unless found
+raise "A caller that stopped early still fetched later pages: #{pages}" unless pages == ["1"]
 
 [current.merge("disabled" => true), current.merge("tap" => "elsewhere/cask"),
  current.merge("ruby_source_path" => "../codex.rb"), current.merge("version" => "latest")].each do |invalid|

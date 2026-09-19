@@ -106,7 +106,11 @@ module BrewCooldown
           begin
             candidate = history.candidate(entry)
             version = Version.new(candidate.cask.version.to_s)
-            next if baseline && version <= Version.new(baseline.build.version)
+            # History is newest first, so everything older was superseded
+            # before this installation. A higher version further back is one
+            # Homebrew later rolled back, and must not return as a candidate.
+            break if baseline && version <= Version.new(baseline.build.version)
+
             CurrentCask.verify_candidate!(current, version.to_s)
 
             candidate.prepare
