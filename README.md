@@ -192,6 +192,8 @@ transactional upgrades or automatic rollback.
   and dependency selection, separate from installation.
 - [Security evidence](docs/security-evidence.md): native advisory refresh,
   exact-version assessment and evidence required for expedited adoption.
+- [Registry discovery](docs/registry-discovery.md): upstream historical tags,
+  immutable manifest identity and platform publication evidence.
 
 The historical installation proof comes first. A working latest-only updater
 would not satisfy the design.
