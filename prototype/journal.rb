@@ -3,6 +3,7 @@
 require "json"
 require "tempfile"
 require_relative "inventory"
+require_relative "errors"
 
 module BrewCooldown
   module Prototype
@@ -30,11 +31,14 @@ module BrewCooldown
         parsed = JSON.parse(path.read)
         raise Refused, "unsupported execution journal schema" unless parsed.is_a?(Hash) && parsed["schema"] == 1
         raise Refused, "journal belongs to a different Homebrew prefix" unless parsed.fetch("prefix") == HOMEBREW_PREFIX.realpath.to_s
-        unless parsed.fetch("inventory").is_a?(Hash) && parsed.fetch("operations").is_a?(Array)
+        unless parsed.fetch("inventory").is_a?(Hash) && parsed.fetch("inventory").all? { |key, value| key.is_a?(String) && value.is_a?(String) } &&
+               parsed.fetch("operations").is_a?(Array)
           raise Refused, "invalid execution journal contents"
         end
         parsed.fetch("operations").each do |entry|
-          unless entry.is_a?(Hash) && entry.fetch("name").is_a?(String) &&
+          unless entry.is_a?(Hash) && entry.fetch("name").is_a?(String) && entry.fetch("name").match?(/\A[a-z0-9][a-z0-9+@._-]*\z/) &&
+                 entry.fetch("version").is_a?(String) && !entry.fetch("version").empty? &&
+                 (entry["previous_keg"].nil? || entry["previous_keg"].is_a?(String)) &&
                  %w[pending started completed failed].include?(entry.fetch("status")) &&
                  [true, false].include?(entry.fetch("keg_only"))
             raise Refused, "invalid journal operation"
@@ -78,9 +82,8 @@ module BrewCooldown
         result
       end
 
-      def report
+      def report(observed: Inventory.capture)
         load unless data
-        observed = Inventory.capture
         {
           "status" => "needs_reconciliation",
           "journal" => path.to_s,

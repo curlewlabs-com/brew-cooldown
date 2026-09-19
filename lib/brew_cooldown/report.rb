@@ -4,6 +4,27 @@ require "time"
 
 module BrewCooldown
   module Report
+    def self.print_recovery(result, output)
+      output.puts("Homebrew cooldown recovery: #{result.fetch(:status)}")
+      output.puts(result[:message]) if result[:message]
+      output.puts("Error: #{result[:error]}") if result[:error]
+      output.puts("Journal: #{result[:journal]}") if result[:journal]
+      Array(result[:drift]).each do |change|
+        output.puts("Changed #{change.fetch('path')}: expected #{change['expected'].inspect}, observed #{change['observed'].inspect}")
+      end
+      Array(result[:operations]).each do |operation|
+        output.puts("#{operation.fetch('name')} #{operation.fetch('version')}: #{operation.fetch('status')}")
+        output.puts("  Previous keg: #{operation['previous_keg']}") if operation['previous_keg']
+        output.puts("  Error: #{operation['error']}") if operation['error']
+        Array(operation['recovery']).each do |choice|
+          output.puts("  #{choice.fetch('purpose')}:\n    #{choice.fetch('command')}")
+        end
+      end
+      if (choice = result[:accept_current])
+        output.puts("#{choice.fetch('purpose')}:\n  #{choice.fetch('command')}")
+      end
+    end
+
     def self.print_human(result, output)
       output.puts("Homebrew cooldown plan: #{result.fetch(:status)}")
       result.fetch(:scope).each do |entry|

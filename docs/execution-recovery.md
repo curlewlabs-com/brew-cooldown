@@ -2,7 +2,17 @@
 
 Status: the execution and interruption experiments passed on the platform and
 Homebrew commit recorded in [installer boundaries](installer-boundaries.md).
-This remains a prototype, without a public recovery command.
+The checkout exposes journal inspection through `brew-cooldown recover` and
+`brew-cooldown recover --json`. General upgrade execution is still being
+connected to the planner.
+
+Recovery inspection prints a command to explicitly accept the current state
+after the operator has inspected or repaired it. `recover --accept-current
+DIGEST` binds that acknowledgment to the exact journal and observed Homebrew
+inventory, checked again under the tool lock. Changed evidence requires fresh
+inspection. Acceptance clears only the unfinished journal; it neither runs
+repair commands nor certifies hook side effects. Malformed journals are
+preserved and reported for inspection. No installation receipt is created.
 
 Execute a dependency-ordered component through native installers. Prepare and
 verify candidates before mutation. Acquire the tool's prefix-scoped lock and
