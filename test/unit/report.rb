@@ -40,6 +40,17 @@ BrewCooldown::Report.print_upgrade({ status: "completed", scope: [], errors: [],
     build: { version: "2.0.0", revision: 0, rebuild: 0 }, decision: { reason: "Mature release" } }] }] }, output)
 raise "Unexecuted proposal presented as an upgrade" if output.string.include?("Upgrade app")
 
+# A component borrows the journal's operation layout. A completed upgrade must
+# not be announced as a recovery, which would send the operator looking for an
+# interruption that never happened.
+output = StringIO.new
+BrewCooldown::Report.print_upgrade({ status: "completed", execution: [
+  { "status" => "completed", "operations" => [{ "kind" => "formula", "name" => "app", "version" => "2.0.0", "status" => "completed" }] }
+] }, output)
+raise "Completed operation hidden" unless output.string.include?("Component: completed") &&
+  output.string.include?("formula/app 2.0.0: completed")
+raise "Completed upgrade presented as recovery" if output.string.match?(/recover/i)
+
 # A native pre-install drift result must expose the changed path as well as
 # repair commands, before an unfinished journal exists.
 output = StringIO.new

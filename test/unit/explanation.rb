@@ -39,6 +39,13 @@ result = { schema: 1, command: "plan", status: "assessed",
   raise "Native baseline serialized as text" unless json.fetch("explanation").fetch("installed").fetch("build").fetch("version") == "1.2.0"
 end
 
+# A resolved component has no blocker to report. Its line must end at the
+# status instead of trailing a separator that reads like a lost explanation.
+resolved = result.merge(components: [result.fetch(:components).first.merge(status: :resolved, reason: nil, rejected_options: {})])
+output = StringIO.new
+BrewCooldown::Report.print_explanation(BrewCooldown::Explanation.call(resolved, requested: "tool", installed: [installed]), output)
+raise "Resolved component trailed an empty reason" unless output.string.lines.map(&:chomp).include?("Dependency component: resolved")
+
 # A security bypass must name the proven fixes rather than looking like an
 # ordinary mature release or an assurance that no vulnerabilities exist.
 security_candidate = candidate.merge(decision: candidate.fetch(:decision).merge(status: :security_fix,

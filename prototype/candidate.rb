@@ -29,10 +29,10 @@ module BrewCooldown
       end
 
       def prepare(allow_hooks: false)
-        # Homebrew may bootstrap gh automatically; the experiment may not add
-        # prerequisites outside its fixed package map.
+        # Homebrew bootstraps a missing gh by installing it. That installation
+        # would happen outside the evaluated plan, so ask the operator instead.
         unless (HOMEBREW_PREFIX/"opt/gh/bin/gh").executable?
-          raise Refused, "install gh with Homebrew before running this experiment"
+          raise Refused, "Homebrew's gh formula is needed to verify bottle attestations; run `brew install gh`"
         end
 
         index = registry_json("manifests", @index_sha256)
@@ -78,7 +78,7 @@ module BrewCooldown
           raise Refused, "recipe identity differs"
         end
         if !allow_hooks && (formula.post_install_defined? || formula.post_install_steps_defined?)
-          raise Refused, "hook worker not enabled for this experiment"
+          raise Refused, "#{@name}: recipe defines a post-install hook and the hook worker was not requested"
         end
 
         formula.bottle_specification.root_url(DOMAIN)

@@ -25,7 +25,10 @@ module BrewCooldown
       components = result.fetch(:components).select do |component|
         component.fetch(:roots).include?(package) || component.fetch(:selected).any? { |entry| entry.fetch(:package) == package }
       end
-      components.each { |component| output.puts("Dependency component: #{component.fetch(:status)} - #{component.fetch(:reason)}") }
+      components.each do |component|
+        reason = component[:reason] ? " - #{component[:reason]}" : ""
+        output.puts("Dependency component: #{component.fetch(:status)}#{reason}")
+      end
       identities = components.flat_map { |component| component.fetch(:rejected_options).keys }
       # Preserve errors for the full assessment even when narrowing its display;
       # unrelated failures must not become successful package explanations.
@@ -47,7 +50,9 @@ module BrewCooldown
       end
       Array(result[:execution]).each do |component|
         output.puts("Component: #{component.fetch('status')}")
-        print_recovery(component.transform_keys(&:to_sym), output)
+        # A component reuses the journal's operation layout. Its status line
+        # is already printed, and a completed upgrade is not a recovery.
+        print_recovery(component.transform_keys(&:to_sym), output, heading: nil)
         component.fetch("recovery", {}).each_value do |choices|
           choices.each { |choice| output.puts("#{choice.fetch('purpose')}:\n  #{choice.fetch('command')}") }
         end
@@ -58,8 +63,8 @@ module BrewCooldown
       end
     end
 
-    def self.print_recovery(result, output)
-      output.puts("Homebrew cooldown recovery: #{result.fetch(:status)}")
+    def self.print_recovery(result, output, heading: "Homebrew cooldown recovery")
+      output.puts("#{heading}: #{result.fetch(:status)}") if heading
       output.puts(result[:message]) if result[:message]
       output.puts("Error: #{result[:error]}") if result[:error]
       output.puts("Journal: #{result[:journal]}") if result[:journal]
