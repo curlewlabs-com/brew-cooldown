@@ -109,6 +109,13 @@ unpin a package. There is no automatic maximum-wait bypass.
 Scope is either `scope.brewfile` or `scope.installed`, never both. Resolve a
 configured relative Brewfile path against the configuration directory, and a
 CLI path against the working directory. Scheduling stays with the caller.
+For Brewfile scope, follow runtime dependencies in the installed Homebrew
+receipts and include that closure as upgrade targets. An unchanged or pinned
+root does not suppress assessment of its dependencies. Report the requesting
+consumer for each added target, preserving canonical kind and tap identity.
+Do not follow reverse consumers into upgrade scope; they remain compatibility
+constraints. Missing installed dependency evidence is an assessment error.
+
 Daily ordinary runs are the recommended starting point: cooldowns already
 govern routine adoption. A weekly routine schedule can be paired with daily
 `upgrade --security-only` runs.
@@ -154,6 +161,10 @@ tool performs. An absent installed bottle rebuild remains unknown; an embedded
 recipe's default cannot fill that gap. Ordinary version and revision advances
 can still qualify. A rebuild-only candidate whose advancement cannot be proved
 gets an explicit diagnostic, while independent eligible work proceeds.
+The diagnostic does not turn an already installed version and revision into an
+upgrade failure. Native Homebrew's outdated check uses package version and
+version scheme, not a persisted bottle rebuild. Security evidence that leaves
+an installed vulnerability without an actionable fix remains an error.
 
 The normalized candidate graph exists in memory for one invocation. Historical
 queries are scoped to selected roots and discovered dependencies, paginated,
@@ -268,8 +279,10 @@ service or invent a different interpretation of Homebrew dependencies.
 The preference order is: components with verified security fixes, then roots
 whose eligible upgrade has waited longest, then canonical package identity.
 For each prioritized root, prefer its newest feasible eligible candidate.
-Prefer keeping dependencies unchanged where they satisfy the solution; then
-prefer eligible upgrades. Retain alternatives and backtrack on conflicts.
+Installed runtime dependencies in scope receive the same upgrade preference.
+For dependencies introduced by a candidate outside that installed closure,
+prefer an already compatible installation before an eligible replacement.
+Retain alternatives and backtrack on conflicts.
 Derive a root's oldest outstanding eligibility timestamp from the available
 historical candidates on each run, using the small fallback observation ledger
 only when needed. New publications do not change older candidates' timestamps.

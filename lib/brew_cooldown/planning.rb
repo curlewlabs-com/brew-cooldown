@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "config"
+require_relative "runtime_scope"
 require_relative "homebrew/scope"
 require_relative "homebrew/discovery"
 require_relative "homebrew/advisories"
@@ -17,6 +18,17 @@ module BrewCooldown
       entries = HomebrewAdapter::Scope.read(@scope, installed: inventory.records.keys)
       scope_results = entries.map { |entry| resolve_entry(entry, inventory) }
       roots = scope_results.filter_map { |entry| entry[:package] if %i[selected pinned].include?(entry[:status]) }.uniq
+      dependencies = RuntimeScope.expand(roots:, dependencies: inventory.records.transform_values(&:dependencies))
+      dependencies.each do |package, required_by|
+        next if scope_results.any? { |entry| entry[:package] == package }
+
+        entry = HomebrewAdapter::ScopeEntry.new(kind: package.kind, name: "#{package.tap}/#{package.name}", options: {})
+        result = resolve_entry(entry, inventory).merge(origin: :runtime_dependency, required_by: required_by.map(&:to_h))
+        result[:reason] = "Required runtime dependency is absent from readable installed inventory" if result[:status] == :missing
+        result[:reason] ||= "Runtime dependency of #{required_by.map { |consumer| "#{consumer.kind}:#{consumer.tap}/#{consumer.name}" }.join(', ')}"
+        scope_results << result
+        roots << package if %i[selected pinned].include?(result[:status])
+      end
       errors = inventory.errors.dup
       errors.concat(scope_results.select { |entry| %i[missing unsupported_executor ambiguous].include?(entry[:status]) })
       advisory = HomebrewAdapter::Advisories.refresh(now: @now, log: @log)
@@ -61,7 +73,7 @@ module BrewCooldown
         inventory_digest: Digest::SHA256.hexdigest(JSON.generate(inventory.fingerprint)),
         scope: scope_results.map { |entry| entry.merge(package: entry[:package]&.to_h) },
         components: resolutions.map { |resolution| render_resolution(resolution) },
-        candidates: discovery.decisions, installed_security:, errors:,
+        candidates: discovery.decisions, installed_security:, diagnostics: discovery.diagnostics, errors:,
       }
     end
 

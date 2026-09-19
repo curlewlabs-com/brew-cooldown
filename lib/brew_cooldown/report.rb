@@ -73,6 +73,12 @@ module BrewCooldown
       result.fetch(:installed_security).each do |assessment|
         output.puts("Security coverage for #{assessment.fetch(:package).fetch(:name)}: #{assessment.fetch(:coverage)}")
       end
+      Array(result[:diagnostics]).each do |entry|
+        output.puts("Note: #{entry.fetch(:reason)}")
+        Array(entry[:recovery]).each do |choice|
+          output.puts("  #{choice.fetch('purpose')}:\n    #{choice.fetch('command')}")
+        end
+      end
       result.fetch(:errors).each do |entry|
         output.puts("Error: #{entry[:error] || entry[:reason]}")
         recoveries = entry[:recovery]

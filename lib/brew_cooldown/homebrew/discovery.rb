@@ -13,7 +13,7 @@ require_relative "../observations"
 
 module BrewCooldown
   module HomebrewAdapter
-    DiscoveryResult = Data.define(:domains, :prepared, :decisions, :errors)
+    DiscoveryResult = Data.define(:domains, :prepared, :decisions, :errors, :diagnostics)
 
     class Discovery
       class UnknownInstalledBuild < StandardError; end
@@ -21,7 +21,7 @@ module BrewCooldown
       def initialize(inventory:, config:, advisories:, observations:, now:, log:)
         @inventory, @config, @advisories, @observations, @now, @log = inventory, config, advisories, observations, now, log
         @registry = Registry.new(transport: RegistryTransport.new(log:))
-        @domains, @prepared, @decisions, @errors = {}, {}, [], []
+        @domains, @prepared, @decisions, @errors, @diagnostics = {}, {}, [], [], []
         inventory.records.each do |package, record|
           release = Release.new(package:, build: record.installed.build, identity: record.identity, verified: true,
                                 published_at: nil, publication_source: nil)
@@ -80,12 +80,18 @@ module BrewCooldown
                 retained = @domains.fetch(requirement.package, []).find(&:retained)
                 pending << requirement.package unless retained && Compatibility.call(requirement, retained)
               end
+            rescue UnknownInstalledBuild => error
+              details = { operation: "inspect_installed_artifact", status: "unknown_installed_build",
+                          package: package.to_h, reason: error.message, tag:,
+                          recovery: Prototype::Recovery.commands(package.name) }
+              @diagnostics << details
+              @log.call(**details)
             rescue StandardError => error
               record_error(package, "prepare_candidate", error, tag:)
             end
           end
         end
-        DiscoveryResult.new(domains: @domains, prepared: @prepared, decisions: @decisions, errors: @errors)
+        DiscoveryResult.new(domains: @domains, prepared: @prepared, decisions: @decisions, errors: @errors, diagnostics: @diagnostics)
       end
 
       private
@@ -147,8 +153,9 @@ module BrewCooldown
         if comparison.zero? && baseline.build.rebuild.nil?
           return false if metadata.rebuild.zero?
 
-          raise UnknownInstalledBuild, "#{metadata.name} #{metadata.pkg_version}: Homebrew does not record the installed bottle rebuild; " \
-                                       "cannot establish whether registry rebuild #{metadata.rebuild} advances it"
+          raise UnknownInstalledBuild, "#{metadata.name} #{metadata.pkg_version}: this version and revision are already installed; " \
+                                       "Homebrew does not record the installed bottle rebuild, so registry rebuild #{metadata.rebuild} " \
+                                       "cannot establish an upgrade. No rebuild-only replacement is selected"
         end
         comparison.positive? || (comparison.zero? && metadata.rebuild > baseline.build.rebuild)
       end
@@ -186,7 +193,6 @@ module BrewCooldown
       def record_error(package, operation, error, **context)
         details = { operation:, package: package.to_h, error: error.message, error_class: error.class.name,
                     backtrace: error.backtrace, **context }
-        details[:recovery] = Prototype::Recovery.commands(package.name) if error.is_a?(UnknownInstalledBuild)
         @errors << details
         @log.call(**details)
       end
