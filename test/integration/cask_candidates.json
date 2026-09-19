@@ -1,0 +1,16 @@
+{
+  "baseline": {
+    "name": "codex",
+    "version": "0.144.5",
+    "commit": "83808edf1032d7ef935144e8f249b2cecbc0461e",
+    "source_path": "Casks/c/codex.rb",
+    "source_sha256": "c6e4fc9092689542e4248bf809cd127c23f21e9c17a2bff7486099d16eed84f5"
+  },
+  "upgrade": {
+    "name": "codex",
+    "version": "0.144.6",
+    "commit": "00799c30022f4a3b89f837f8137387a298717a9f",
+    "source_path": "Casks/c/codex.rb",
+    "source_sha256": "508e4115af80643a04f873bace7929a39f47019edd6738e5ebbede8641f88977"
+  }
+}
