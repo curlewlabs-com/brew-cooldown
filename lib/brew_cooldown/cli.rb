@@ -24,7 +24,7 @@ module BrewCooldown
         flags.on("--config PATH", "Read configuration from PATH") { |value| options[:config] = value }
         flags.on("--security-only", "Upgrade only components with an evidenced installed security fix") { options[:security_only] = true }
         flags.on("--accept-current DIGEST", "Acknowledge the journal and inventory shown by recover") { |value| options[:accept_current] = value }
-        flags.on("--json", "Write a structured plan") { options[:json] = true }
+        flags.on("--json", "Write the structured result to stdout") { options[:json] = true }
         flags.on("-h", "--help", "Show supported command options") do
           output.puts(flags)
           return 0
@@ -80,7 +80,6 @@ module BrewCooldown
     ensure
       output&.close
     end
-
   end
 end
 

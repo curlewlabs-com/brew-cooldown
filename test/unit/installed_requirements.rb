@@ -21,7 +21,6 @@ raise "Third-party tap became core" unless tapped.package.tap == "example/tap"
     # A malformed receipt cannot become an empty dependency list.
   end
 end
-puts "PASS: native dependency identities, formula revisions, explicit cohorts and unknown rebuilds"
 
 # Cask receipts observe local dependencies, not the vendor's binary build.
 # Preserve package identity without inventing an exact bottle ABI constraint.
@@ -37,3 +36,4 @@ raise "Cask dependency kind was lost" unless presence.last.package.kind == :cask
   end
   raise "Invalid cask dependency evidence accepted"
 end
+puts "PASS: native dependency identities, formula revisions, explicit cohorts, unknown rebuilds and cask presence requirements"
