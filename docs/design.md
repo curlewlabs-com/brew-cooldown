@@ -29,6 +29,16 @@ adapter; the policy and planning core takes ordinary typed domain records and
 an injected UTC timestamp. A formula-managed Python or Ruby interpreter must
 not be needed while its own package is being upgraded.
 
+Keep the policy and planner separate from the Homebrew adapter within the Ruby
+product. A second language would add a serialization contract, runtime packaging
+and cross-process failure handling without simplifying the native installer.
+Introduce that boundary only if a concrete benefit warrants its maintenance.
+
+Handwritten source and test files should generally stay below 800 lines.
+Growing files call for a review of responsibilities and cohesive collaborators,
+not arbitrary text splitting. Apply this during development and review; no
+repository-specific enforcement framework is required.
+
 The command is `brew-cooldown`, also invocable as `brew cooldown` through
 Homebrew's external-command discovery. An executable launcher only enters the
 Homebrew Ruby environment and forwards arguments. There is no service,
