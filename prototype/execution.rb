@@ -111,7 +111,8 @@ module BrewCooldown
           begin
             Homebrew.failed = false
             Postinstall.with_map(map) do
-              installer = FormulaInstaller.new(formula, installed_on_request: true)
+              requested = formula.opt_prefix.exist? && Tab.for_keg(Keg.new(formula.opt_prefix.realpath)).installed_on_request
+              installer = FormulaInstaller.new(formula, installed_on_request: requested, link_keg: formula.linked?)
               installer.prelude
               installer.fetch
               Homebrew::Install.install_formula(installer, upgrade: formula.opt_prefix.exist?)
@@ -136,6 +137,8 @@ module BrewCooldown
             inventory = after
             journal.record(formula.name, "completed", inventory:)
           rescue StandardError => error
+            warn JSON.generate("operation" => "install", "package" => formula.name,
+                               "error" => "#{error.class}: #{error.message}", "backtrace" => error.backtrace)
             journal.record(formula.name, "failed", error: "#{error.class}: #{error.message}")
             return journal.report
           end

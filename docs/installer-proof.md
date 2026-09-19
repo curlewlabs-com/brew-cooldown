@@ -77,7 +77,6 @@ An absent advisory match is not such evidence. Destroy the VM afterward.
 This baseline experiment continues to refuse recipes defining hooks. The
 separate [boundary experiments](installer-boundaries.md) exercise a constrained
 native hook worker and reproduce a concurrency gap in Homebrew's package
-locking. Shared consumers, compatibility evidence, interruption, inventory
-races and Homebrew compatibility fingerprints still need the broader
-[acceptance checks](verification.md). Neither experiment enables unattended
-execution.
+locking. Further boundary experiments cover shared consumers, compatibility
+evidence, interruption, inventory drift and interpreter upgrades. The broader
+[acceptance checks](verification.md) still apply before unattended execution.

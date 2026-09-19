@@ -138,7 +138,34 @@ brew ruby -- test/integration/shared_consumer.rb upgrade
 ## Remaining acceptance work
 
 The [execution experiments](execution-recovery.md) cover pin drift,
-interruption, journal reconciliation and subsequent completion. Adapter
-identity changes and interpreter upgrades remain unproven. The complete release
-bar remains in [verification](verification.md). These experiments do not yet
-make this a replacement for a scheduled Brewfile job.
+interruption, journal reconciliation and subsequent completion. Modifying the
+Homebrew checkout also produced an error before package mutation. The recovery
+experiment executed the printed retained-keg commands as an explicit operator
+choice, restored the historical versions and passed the PCRE runtime check.
+
+The interpreter experiment installed ruby@3.3 3.3.11 and upgraded it to 3.3.12
+through the executor. Its native hook succeeded, and the upgraded interpreter
+loaded OpenSSL and Psych. The tool's process and Homebrew-owned Ruby executable
+remained unchanged throughout. Keg-only formulae retain their existing prefix
+link choice; the adapter does not invoke native automatic promotion of a new
+versioned formula onto the prefix's executable paths.
+
+Installed dependency relationships with neither endpoint changing are retained.
+For a replacement, the installed recipe and consumer receipt supply compatibility
+evidence. A poured receipt can omit a compatibility identifier present in the
+recipe stored inside that same keg. The adapter uses that installed recipe and
+rejects an explicitly conflicting receipt; it does not load today's recipe to
+invent compatibility for an old installation.
+
+With the interpreter fixture's dependencies installed in the expendable VM:
+
+```sh
+export HOMEBREW_COOLDOWN_TEST_STATE="$PWD/interpreter-state"
+brew ruby -- test/integration/interpreter_upgrade.rb baseline
+brew ruby -- test/integration/interpreter_upgrade.rb upgrade
+```
+
+General history discovery, policy-driven graph selection and public commands
+remain to be connected to these prototypes. The complete release bar remains
+in [verification](verification.md). These experiments do not yet make this a
+replacement for a scheduled Brewfile job.

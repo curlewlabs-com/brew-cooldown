@@ -21,7 +21,7 @@ module BrewCooldown
         @version = record.fetch("version")
         @rebuild = record.fetch("rebuild", 0)
         @index_sha256 = record.fetch("index_sha256")
-        raise Refused, "unsupported test identity" unless %w[pcre2 ripgrep fish ncurses].include?(@name)
+        raise Refused, "unsupported test identity" unless %w[pcre2 ripgrep fish ncurses ruby@3.3].include?(@name)
         raise Refused, "invalid index digest" unless @index_sha256.match?(/\A[0-9a-f]{64}\z/)
         raise Refused, "invalid bottle rebuild" unless rebuild.is_a?(Integer) && rebuild >= 0
       end
@@ -88,7 +88,7 @@ module BrewCooldown
         # Keep the native Bottle and its dependency reader, but resolve its
         # manifest by immutable digest instead of the moving version tag.
         resource = bottle.github_packages_manifest_resource
-        resource.url("#{DOMAIN}/#{@name}/manifests/sha256:#{@index_sha256}",
+        resource.url("#{DOMAIN}/#{GitHubPackages.image_formula_name(@name)}/manifests/sha256:#{@index_sha256}",
                      using: CurlGitHubPackagesDownloadStrategy,
                      headers: ["Accept: application/vnd.oci.image.index.v1+json"])
         resource.fetch
@@ -115,6 +115,10 @@ module BrewCooldown
         true
       end
 
+      def compatibility_version
+        formula.compatibility_version
+      end
+
       def identity
         { "name" => @name, "version" => @version, "rebuild" => rebuild,
           "platform" => TAG.to_s, "index_sha256" => @index_sha256,
@@ -127,7 +131,7 @@ module BrewCooldown
         raise Refused, "invalid registry digest" unless digest.match?(/\A[0-9a-f]{64}\z/)
 
         resource = Resource.new("#{@name}-#{digest}")
-        resource.url("#{DOMAIN}/#{@name}/#{kind}/sha256:#{digest}",
+        resource.url("#{DOMAIN}/#{GitHubPackages.image_formula_name(@name)}/#{kind}/sha256:#{digest}",
                      using: CurlGitHubPackagesDownloadStrategy,
                      headers: ["Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json"])
         resource.version(@version)

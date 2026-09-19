@@ -26,22 +26,23 @@ module BrewCooldown
 
     module Recovery
       def self.commands(name, previous_keg: nil, keg_only: false)
+        brew = HOMEBREW_BREW_FILE.to_s
         commands = [
-          { "purpose" => "Inspect installed versions", "command" => Shellwords.join(["brew", "list", "--versions", name]) },
-          { "purpose" => "Inspect package details and pin state", "command" => Shellwords.join(["brew", "info", "--json=v2", name]) }
+          { "purpose" => "Inspect installed versions", "command" => Shellwords.join([brew, "list", "--versions", name]) },
+          { "purpose" => "Inspect package details and pin state", "command" => Shellwords.join([brew, "info", "--json=v2", name]) }
         ]
         if previous_keg && Pathname(previous_keg).directory?
           method = keg_only ? "optlink" : "link"
           code = "require 'keg'; Keg.new(Pathname(#{previous_keg.to_s.dump})).#{method}"
           commands << {
             "purpose" => "Restore retained keg links; does not undo post-install configuration changes",
-            "command" => Shellwords.join(["brew", "unlink", "--formula", name]) + " && " +
-                         Shellwords.join(["brew", "ruby", "-e", code])
+            "command" => Shellwords.join([brew, "unlink", "--formula", name]) + " && " +
+                         Shellwords.join([brew, "ruby", "-e", code])
           }
         end
         commands << {
           "purpose" => "Repair forward with Homebrew's current release, outside the cooldown policy",
-          "command" => Shellwords.join(["brew", "reinstall", "--formula", name])
+          "command" => Shellwords.join([brew, "reinstall", "--formula", name])
         }
         commands
       end

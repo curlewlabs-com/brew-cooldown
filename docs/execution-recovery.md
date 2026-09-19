@@ -46,6 +46,9 @@ and is outside the tool's cooldown selection; relinking does not undo changes
 made by a post-install hook. Do not suggest forced overwrites or unpinning as
 automatic repair.
 
+Commands use the observed Homebrew executable's absolute path so they also
+work when a scheduler or Homebrew subprocess has a restricted `PATH`.
+
 These are text commands. Neither error reporting nor journal inspection runs
 them. Explicitly accepting a repaired inventory acknowledges uncertainty about
 hooks; it does not execute or certify their side effects. Subsequent upgrades
@@ -76,6 +79,11 @@ Explicit acceptance removed the journal without changing installed packages.
 A subsequent complete execution upgraded PCRE2 10.46 to 10.47 and ripgrep
 15.0.0 to 15.1.0, verified linkage, passed a PCRE runtime check and removed the
 finished journal.
+
+The completed run also preserved each package's explicit-install versus
+dependency-install status. A changed tracked Homebrew file caused an error
+before mutation. Running the printed retained-keg commands as a deliberate
+operator action restored the original versions and their working runtime.
 
 A separate interruption after completing PCRE2 preserved its completed state
 and ripgrep's pending state. After explicit acceptance, a fresh candidate map

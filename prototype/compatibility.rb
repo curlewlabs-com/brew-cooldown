@@ -13,7 +13,7 @@ module BrewCooldown
         return if version_matches && rebuild_matches
 
         required = dependency["compatibility_version"]
-        return if required.is_a?(Integer) && required == selected.formula.compatibility_version
+        return if required.is_a?(Integer) && required == selected.compatibility_version
 
         raise Refused, "#{selected.formula.name} #{selected.formula.pkg_version}: " \
                        "no compatibility evidence for consumer built with #{dependency.fetch('pkg_version')}"
@@ -23,7 +23,7 @@ module BrewCooldown
     # The installed receipt supplies the consumer's build requirements; current
     # API metadata cannot retroactively establish those requirements.
     class Retained
-      attr_reader :formula, :runtime_dependencies, :rebuild, :keg
+      attr_reader :formula, :runtime_dependencies, :rebuild, :keg, :compatibility_version
 
       def initialize(keg)
         @keg = keg
@@ -39,6 +39,14 @@ module BrewCooldown
         raise Refused, "#{name}: missing installed dependency metadata" unless runtime_dependencies.is_a?(Array)
 
         @rebuild = formula.bottle_specification.rebuild
+        # Homebrew can leave this field null in a poured receipt even when
+        # the installed bottle's embedded recipe declares compatibility.
+        # This is the recipe in the installed keg, never today's API recipe.
+        @compatibility_version = formula.compatibility_version
+        recorded = tab.source.dig("versions", "compatibility_version")
+        if recorded && recorded != compatibility_version
+          raise Refused, "#{name}: installed recipe and receipt disagree about compatibility"
+        end
       end
 
       def install?

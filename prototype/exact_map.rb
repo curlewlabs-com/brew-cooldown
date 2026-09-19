@@ -37,7 +37,12 @@ module BrewCooldown
         candidates.each_value do |candidate|
           candidate.runtime_dependencies.each do |dependency|
             selected = resolve(dependency.fetch("full_name"))
-            Compatibility.validate!(dependency, candidates.fetch(selected.full_name))
+            target = candidates.fetch(selected.full_name)
+            # Keeping an existing edge changes neither endpoint. Its receipt
+            # need not establish compatibility for a replacement we never make.
+            next unless candidate.install? || target.install?
+
+            Compatibility.validate!(dependency, target)
           end
         end
         Prototype.active_map = self
@@ -110,6 +115,22 @@ module BrewCooldown
         raise Refused, "post-install worker has no candidate map" unless Prototype.worker_plan
 
         super
+      end
+
+      private
+
+      def auto_link_versioned_keg_only?
+        # An upgrade preserves the existing prefix-link choice. Native
+        # auto-promotion can inspect and displace unrelated Ruby/Python lines.
+        false
+      end
+
+      public
+
+      def link_manual_command_warning
+        # The native warning traverses today's sibling recipes to propose a
+        # linking change. This adapter preserves links instead of proposing it.
+        nil
       end
 
       private
