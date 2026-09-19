@@ -11,8 +11,9 @@ module BrewCooldown
   # Only fallback clocks and the last observed UTC instant survive a run.
   # Candidate recipes, downloads and history remain owned by Homebrew.
   class Observations
-    def initialize(directory, prefix:)
+    def initialize(directory, prefix:, clock: -> { Time.now.utc })
       @directory = Pathname(directory)
+      @clock = clock
       @directory.mkpath
       @prefix = Pathname(prefix).realpath.to_s
       @path = @directory/"observations.json"
@@ -27,8 +28,8 @@ module BrewCooldown
         raise StateError, "cannot record an observation without a verified candidate identity"
       end
 
-      update(now:) do |observed|
-        observed[release.identity] ||= now.getutc.iso8601(9)
+      update(now:) do |observed, recorded_at|
+        observed[release.identity] ||= recorded_at.getutc.iso8601(9)
         Time.iso8601(observed.fetch(release.identity))
       end
     end
@@ -41,11 +42,16 @@ module BrewCooldown
 
         state = load_state
         previous = state.fetch("last_seen")
-        if previous && now < Time.iso8601(previous)
-          raise StateError, "UTC clock moved backward: #{now.getutc.iso8601} precedes #{previous}"
+        previous = Time.iso8601(previous) if previous
+        current = @clock.call
+        if previous && current < previous
+          raise StateError, "UTC clock moved backward: #{current.getutc.iso8601} precedes #{previous.getutc.iso8601(9)}"
         end
-        state["last_seen"] = now.getutc.iso8601(9)
-        result = yield state.fetch("observed")
+        # An overlapping invocation can record a later instant before this
+        # invocation reaches the lock; its frozen timestamp is not a rollback.
+        recorded_at = [now, previous].compact.max
+        state["last_seen"] = recorded_at.getutc.iso8601(9)
+        result = yield state.fetch("observed"), recorded_at
         persist(state)
         result
       end

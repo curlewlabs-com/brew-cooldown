@@ -64,7 +64,7 @@ def discover(records, current, roots: records.keys, batch_omits: [])
     discovery = BrewCooldown::HomebrewAdapter::Discovery.new(
       inventory:, config: BrewCooldown::Config.new({}, directory: Pathname(directory)),
       advisories: BrewCooldown::HomebrewAdapter::Advisories.new(records: {}, validated_at: nil),
-      observations: BrewCooldown::Observations.new(directory, prefix: directory), now: NOW, log: ->(**_event) {},
+      observations: BrewCooldown::Observations.new(directory, prefix: directory, clock: -> { NOW }), now: NOW, log: ->(**_event) {},
       registry:, current_formulae: metadata
     )
     [discovery.collect(roots), registry, metadata]
