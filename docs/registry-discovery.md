@@ -20,7 +20,15 @@ index reference and package version, rebuild, platform reference, descriptor
 digest, manifest digest and bottle layer digest. The platform's publication
 timestamp belongs to that manifest; the index creation date is not substituted
 for it. A missing platform timestamp remains absent for the observation-clock
-fallback. A malformed timestamp is an error.
+fallback. Historical calendar-only dates also use the observation fallback:
+they do not establish an instant or timezone, and assuming midnight could
+shorten a delay. An invalid date or malformed timestamp is an error.
+
+Official registry metadata uses both `homebrew` and the historical `Homebrew`
+vendor spelling. Both are accepted within the same bound official repository;
+other vendors remain identity errors. Older index annotations can survive when
+Homebrew appends a newly built platform, so the index's age and vendor casing do
+not determine the platform bottle's publication time.
 
 The adapter returns metadata, not authorization to install. Verified bottle
 provenance, embedded recipe identity, version scheme, native platform checks

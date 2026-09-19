@@ -17,8 +17,8 @@ end
 class RecordedRegistry
   attr_reader :requests
 
-  def initialize(responses: [], immutable: {})
-    @responses, @immutable, @requests = responses, immutable, []
+  def initialize(responses: [], immutable: {}, name: "pcre2")
+    @responses, @immutable, @requests, @name = responses, immutable, [], name
   end
 
   def fresh(url)
@@ -31,7 +31,7 @@ class RecordedRegistry
   end
 
   def immutable(name:, digest:)
-    raise "Unexpected fixture package" unless name == "pcre2"
+    raise "Unexpected fixture package" unless name == @name
 
     @immutable.fetch(digest)
   end
@@ -86,6 +86,25 @@ metadata = registry(transport).resolve("pcre2", "10.47", platform: :arm64_tahoe)
 raise "Wrong historical bottle" unless metadata.bottle_sha256 == "10bd8c1cf3784ab8a736f01b7f85d091276d69c5a8d48bd022b01209fb4eb870"
 raise "Wrong platform publication" unless metadata.published_at == Time.iso8601("2025-10-21T11:24:29Z")
 
+# Old index annotations survive platform additions. Real official responses
+# guard against rejecting installed libraries just because their format aged.
+[
+  ["lz4", "1.10.0", :arm64_sonoma, nil],
+  ["libyaml", "0.2.5", :arm64_tahoe, Time.iso8601("2025-09-10T18:51:04Z")],
+].each do |name, tag, platform_tag, publication|
+  index_body = (FIXTURES/"#{name}-index.json").read
+  platform_body = (FIXTURES/"#{name}-platform.json").read
+  index_sha = Digest::SHA256.hexdigest(index_body)
+  platform_sha = Digest::SHA256.hexdigest(platform_body)
+  source = RecordedRegistry.new(name:,
+    responses: [response(index_body, "docker-content-digest" => "sha256:#{index_sha}")],
+    immutable: { index_sha => JSON.parse(index_body), platform_sha => JSON.parse(platform_body) })
+  historical = registry(source).resolve(name, tag, platform: platform_tag)
+  raise "Historical formula identity changed" unless historical.name == name && historical.pkg_version == tag
+  raise "Historical platform clock was invented or lost" unless historical.published_at == publication
+  raise "Historical dependency evidence changed" unless historical.runtime_dependencies == []
+end
+
 # A moving tag cannot substitute other bytes under a previously claimed digest.
 transport = RecordedRegistry.new(responses: [response(INDEX_BODY + " ", "docker-content-digest" => "sha256:#{index_digest}")])
 expect_error("no matching immutable digest") { registry(transport).resolve("pcre2", "10.47", platform: :arm64_tahoe) }
@@ -118,6 +137,7 @@ raise "Missing platform clock inherited another date" unless metadata_reader.com
 
 [
   ["Index identity", ->(row) { row["annotations"]["org.opencontainers.image.title"] = "another" }],
+  ["Index identity", ->(row) { row["annotations"]["org.opencontainers.image.vendor"] = "another" }],
   ["version and rebuild", ->(row) { row["annotations"]["org.opencontainers.image.version"] = "10.48" }],
   ["Missing or ambiguous", ->(row) { row["manifests"] = [] }],
   ["Missing or ambiguous", ->(row) { row["manifests"] *= 2 }],
@@ -128,9 +148,11 @@ raise "Missing platform clock inherited another date" unless metadata_reader.com
 end
 [
   ["identity differs", ->(row) { row["annotations"]["org.opencontainers.image.title"] = "another" }],
+  ["identity differs", ->(row) { row["annotations"]["org.opencontainers.image.vendor"] = "another" }],
   ["annotations disagree", ->(row) { row["annotations"]["sh.brew.bottle.digest"] = "0" * 64 }],
   ["Unexpected bottle layers", ->(row) { row["layers"] *= 2 }],
   ["Invalid platform metadata", ->(row) { row["annotations"]["org.opencontainers.image.created"] = "2026-02-31T00:00:00Z" }],
+  ["Invalid platform metadata", ->(row) { row["annotations"]["org.opencontainers.image.created"] = "2026-02-31" }],
   ["runtime receipts differ", ->(row) { row["annotations"]["sh.brew.tab"] = '{"runtime_dependencies":[{}]}' }],
 ].each do |fragment, mutate|
   changed = Marshal.load(Marshal.dump(platform))

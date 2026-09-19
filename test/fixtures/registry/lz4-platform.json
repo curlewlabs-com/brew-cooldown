@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "config": {
+    "mediaType": "application/vnd.oci.image.config.v1+json",
+    "digest": "sha256:ccf3675cb67fb452bfec740465d0038a851ce9f66869b04e326b75790a66b939",
+    "size": 222
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:cf10ee811e95f338888acbb57ffaf269f1264ef906f037e045bfe66e97e74d7c",
+      "size": 275124,
+      "annotations": {
+        "org.opencontainers.image.title": "lz4--1.10.0.arm64_sonoma.bottle.tar.gz"
+      }
+    }
+  ],
+  "annotations": {
+    "com.github.package.type": "homebrew_bottle",
+    "org.opencontainers.image.created": "2024-08-05",
+    "org.opencontainers.image.description": "Extremely Fast Compression algorithm",
+    "org.opencontainers.image.documentation": "https://formulae.brew.sh/formula/lz4",
+    "org.opencontainers.image.license": "BSD-2-Clause",
+    "org.opencontainers.image.ref.name": "1.10.0.arm64_sonoma",
+    "org.opencontainers.image.revision": "cd30caabd7f9bc7fff381c05a2f5d3d2c27d8426",
+    "org.opencontainers.image.source": "https://github.com/homebrew/homebrew-core/blob/cd30caabd7f9bc7fff381c05a2f5d3d2c27d8426/Formula/l/lz4.rb",
+    "org.opencontainers.image.title": "lz4 1.10.0.arm64_sonoma",
+    "org.opencontainers.image.url": "https://lz4.github.io/lz4/",
+    "org.opencontainers.image.vendor": "homebrew",
+    "org.opencontainers.image.version": "1.10.0",
+    "sh.brew.bottle.digest": "cf10ee811e95f338888acbb57ffaf269f1264ef906f037e045bfe66e97e74d7c",
+    "sh.brew.bottle.size": "275124",
+    "sh.brew.path_exec_files": "bin/lz4cat,bin/lz4,bin/lz4c,bin/unlz4",
+    "sh.brew.tab": "{\"homebrew_version\":\"4.3.12-102-g78132b1\",\"changed_files\":[\"lib/pkgconfig/liblz4.pc\"],\"source_modified_time\":1721582989,\"compiler\":\"clang\",\"runtime_dependencies\":[],\"arch\":\"arm64\",\"built_on\":{\"os\":\"Macintosh\",\"os_version\":\"macOS 14.4\",\"cpu_family\":\"dunno\",\"xcode\":\"15.3\",\"clt\":\"15.3.0.0.1.1708646388\",\"preferred_perl\":\"5.34\"}}"
+  }
+}
