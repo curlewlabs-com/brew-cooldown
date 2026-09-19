@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/curlewlabs-com/brew-cooldown/security/advisories/new
+    about: >-
+      Anything that could install something outside the evaluated plan, bypass
+      a cooldown or override a pin - report these privately here, not as a
+      public issue.

@@ -1,0 +1,25 @@
+#!/bin/sh
+set -eu
+
+project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+brew=${HOMEBREW_BREW_FILE:-brew}
+# `brew ruby` is a developer command. Without this setting Homebrew would
+# switch on the account's persistent developer mode as a side effect.
+export HOMEBREW_DEVELOPER=1 HOMEBREW_NO_AUTO_UPDATE=1
+
+failed=0
+# The VM-only integration tests cannot run here. Parse every source under the
+# interpreter that will eventually execute it, so they cannot rot unnoticed.
+"$brew" ruby -e '
+  Dir.glob(File.join(ARGV.fetch(0), "**/*.rb")).sort.each do |path|
+    RubyVM::InstructionSequence.compile_file(path)
+  end
+' -- "$project_directory" || failed=1
+
+# Every unit test defines its own top-level helpers and reports through its
+# exit status, so each file needs a separate Homebrew Ruby process.
+for test in "$project_directory"/test/unit/*.rb; do
+  echo "==> ${test#"$project_directory"/}"
+  "$brew" ruby -- "$test" || failed=1
+done
+exit "$failed"

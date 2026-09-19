@@ -1,0 +1,59 @@
+name: Bug report
+description: Report incorrect behavior, a crash, or unexpected output
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a **security** issue - anything that could install a version,
+        recipe, artifact or dependency outside the evaluated plan, bypass a
+        cooldown or override a pin - do not file here. Use the Security tab's
+        **"Report a vulnerability"** instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected versus what actually occurred.
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command
+      description: >
+        The full command line, plus the configuration file and a minimal
+        Brewfile if either is involved.
+      placeholder: brew-cooldown plan --brewfile ./Brewfile --json
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      description: Output of `sw_vers -productVersion`, plus Apple silicon or Intel.
+      placeholder: "26.6.2, Apple silicon"
+    validations:
+      required: true
+  - type: textarea
+    id: homebrew
+    attributes:
+      label: Homebrew runtime
+      description: >
+        Output of `brew --version` and
+        `git -C "$(brew --repository)" rev-parse HEAD`. `upgrade` runs only on
+        the Homebrew commit the installer adapter was qualified against, so the
+        exact commit matters.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: >
+        The JSON result from stdout and the JSON lines from stderr around the
+        problem. Remove any credentials first.
+      render: shell
+    validations:
+      required: false

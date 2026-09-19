@@ -1,0 +1,4 @@
+.DS_Store
+# State directories the documented VM experiments create inside the checkout.
+/experiment-state/
+/interpreter-state/
