@@ -18,7 +18,7 @@ module BrewCooldown
 
       def check!(selected, verify_payload: true)
         @config.verify_current!
-        observations = Observations.new(@directory, prefix: HOMEBREW_PREFIX)
+        observations = Observations.new(@directory, prefix: HOMEBREW_PREFIX, clock: @clock)
         observations.remember_clock(now: @clock.call)
         advisory = Advisories.refresh(now: @clock.call, log: @log)
         registry = Registry.new(transport: RegistryTransport.new(log: @log))

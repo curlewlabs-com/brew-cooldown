@@ -44,6 +44,13 @@ origin starts observation-based waiting, a future origin is an error, and a
 clock earlier than durable state cannot advance it. Security evidence has its
 own freshness window, checked independently of candidate age.
 
+The ledger checks the live wall clock against durable state while holding its
+lock. An overlapping invocation can arrive with an older evaluation timestamp
+without indicating a clock regression. It preserves the recorded floor and
+clamps new first observations to that floor; existing first observations keep
+their age. Policy evaluation still uses its supplied timestamp, so a new
+observation beyond that timestamp remains ineligible for that evaluation.
+
 The scheduler determines when an eligible candidate is next considered; the
 policy promises no exact wakeup. Execution must reassess policy and refresh
 security evidence before mutation. There is no saved-plan execution authority,
