@@ -27,10 +27,11 @@ Rebuild-only candidates receive an explicit identity error with inspection and
 forward-repair commands. Unknown rebuilds cannot satisfy an exact dependency
 build match; recorded compatibility identifiers remain usable evidence.
 
-Persisting artifact identity for future installs is an unresolved data-ownership
-decision. A record would identify installs performed by this tool, but would
-not retroactively establish the identity of existing installations. This must
-be settled before enabling the general execution command. The earlier
+Installed identity relies exclusively on Homebrew's receipts and installed
+recipes. The tool does not save a supplemental installation receipt, including
+for its own upgrades. Version and revision advances remain available when
+eligible; rebuild-only uncertainty is reported without blocking independent
+work. The earlier
 fixed-artifact installer experiments establish their tested installation and
 runtime behavior, not a general way to infer an installed bottle's rebuild.
 
