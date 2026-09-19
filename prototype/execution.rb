@@ -29,7 +29,7 @@ module BrewCooldown
         raise Refused, "Homebrew checkout changed" unless status.success? && changes.empty?
       end
 
-      def apply(expected_inventory:, &progress)
+      def apply(expected_inventory:, before_install: nil, &progress)
         journal.with_lock do
           return journal.report if journal.load
 
@@ -53,7 +53,7 @@ module BrewCooldown
             # them. Our component retains ownership until this outer ensure.
             FormulaInstaller.locked.concat(map.candidates.values.map(&:formula))
             owns_installer_locks = true
-            execute(actual, progress:)
+            execute(actual, progress:, before_install:)
           ensure
             FormulaInstaller.locked.clear if owns_installer_locks
             locks.reverse_each(&:unlock)
@@ -72,6 +72,10 @@ module BrewCooldown
         visiting = Set.new
         visited = Set.new
         visit = lambda do |candidate|
+          # Retained edges constrain replacements but are not install steps.
+          # Walking through them would invent an installation cycle.
+          return unless candidate.install?
+
           name = candidate.formula.full_name
           return if visited.include?(name)
           raise Refused, "dependency cycle at #{name}" if visiting.include?(name)
@@ -86,14 +90,18 @@ module BrewCooldown
         result
       end
 
-      def execute(inventory, progress:)
+      def execute(inventory, progress:, before_install:)
         candidates = ordered_candidates
         operations = candidates.map do |candidate|
           formula = candidate.formula
           previous = formula.opt_prefix.realpath.to_s if formula.opt_prefix.exist?
           raise Refused, "#{formula.name} is pinned" if formula.pinned?
-          if previous && Keg.new(Pathname(previous)).version >= formula.pkg_version
-            raise Refused, "#{formula.name}: selected version does not advance the active installation"
+          if previous
+            installed = Keg.new(Pathname(previous))
+            scheme_order = formula.version_scheme <=> installed.version_scheme
+            if scheme_order.negative? || (scheme_order.zero? && installed.version >= formula.pkg_version)
+              raise Refused, "#{formula.name}: selected version does not advance the active installation"
+            end
           end
           { "name" => formula.name, "version" => formula.pkg_version.to_s, "previous_keg" => previous,
             "candidate" => candidate.identity, "keg_only" => formula.keg_only?, "status" => "pending" }
@@ -105,18 +113,27 @@ module BrewCooldown
           current = Inventory.capture
           raise Refused, "inventory changed before #{formula.name}" unless current == inventory
           raise Refused, "#{formula.name} became pinned" if formula.pinned?
+          before_install&.call(candidate)
+          raise Refused, "inventory changed during #{formula.name} revalidation" unless Inventory.capture == inventory
 
           journal.record(formula.name, "started")
           progress&.call(formula.name, "started")
           begin
             Prototype.executing_name = formula.name
             Homebrew.failed = false
-            Postinstall.with_map(map) do
-              requested = formula.opt_prefix.exist? && Tab.for_keg(Keg.new(formula.opt_prefix.realpath)).installed_on_request
-              installer = FormulaInstaller.new(formula, installed_on_request: requested, link_keg: formula.linked?)
-              installer.prelude
-              installer.fetch
-              Homebrew::Install.install_formula(installer, upgrade: formula.opt_prefix.exist?)
+            # The launcher enables developer mode only to enter `brew ruby`.
+            # Its source-cycle diagnostic loads build-only recipes even when
+            # pouring bottles. Normal runtime/architecture checks still run.
+            with_env(HOMEBREW_DEVELOPER: nil) do
+              Postinstall.with_map(map) do
+                existing = formula.opt_prefix.exist?
+                requested = existing && Tab.for_keg(Keg.new(formula.opt_prefix.realpath)).installed_on_request
+                linked = existing ? formula.linked? : !formula.keg_only?
+                installer = FormulaInstaller.new(formula, installed_on_request: requested, link_keg: linked)
+                installer.prelude
+                installer.fetch
+                Homebrew::Install.install_formula(installer, upgrade: formula.opt_prefix.exist?)
+              end
             end
             raise Refused, "Homebrew reported failure for #{formula.name}" if Homebrew.failed?
             expected = HOMEBREW_CELLAR/formula.name/formula.pkg_version.to_s

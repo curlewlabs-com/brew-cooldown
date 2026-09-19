@@ -34,6 +34,12 @@ Dir.mktmpdir("cooldown-config-") do |directory|
   invalid("not found") { BrewCooldown::Config.load(root/"missing.json") }
   (root/"broken.json").write("{")
   invalid("Cannot read") { BrewCooldown::Config.load(root/"broken.json") }
+  policy_path = root/"policy.json"
+  policy_path.write(JSON.generate("cooldown" => { "patch_days" => 14 }))
+  policy = BrewCooldown::Config.load(policy_path)
+  policy.verify_current!
+  policy_path.write(JSON.generate("cooldown" => { "patch_days" => 21 }))
+  invalid("Configuration changed") { policy.verify_current! }
 
   # Native Brewfile evaluation honors conditions and versioned/tapped names,
   # without calling the installation hook named by an entry.

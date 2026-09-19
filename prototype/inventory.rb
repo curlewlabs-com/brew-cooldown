@@ -2,6 +2,7 @@
 
 require "digest"
 require "shellwords"
+require "cask/caskroom"
 
 module BrewCooldown
   module Prototype
@@ -13,6 +14,9 @@ module BrewCooldown
           next unless directory.directory?
 
           directory.children.select(&:symlink?).each { |path| state[path.to_s] = path.readlink.to_s }
+        end
+        Cask::Caskroom.path.glob("*/.metadata/**/{INSTALL_RECEIPT.json,*.rb,*.json}").sort.each do |path|
+          state[path.to_s] = Digest::SHA256.file(path).hexdigest if path.file?
         end
         state.sort.to_h
       end

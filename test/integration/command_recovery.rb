@@ -60,8 +60,17 @@ Dir.mktmpdir("cooldown-recovery-state-") do |directory|
     rejected, code = command(launcher, "--accept-current", stale)
     raise "Old acknowledgment cleared new evidence" unless code == 1 && rejected["status"] == "error" && journal.path.read == failed_bytes
     report, = command(launcher)
+    # Recovery must bind the complete unfinished set, not just the first file.
+    earlier = report.fetch("accept_current").fetch("digest")
+    component = BrewCooldown::Prototype::Journal.new(BrewCooldown::StateDirectory.path/"components"/("a" * 64))
+    component.with_lock { component.start([operation.merge("status" => "pending")], before) }
+    rejected, code = command(launcher, "--accept-current", earlier)
+    raise "New component escaped acknowledgment identity" unless code == 1 && rejected["status"] == "error" && component.path.exist?
+    report, = command(launcher)
+    raise "Component journal omitted" unless report.fetch("journals").sort == [journal.path.to_s, component.path.to_s].sort
     accepted, code = command(launcher, "--accept-current", report.fetch("accept_current").fetch("digest"))
-    raise "Explicit acknowledgment failed" unless code.zero? && accepted["status"] == "accepted_current" && !journal.path.exist?
+    raise "Explicit acknowledgment failed" unless code.zero? && accepted["status"] == "accepted_current" &&
+      !journal.path.exist? && !component.path.exist?
 
     # Corrupt state stays available for diagnosis and is never acknowledged.
     ["{", JSON.generate("schema" => 1, "prefix" => HOMEBREW_PREFIX.realpath.to_s,

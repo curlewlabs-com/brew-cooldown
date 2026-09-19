@@ -4,12 +4,32 @@ require "time"
 
 module BrewCooldown
   module Report
+    def self.print_upgrade(result, output)
+      if result[:scope]
+        print_human(result, output, heading: "Homebrew cooldown upgrade", show_proposals: false)
+      else
+        output.puts("Homebrew cooldown upgrade: #{result.fetch(:status)}")
+      end
+      Array(result[:execution]).each do |component|
+        output.puts("Component: #{component.fetch('status')}")
+        print_recovery(component.transform_keys(&:to_sym), output)
+        component.fetch("recovery", {}).each_value do |choices|
+          choices.each { |choice| output.puts("#{choice.fetch('purpose')}:\n  #{choice.fetch('command')}") }
+        end
+      end
+      Array(result[:errors]).each { |error| output.puts("Error: #{error[:error] || error[:reason]}") } unless result[:scope]
+      if Array(result[:execution]).any? { |component| component["status"] != "completed" } || result[:status] == "needs_reconciliation"
+        output.puts("Inspect unfinished work with brew-cooldown recover.")
+      end
+    end
+
     def self.print_recovery(result, output)
       output.puts("Homebrew cooldown recovery: #{result.fetch(:status)}")
       output.puts(result[:message]) if result[:message]
       output.puts("Error: #{result[:error]}") if result[:error]
       output.puts("Journal: #{result[:journal]}") if result[:journal]
-      Array(result[:drift]).each do |change|
+      Array(result[:journals]).each { |path| output.puts("Journal: #{path}") }
+      Array(result[:drift] || result[:changes]).each do |change|
         output.puts("Changed #{change.fetch('path')}: expected #{change['expected'].inspect}, observed #{change['observed'].inspect}")
       end
       Array(result[:operations]).each do |operation|
@@ -25,14 +45,14 @@ module BrewCooldown
       end
     end
 
-    def self.print_human(result, output)
-      output.puts("Homebrew cooldown plan: #{result.fetch(:status)}")
+    def self.print_human(result, output, heading: "Homebrew cooldown plan", show_proposals: true)
+      output.puts("#{heading}: #{result.fetch(:status)}")
       result.fetch(:scope).each do |entry|
         output.puts("#{entry.fetch(:requested)}: #{entry.fetch(:status)}#{entry[:reason] ? " - #{entry[:reason]}" : ''}")
       end
       result.fetch(:components).each do |component|
         component.fetch(:selected).each do |selection|
-          next if selection.fetch(:operation) == "retain"
+          next if !show_proposals || selection.fetch(:operation) == "retain"
 
           build = selection.fetch(:build)
           output.puts("Upgrade #{selection.fetch(:package).fetch(:name)} to #{build.fetch(:version)} " \

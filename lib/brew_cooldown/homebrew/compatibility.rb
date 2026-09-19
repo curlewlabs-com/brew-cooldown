@@ -6,6 +6,11 @@ module BrewCooldown
       def self.call(requirement, option)
         required = requirement.build
         selected = option.release.build
+        # Native installed-dependency requirements use PkgVersion, not the
+        # installed bottle's rebuild. This retains the package already there;
+        # it does not establish identity or authorize a rebuild-only upgrade.
+        return true if option.retained && required.version == selected.version && required.revision == selected.revision
+
         return true if required.version == selected.version && required.revision == selected.revision &&
                        required.rebuild.is_a?(Integer) && selected.rebuild.is_a?(Integer) &&
                        required.rebuild == selected.rebuild

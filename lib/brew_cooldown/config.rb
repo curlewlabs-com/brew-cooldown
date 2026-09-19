@@ -26,12 +26,13 @@ module BrewCooldown
       else
         {}
       end
-      new(data, directory: path.dirname)
+      new(data, directory: path.dirname, source_path: path)
     rescue JSON::ParserError, SystemCallError => error
       raise ConfigurationError, "Cannot read configuration #{path}: #{error.message}"
     end
 
-    def initialize(data, directory:)
+    def initialize(data, directory:, source_path: nil)
+      @source_path = source_path
       object!(data, %w[cooldown packages scope solver], "configuration")
       @global = cooldown(data.fetch("cooldown", {}))
       packages = data.fetch("packages", {})
@@ -54,6 +55,17 @@ module BrewCooldown
 
     def delays(package)
       @global.merge(@packages.fetch("#{package.kind}:#{package.tap}/#{package.name}", {}))
+    end
+
+    def verify_current!
+      return unless @source_path
+
+      current = @source_path.file? ? JSON.parse(@source_path.read) : {}
+      unless Digest::SHA256.hexdigest(JSON.generate(current)) == digest
+        raise ConfigurationError, "Configuration changed during planning; rerun with the current policy"
+      end
+    rescue JSON::ParserError, SystemCallError => error
+      raise ConfigurationError, "Cannot revalidate configuration #{@source_path}: #{error.message}"
     end
 
     def selected_scope(brewfile: nil, installed: false, directory: Pathname.pwd)

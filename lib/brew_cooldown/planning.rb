@@ -7,12 +7,13 @@ require_relative "homebrew/advisories"
 
 module BrewCooldown
   class Planning
+    attr_reader :inventory, :discovery, :resolutions
     def initialize(config:, scope:, now:, log:, state_directory:)
       @config, @scope, @now, @log, @state_directory = config, scope, now, log, state_directory
     end
 
     def call
-      inventory = HomebrewAdapter::InstalledInventory.capture(log: @log)
+      @inventory = HomebrewAdapter::InstalledInventory.capture(log: @log)
       entries = HomebrewAdapter::Scope.read(@scope, installed: inventory.records.keys)
       scope_results = entries.map { |entry| resolve_entry(entry, inventory) }
       roots = scope_results.filter_map { |entry| entry[:package] if %i[selected pinned].include?(entry[:status]) }.uniq
@@ -20,12 +21,12 @@ module BrewCooldown
       errors.concat(scope_results.select { |entry| %i[missing unsupported_executor ambiguous].include?(entry[:status]) })
       advisory = HomebrewAdapter::Advisories.refresh(now: @now, log: @log)
       observations = Observations.new(@state_directory, prefix: HOMEBREW_PREFIX)
-      discovery = HomebrewAdapter::Discovery.new(inventory:, config: @config, advisories: advisory,
+      @discovery = HomebrewAdapter::Discovery.new(inventory:, config: @config, advisories: advisory,
                                                observations:, now: @now, log: @log).collect(roots)
       errors.concat(discovery.errors)
       planner = Planner.new(compare_builds: HomebrewAdapter::BuildOrder, compatible: HomebrewAdapter::Compatibility,
                             max_assignments: @config.max_assignments)
-      resolutions = planner.plan(domains: discovery.domains, roots:)
+      @resolutions = planner.plan(domains: discovery.domains, roots:)
       errors.concat(resolutions.filter_map do |resolution|
         { operation: "resolve", error: resolution.reason } if %i[resolution_limit no_compatible_solution].include?(resolution.status)
       end)

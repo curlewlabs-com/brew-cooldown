@@ -3,11 +3,12 @@
 Conservative Homebrew upgrades with configurable release-age delays and
 expedited updates for verified security fixes.
 
-**Status: experimental read-only planning.** There is no installable release yet.
-The checkout's [plan command](docs/command-planning.md) evaluates a Brewfile or
-installed scope. Its installed-artifact identity limitation is documented there;
-the general upgrade command is not enabled yet. `recover` inspects an unfinished
-upgrade journal and prints repair choices; see [recovery](docs/execution-recovery.md).
+**Status: experimental core-formula upgrades.** There is no installable release yet.
+The checkout's [commands](docs/command-planning.md) evaluate a Brewfile or
+installed scope and execute eligible core-formula components on the validated
+Homebrew runtime. Its installed-artifact identity limitation is documented there.
+`recover` inspects unfinished upgrades and prints repair choices; see
+[recovery](docs/execution-recovery.md).
 Historical installation and an ordinary post-install hook work in a disposable
 VM. The [boundary experiments](docs/installer-boundaries.md) document Homebrew
 locking limitations. Avoid overlapping package-changing Homebrew commands;
@@ -169,8 +170,9 @@ deferred would remain visible on subsequent runs.
 Selecting older eligible releases is a core design requirement. A constrained
 Homebrew adapter would install exact official bottles under their original
 package identities, with every dependency operation bound to the evaluated
-plan. That installation boundary still needs to be proven in disposable
-environments. The project would not silently fall back to checking only the
+plan. The [disposable-VM experiments](docs/installer-proof.md) establish this
+boundary for the tested core formulae and runtime. The project would not
+silently fall back to checking only the
 latest release when historical installation is unavailable.
 
 The policy would apply only to upgrades performed through `brew-cooldown`.
@@ -199,7 +201,9 @@ transactional upgrades or automatic rollback.
 - [Registry discovery](docs/registry-discovery.md): upstream historical tags,
   immutable manifest identity and platform publication evidence.
 - [Command planning](docs/command-planning.md): configuration, Brewfile scope,
-  active inventory and the experimental read-only command.
+  active inventory and the experimental commands.
+- [Scheduled adoption](docs/scheduled-adoption.md): remaining integration
+  work before replacing a general Brewfile refresh job.
 
 The historical installation proof comes first. A working latest-only updater
 would not satisfy the design.

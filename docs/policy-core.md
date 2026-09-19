@@ -15,8 +15,8 @@ The ledger stores no formula data, dependency graph or artifact archive.
 The advisory adapter must provide explicit installed-affected and
 candidate-fixed evidence from a non-withdrawn supported advisory. The policy
 requires a fresh validation before bypassing age, retains adverse evidence
-when stale and honors pins. The existence of this decision path does not imply
-that advisory discovery is already connected to execution.
+when stale and honors pins. Upgrade workers refresh the advisory snapshot and
+reassess the selected candidates before entering the installer.
 
 ## Dependency planning
 

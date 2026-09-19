@@ -24,8 +24,11 @@ identity. An embedded recipe's default rebuild value cannot establish which
 bottle was poured: the recipe can have no bottle block, or carry older bottle
 metadata. Inventory therefore represents the installed rebuild as unknown.
 Rebuild-only candidates receive an explicit identity error with inspection and
-forward-repair commands. Unknown rebuilds cannot satisfy an exact dependency
-build match; recorded compatibility identifiers remain usable evidence.
+forward-repair commands. Retaining a dependency at its recorded package version
+and revision follows Homebrew's installed-dependency contract, which does not
+require a bottle rebuild. This does not establish exact installed artifact
+identity. Replacing a dependency uses exact build evidence or an explicit
+compatibility identifier.
 
 Installed identity relies exclusively on Homebrew's receipts and installed
 recipes. The tool does not save a supplemental installation receipt, including
@@ -44,16 +47,24 @@ Preparing a candidate can download its bottle to verify provenance and read
 the embedded recipe. Formula withdrawals are checked against fresh current
 metadata before historical recipes are evaluated.
 
-This command integration is under development. The separately verified
-installer still requires connection to execution-time revalidation, component
-dispatch and the command's interrupted-run recovery flow before `upgrade`
-is available.
+`upgrade` computes a fresh plan, revalidates selected artifact and security
+evidence, and executes independently resolved core-formula components. It
+uses the validated Homebrew runtime described in
+[installer boundaries](installer-boundaries.md). `--security-only` selects
+components containing an evidenced installed-vulnerability fix; dependencies
+still need normal eligibility. Casks and third-party taps remain explicit
+unsupported scope. The result includes proposed selections and actual
+execution outcomes separately.
 
 Run the current read-only command from a checkout:
 
 ```sh
 ./bin/brew-cooldown plan --brewfile /path/to/Brewfile --json
 ```
+
+Apply eligible upgrades with `./bin/brew-cooldown upgrade --brewfile
+/path/to/Brewfile`. Inspect unfinished work with `./bin/brew-cooldown recover`.
+These commands do not run Brewfile installation hooks or install missing roots.
 
 Discovery first reads fresh current formula metadata to establish Homebrew's
 version scheme. When that matches the installed scheme, native version
@@ -63,6 +74,9 @@ upstream version suffixes from bottle rebuild suffixes. Every selected candidate
 still gets its actual version scheme from the verified embedded recipe.
 An actively disabled formula is reported with Homebrew's reason; loading an
 older recipe cannot bypass that current withdrawal signal.
+Candidates ahead of Homebrew's currently published version, revision or rebuild
+are rejected too: a rollback can leave the withdrawn artifact in the registry.
+Version-scheme ordering still takes precedence over ordinary version strings.
 
 ## Verification
 
@@ -73,3 +87,10 @@ and planning leaves package receipts and links unchanged. Its setup restores
 the active kegs and pin state afterward. The unit tests cover configuration,
 withdrawals, dependency identity, and terminal recovery instructions alongside
 the policy, planner, registry, and advisory tests.
+
+`test/integration/command_upgrade.rb` runs the actual upgrade command against
+historical fixtures in the disposable VM, verifies native receipts and runtime
+linkage, and checks that successful journals are removed. Its `partial` mode
+holds a real Homebrew package lock while an independent component upgrades.
+`test/integration/command_recovery.rb` checks inspection and acknowledgment of
+unfinished work, including rejection when inventory or the journal set changes.

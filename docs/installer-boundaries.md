@@ -165,7 +165,7 @@ brew ruby -- test/integration/interpreter_upgrade.rb baseline
 brew ruby -- test/integration/interpreter_upgrade.rb upgrade
 ```
 
-General history discovery, policy-driven graph selection and public commands
-remain to be connected to these prototypes. The complete release bar remains
-in [verification](verification.md). These experiments do not yet make this a
-replacement for a scheduled Brewfile job.
+The [checkout commands](command-planning.md) connect historical discovery,
+policy-driven selection and component execution to this adapter. The complete
+release bar remains in [verification](verification.md); casks and unsupported
+taps still prevent a complete replacement for a general Brewfile job.

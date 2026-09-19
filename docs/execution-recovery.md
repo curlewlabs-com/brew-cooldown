@@ -2,9 +2,9 @@
 
 Status: the execution and interruption experiments passed on the platform and
 Homebrew commit recorded in [installer boundaries](installer-boundaries.md).
-The checkout exposes journal inspection through `brew-cooldown recover` and
-`brew-cooldown recover --json`. General upgrade execution is still being
-connected to the planner.
+The checkout exposes core-formula execution through `brew-cooldown upgrade`
+and journal inspection through `brew-cooldown recover`, with JSON output
+available for both commands.
 
 Recovery inspection prints a command to explicitly accept the current state
 after the operator has inspected or repaired it. `recover --accept-current
@@ -22,6 +22,31 @@ replanning. The native locks reduce collisions but cannot exclude all external
 Homebrew writers; avoid overlapping package-changing commands.
 
 ## Operational state
+
+The upgrade coordinator serializes its own invocations with `upgrade.lock`.
+Observation clocks retain their separate short-lived lock so a component can
+refresh eligibility during an upgrade. Each dependency component owns its
+unfinished journal under `components/<identity>/active.json`, using a digest of
+its canonical package identities. Successful components remove their journal;
+failed components retain it while unrelated components can continue. Recovery
+inspects all unfinished component journals as well as the original root-level
+journal. Acknowledgment binds the complete inspected set and native inventory.
+
+Native installer guards are process-local. Each component runs in a forked
+Homebrew Ruby process so its exact formula map cannot leak into discovery or
+another component. The child inherits the coordinator's open lock, keeping
+ownership if the parent dies before the installer exits. Prepared candidates
+and expected inventory exist only in the process snapshot, not an executable
+saved plan. The worker verifies artifacts and rechecks current withdrawals,
+security evidence and cooldown policy. It repeats the policy checks before
+each package installation and rejects configuration changes since planning.
+Partial discovery errors remain visible while
+independently verified selections remain usable.
+
+After a component returns, the coordinator permits inventory changes only for
+its planned package operations. An unexpected change prevents use of the
+remaining stale selections and prints recovery guidance. Ordinary component
+failure preserves its journal and allows unaffected components to continue.
 
 The state directory belongs to the tool, namespaced by canonical Homebrew
 prefix. Its lock remains at a stable path; never unlink a lock another process
@@ -83,6 +108,19 @@ and tracked checkout state. Filesystem races with nonparticipating writers
 remain possible after inspection; errors and partial results must stay visible.
 
 ## Observed results
+
+On 2026-09-18, the actual `upgrade` command selected and installed PCRE2 10.48
+and ripgrep 15.2.0 from historical baselines in the disposable VM. Native
+receipts, active links, a PCRE runtime expression and successful journal removal
+were verified. The run included fresh configuration, rollback, artifact and
+advisory checks before installation.
+
+In the independent-component experiment, a held native PCRE2 lock caused that
+component to report failure while Ruby 3.3.11 advanced to 3.3.12. Its installed
+libyaml dependency was retained using Homebrew's recorded package version and
+revision, without inventing a bottle rebuild identity. Command-level recovery
+also rejected stale inventory and journal-set acknowledgments and preserved
+malformed journals.
 
 A native `brew pin pcre2` after the inventory snapshot caused a drift result
 with inspection and forward-repair commands. Execution left that changed
