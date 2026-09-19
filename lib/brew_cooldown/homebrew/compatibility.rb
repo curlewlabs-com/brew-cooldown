@@ -10,7 +10,8 @@ module BrewCooldown
                        required.rebuild == selected.rebuild
 
         cohort = requirement.compatibility_version
-        cohort.is_a?(Integer) && cohort.positive? && cohort == option.compatibility_version
+        # Homebrew uses nil for absence; zero can be an explicit cohort.
+        cohort.is_a?(Integer) && cohort == option.compatibility_version
       end
     end
   end
