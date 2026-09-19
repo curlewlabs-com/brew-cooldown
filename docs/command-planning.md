@@ -97,9 +97,18 @@ view must not turn a failed plan into success. JSON includes the full plan plus
 an `explanation` object with the matched identity and native installed baseline.
 No separate explanation cache or saved plan is maintained.
 
-Discovery first reads fresh current formula metadata to establish Homebrew's
-version scheme. When that matches the installed scheme, native version
-ordering excludes old tags before downloading their bottles. A scheme change
+Discovery first reads fresh current formula metadata for the whole scope in one
+batched request. It establishes Homebrew's version scheme and its currently
+published build. A package whose installed version and revision equal that
+build skips the registry entirely: every newer tag would exceed the current
+build and be rejected as a possible rollback, so none can advance it. Such a
+package costs no registry request at all, which keeps an up-to-date scope to a
+single metadata read. If Homebrew's current bottle is a rebuild of the installed
+version, the unknown-rebuild diagnostic is reported from that metadata.
+
+For a package that is behind, the registry supplies its history. When the
+current scheme matches the installed scheme, native version ordering excludes
+old tags before downloading their bottles. A scheme change
 requires inspecting old-looking versions too. Registry references disambiguate
 upstream version suffixes from bottle rebuild suffixes. Every selected candidate
 still gets its actual version scheme from the verified embedded recipe.

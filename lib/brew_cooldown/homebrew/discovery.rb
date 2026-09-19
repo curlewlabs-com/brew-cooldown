@@ -18,9 +18,10 @@ module BrewCooldown
     class Discovery
       class UnknownInstalledBuild < StandardError; end
 
-      def initialize(inventory:, config:, advisories:, observations:, now:, log:)
+      def initialize(inventory:, config:, advisories:, observations:, now:, log:,
+                     registry: Registry.new(transport: RegistryTransport.new(log:)), current_formulae: CurrentFormula)
         @inventory, @config, @advisories, @observations, @now, @log = inventory, config, advisories, observations, now, log
-        @registry = Registry.new(transport: RegistryTransport.new(log:))
+        @registry, @current_formulae, @current = registry, current_formulae, {}
         @domains, @prepared, @decisions, @errors, @diagnostics = {}, {}, [], [], []
         inventory.records.each do |package, record|
           release = Release.new(package:, build: record.installed.build, identity: record.identity, verified: true,
@@ -35,6 +36,7 @@ module BrewCooldown
 
       def collect(roots)
         @observations.remember_clock(now: @now)
+        read_current_formulae(roots)
         pending = roots.dup
         visited = Set.new
         until pending.empty?
@@ -45,7 +47,7 @@ module BrewCooldown
             collect_cask(package, pending)
             next
           end
-          unless package.kind == :formula && package.tap == "homebrew/core"
+          unless core_formula?(package)
             record_error(package, "discover", ArgumentError.new("Exact bottled core execution is unavailable for this package"))
             next
           end
@@ -53,7 +55,14 @@ module BrewCooldown
           next if baseline&.pinned
 
           begin
-            current = CurrentFormula.fetch(package.name, log: @log)
+            current = current_formula(package.name)
+            # Homebrew's current build bounds every candidate. With it
+            # installed no registry tag can advance the package, so its tag
+            # list and per-tag metadata would be requests without an outcome.
+            if baseline && CurrentFormula.installed?(current, baseline.build)
+              note_current_rebuild(package, current)
+              next
+            end
             tags = @registry.tags(package.name)
           rescue StandardError => error
             record_error(package, "discover_history", error)
@@ -81,11 +90,7 @@ module BrewCooldown
                 pending << requirement.package unless retained && Compatibility.call(requirement, retained)
               end
             rescue UnknownInstalledBuild => error
-              details = { operation: "inspect_installed_artifact", status: "unknown_installed_build",
-                          package: package.to_h, reason: error.message, tag:,
-                          recovery: Executor::Recovery.commands(package.name) }
-              @diagnostics << details
-              @log.call(**details)
+              note_unknown_build(package, tag:, reason: error.message)
             rescue StandardError => error
               record_error(package, "prepare_candidate", error, tag:)
             end
@@ -95,6 +100,54 @@ module BrewCooldown
       end
 
       private
+
+      def core_formula?(package)
+        package.kind == :formula && package.tap == "homebrew/core"
+      end
+
+      # The scope is known before the walk starts, so its current metadata can
+      # be read together. Dependencies that only a candidate introduces are
+      # read when the walk reaches them.
+      def read_current_formulae(roots)
+        names = roots.select { |package| core_formula?(package) && !@inventory.records[package]&.installed&.pinned }.map(&:name)
+        @current = @current_formulae.fetch_all(names, log: @log)
+      rescue StandardError => error
+        # Each package then reports its own failed read instead of the whole
+        # assessment failing for a reason that names none of them.
+        @log.call(operation: "read_current_formulae", error: error.message, error_class: error.class.name)
+        @current = {}
+      end
+
+      def current_formula(name)
+        current = @current.fetch(name) { @current_formulae.fetch(name, log: @log) }
+        raise current if current.is_a?(Exception)
+
+        current
+      end
+
+      # The registry walk this replaces reported each rebuild-only tag of the
+      # installed version. Homebrew's current rebuild is the one it would pour.
+      def note_current_rebuild(package, current)
+        rebuild = CurrentFormula.rebuild(current)
+        return if rebuild.zero?
+
+        version = PkgVersion.new(Version.new(current.fetch("versions").fetch("stable")), current.fetch("revision")).to_s
+        note_unknown_build(package, tag: "#{version}-#{rebuild}", reason: unknown_build_reason(package.name, version, rebuild))
+      end
+
+      def note_unknown_build(package, tag:, reason:)
+        details = { operation: "inspect_installed_artifact", status: "unknown_installed_build",
+                    package: package.to_h, reason:, tag:,
+                    recovery: Executor::Recovery.commands(package.name) }
+        @diagnostics << details
+        @log.call(**details)
+      end
+
+      def unknown_build_reason(name, version, rebuild)
+        "#{name} #{version}: this version and revision are already installed; " \
+          "Homebrew does not record the installed bottle rebuild, so registry rebuild #{rebuild} " \
+          "cannot establish an upgrade. No rebuild-only replacement is selected"
+      end
 
       def collect_cask(package, pending)
         baseline = @inventory.records[package]&.installed
@@ -157,9 +210,7 @@ module BrewCooldown
         if comparison.zero? && baseline.build.rebuild.nil?
           return false if metadata.rebuild.zero?
 
-          raise UnknownInstalledBuild, "#{metadata.name} #{metadata.pkg_version}: this version and revision are already installed; " \
-                                       "Homebrew does not record the installed bottle rebuild, so registry rebuild #{metadata.rebuild} " \
-                                       "cannot establish an upgrade. No rebuild-only replacement is selected"
+          raise UnknownInstalledBuild, unknown_build_reason(metadata.name, metadata.pkg_version, metadata.rebuild)
         end
         comparison.positive? || (comparison.zero? && metadata.rebuild > baseline.build.rebuild)
       end

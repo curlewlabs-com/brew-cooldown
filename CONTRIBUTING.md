@@ -28,8 +28,9 @@ use fixed timestamps and recorded upstream responses; they install nothing and
 make no network requests.
 
 A few probes under `test/integration` leave installed packages alone and are
-safe on a workstation: `advisories.rb` and `registry.rb` query the live
-upstream sources, `installed_inventory.rb` reads the installed packages,
+safe on a workstation: `advisories.rb`, `registry.rb` and
+`current_formulae.rb` query the live upstream sources,
+`installed_inventory.rb` reads the installed packages,
 `command_help.rb` checks help dispatch, and `command_recovery.rb` drives
 `recover` against a temporary state directory. Run one with
 `HOMEBREW_DEVELOPER=1 brew ruby -- test/integration/registry.rb`.
