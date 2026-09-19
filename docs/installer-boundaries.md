@@ -153,9 +153,9 @@ versioned formula onto the prefix's executable paths.
 Installed dependency relationships with neither endpoint changing are retained.
 For a replacement, the installed recipe and consumer receipt supply
 compatibility evidence. A poured receipt can omit a compatibility identifier
-present in the recipe stored inside that same keg. The adapter uses that recipe and
-rejects an explicitly conflicting receipt; it does not load today's recipe to
-invent compatibility for an old installation.
+present in the recipe stored inside that same keg. The adapter uses that recipe
+and rejects an explicitly conflicting receipt; it does not load today's recipe
+to invent compatibility for an old installation.
 
 With the interpreter fixture's dependencies installed in the expendable VM:
 

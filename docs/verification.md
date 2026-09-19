@@ -85,10 +85,12 @@ an assertion of safety.
 
 ## Build in dependency order
 
-After the adapter proof, implement the domain records and deterministic policy,
-then scoped upstream history queries and fallback observation clocks. Add
-dependency planning and human/JSON explanations before unattended execution.
-Connect the proven executor with staging, journaling, and reconciliation last.
+Construction followed the risk. The adapter proof came first, then the domain
+records and deterministic policy, then scoped upstream history queries and
+fallback observation clocks, then dependency planning with human and JSON
+explanations, and the executor with journaling and reconciliation last. A new
+adapter follows the same order: prove its installation boundary before
+building on it.
 
 Ship tests with each behavior. Use real Homebrew integration for installation
 claims; do not reproduce its installer in mocks. Keep live network checks

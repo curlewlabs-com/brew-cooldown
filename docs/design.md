@@ -1,16 +1,37 @@
 # System design
 
-Status: architecture for implementation. The
-[installer experiment](installer-proof.md) exercises the initial execution
-boundary. The installation adapter must pass the feasibility checks in
-[Homebrew integration](homebrew-integration.md) before this design can become
-an unattended updater.
+Status: the architecture the commands implement. It is written as the
+requirements the implementation is held to, so
+[implementation status](#implementation-status) lists where the code is
+narrower than this text. The [installer experiment](installer-proof.md) and the
+experiments that followed it record the evidence for the execution boundary.
 
 The [boundary experiments](installer-boundaries.md) demonstrate a native
 post-install hook and establish that package locks do not exclude every
 concurrent Homebrew mutation. Avoid overlapping package-changing commands.
 The adapter detects drift where possible and reports recovery choices; it does
 not enforce exclusive ownership of the prefix.
+
+## Implementation status
+
+The commands implement this design for bottled `homebrew/core` formulae and the
+cask artifacts in [cask execution](cask-execution.md), on the platform and
+Homebrew commit described in
+[scheduled adoption](scheduled-adoption.md#homebrew-runtime-changes). The code
+is narrower than the text below in these places:
+
+- There is no tool-owned artifact staging, hard linking or free-space check.
+  Downloads stay in Homebrew's cache. Candidate preparation and revalidation
+  each verify a private snapshot of the bottle, and Homebrew's installer
+  extracts from a private copy that it verifies itself.
+- The JSON plan carries the configuration and inventory digests, the evaluated
+  timestamp, scope, candidate decisions and components. It does not carry
+  upstream snapshot identifiers, an advisory digest or attestation results.
+- The domain records are `PackageId`, `Build`, `Release`, `Installed`,
+  `SecurityEvidence`, `Decision`, `Option` and `Resolution`. A candidate's
+  identity and publication evidence live in `Release`, and first observations
+  in the ledger, instead of separate `Candidate` and `Observation` records.
+- Observation entries are never pruned.
 
 ## Decisions
 

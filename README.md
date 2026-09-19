@@ -3,21 +3,40 @@
 Conservative Homebrew upgrades with configurable release-age delays and
 expedited updates for verified security fixes.
 
-**Status: experimental formula and cask upgrades.** Install from a checkout;
-there is no packaged release yet.
-The checkout's [commands](docs/command-planning.md) evaluate a Brewfile or
-installed scope and execute eligible formula and cask components on the validated
-Homebrew runtime. Its installed-artifact identity limitation is documented there.
-`recover` inspects unfinished upgrades and prints repair choices; see
-[recovery](docs/execution-recovery.md).
-Historical installation and an ordinary post-install hook work in a disposable
-VM. The [boundary experiments](docs/installer-boundaries.md) document Homebrew
-locking limitations. Avoid overlapping package-changing Homebrew commands;
-detected drift will be reported with recovery commands for you to review.
-The behavior and command examples below describe the checkout. Read the
-[system design](docs/design.md) for the architecture and the
-[installer experiment](docs/installer-proof.md) for executable feasibility
-work and its remaining limitations.
+**Status: experimental.** There is no packaged release; run it from a checkout.
+
+What works today:
+
+- `plan` and `explain` assess a Brewfile or the installed packages against the
+  policy. They leave installed packages, pins and links unchanged.
+- `upgrade` installs the eligible formula and cask upgrades, and `recover`
+  inspects an upgrade that was interrupted. See
+  [command planning](docs/command-planning.md) and
+  [recovery](docs/execution-recovery.md).
+
+What to know before relying on it:
+
+- `upgrade` runs only on Apple Silicon macOS with Homebrew at `/opt/homebrew`,
+  and only while Homebrew's own checkout is at the one commit the installer
+  adapter was
+  [qualified on](docs/scheduled-adoption.md#homebrew-runtime-changes). Once
+  `brew update` moves Homebrew past that commit, `upgrade` refuses until a newer
+  commit has been qualified. `plan`, `explain` and `recover` keep working.
+- It executes bottled `homebrew/core` formulae and official casks made of
+  binaries and generated completions. Other casks and third-party taps are
+  reported as assessment errors, never upgraded some other way. A scope that
+  contains a third-party package, or an unsupported cask with a newer release,
+  therefore exits with status 1.
+- Homebrew's `gh` formula must be installed and authenticated. It verifies
+  bottle attestations, and source history uses the same credentials.
+- Homebrew's package locks do not exclude every other `brew` command. Avoid
+  overlapping package-changing Homebrew commands; detected drift is reported
+  with recovery commands for you to review. See the
+  [boundary experiments](docs/installer-boundaries.md).
+
+Read the [system design](docs/design.md) for the architecture and the
+[installer experiment](docs/installer-proof.md) for the evidence behind
+historical installation.
 
 ## Why
 
@@ -152,10 +171,12 @@ is held. A security exception for one package does not automatically
 waive the policy for all of its dependencies.
 
 The executor supports bottled `homebrew/core` formulae on Apple
-Silicon macOS at `/opt/homebrew`. Cask execution supports the native binary and
-generated-completion artifacts used by Codex. Third-party taps and other platforms
-are reported as unsupported until their adapters meet the same requirements.
-They remain part of the intended product scope. Unrelated installed packages
+Silicon macOS at `/opt/homebrew`. Cask execution supports binary and
+generated-completion artifacts, the artifact types of the `codex` cask it was
+qualified with; self-updating casks and other artifact types are not executed.
+Third-party taps and other platforms are reported as unsupported until their
+adapters meet the same requirements. They remain part of the intended product
+scope. Unrelated installed packages
 stay outside a Brewfile run, but their dependency requirements still
 constrain changes to shared libraries.
 

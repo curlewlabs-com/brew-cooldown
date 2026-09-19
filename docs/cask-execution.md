@@ -10,8 +10,8 @@ Use the official Homebrew cask API to establish canonical identity and the
 current source path. Enumerate that path's reachable history in
 `Homebrew/homebrew-cask`, anchored to an observed repository head. Resolve each
 recipe at an immutable commit, verify its content identity, and evaluate the
-original Ruby with Homebrew's cask loader. Do not synthesize a current API recipe
-with an older version substituted into it.
+original Ruby with Homebrew's cask loader. Do not synthesize a current API
+recipe with an older version substituted into it.
 
 Walk that history from its newest commit, a page at a time, and stop at the
 installed version. Older commits were superseded before this installation, and
@@ -94,8 +94,9 @@ In a disposable Apple Silicon VM, install the historical baseline, upgrade to
 a specified historical recipe while a newer release exists, and run the
 installed binary. Check receipts, generated completions and formula inventory.
 Attempt a current-recipe substitution and an unplanned dependency installation
-and verify rejection before mutation. Exercise pins, changed evidence,
-interruption and native failure recovery when the command integration lands.
+and verify rejection before mutation. `test/integration/cask_recovery.rb`
+exercises pins, interruption and native failure recovery through the shared
+journal.
 
 ## Observed result
 
@@ -125,8 +126,9 @@ brew ruby -- test/integration/cask_install.rb baseline
 brew ruby -- test/integration/cask_install.rb upgrade
 ```
 
-These commands intentionally install historical software. They do not exercise
-the policy or journal yet, and are not workstation upgrade commands.
+These commands intentionally install historical software. They exercise the
+installer adapter alone, without the policy or the journal, and are not
+workstation upgrade commands.
 
 The command-level test is `test/integration/command_cask_upgrade.rb`.
 In the disposable VM it selected and installed Codex 0.153.4 from a 0.144.6
@@ -135,12 +137,12 @@ matched the selected commit, the binary reported the selected version,
 completions existed, formula inventory was unchanged, and the completed journal
 was removed.
 
-`test/integration/cask_recovery.rb` exercises native cask pins, binary conflicts,
-worker termination and explicit recovery with a historical baseline. A binary
-conflict can also prevent Homebrew's best-effort restoration; the failed journal
-then remains even when native versioned files are absent. The printed native
-forward-repair command is an operator choice outside the cooldown policy, and
-repair does not acknowledge the journal automatically.
+`test/integration/cask_recovery.rb` exercises native cask pins, binary
+conflicts, worker termination and explicit recovery with a historical baseline.
+A binary conflict can also prevent Homebrew's best-effort restoration; the
+failed journal then remains even when native versioned files are absent. The
+printed native forward-repair command is an operator choice outside the cooldown
+policy, and repair does not acknowledge the journal automatically.
 
 The native conflict test preserved the foreign binary file and failed journal.
 Running the printed forward-repair command restored a runnable installation;
