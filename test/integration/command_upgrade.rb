@@ -9,6 +9,12 @@ abort "Run only in an expendable VM with historical fixtures" unless ENV["HOMEBR
 BrewCooldown::Prototype::Execution.check_homebrew!
 baseline = { "pcre2" => "10.46", "ripgrep" => "15.0.0" }
 partial = ARGV.first == "partial"
+mixed = ARGV.first == "mixed"
+if mixed
+  cask = BrewCooldown::Prototype::CaskRetained.new("codex").cask
+  raise "Mixed fixture cask is pinned" if cask.pinned?
+  cask_version = cask.version.to_s
+end
 baseline["ruby@3.3"] = "3.3.11" if partial
 baseline.each do |name, version|
   raise "Missing baseline #{name}" unless (HOMEBREW_CELLAR/name/version).directory?
@@ -33,7 +39,7 @@ end
 Dir.mktmpdir("cooldown-upgrade-command-") do |directory|
   state = Pathname(directory)/"state"
   brewfile = Pathname(directory)/"Brewfile"
-  brewfile.write(baseline.keys.map { |name| "brew #{name.dump}\n" }.join)
+  brewfile.write(baseline.keys.map { |name| "brew #{name.dump}\n" }.join + (mixed ? "cask \"codex\"\n" : ""))
   with_env(XDG_STATE_HOME: state.to_s) do
     before = BrewCooldown::Prototype::Inventory.capture
     # Contend on a real native package lock; a separate dependency component
@@ -68,6 +74,20 @@ Dir.mktmpdir("cooldown-upgrade-command-") do |directory|
     raise "No actual package changes" if BrewCooldown::Prototype::Inventory.capture == before
     output, check = Open3.capture2((HOMEBREW_PREFIX/"opt/ripgrep/bin/rg").to_s, "--pcre2", "a(?=b)", stdin_data: "ab\n")
     raise "Upgraded runtime is broken" unless check.success? && output == "ab\n"
+    if mixed
+      # Both installer adapters must share one durable component boundary.
+      # A successful cask-only or formula-only run cannot establish this.
+      component = result.fetch("execution").find do |entry|
+        entry.fetch("operations").any? { |operation| operation["kind"] == "cask" }
+      end
+      raise "Cask and formula upgrades did not share a component" unless component &&
+        component.fetch("operations").any? { |operation| operation["kind"] == "formula" }
+      path = cask.metadata_main_container_path/"INSTALL_RECEIPT.json"
+      receipt = Cask::Tab.from_file_content(path.read, path)
+      raise "Mixed cask did not advance" unless Version.new(receipt.version) > Version.new(cask_version)
+      output, check = Open3.capture2((HOMEBREW_PREFIX/"bin/codex").to_s, "--version")
+      raise "Mixed cask binary failed" unless check.success? && output.include?(receipt.version)
+    end
     raise "Successful journal retained" unless state.glob("**/active.json").empty?
     recovery, check = Open3.capture2(launcher, "recover", "--json")
     raise "Completed upgrade needs recovery" unless check.success? && JSON.parse(recovery)["status"] == "idle"

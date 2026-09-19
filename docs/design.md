@@ -44,11 +44,12 @@ Homebrew's external-command discovery. An executable launcher only enters the
 Homebrew Ruby environment and forwards arguments. There is no service,
 privileged helper, hosted database, telemetry, or private infrastructure.
 
-The first installation adapter targets bottled `homebrew/core` formulae on
+The installation adapters target bottled `homebrew/core` formulae and the
+official binary casks described in [cask execution](cask-execution.md), on
 Apple Silicon macOS at `/opt/homebrew`. Discovery and planning explicitly report
-casks, third-party taps, source-only packages, and unsupported platforms.
-They are not silently omitted or advertised as executable support. Cask and
-tap adapters must meet the same contracts before enabling their upgrade paths.
+unsupported cask artifacts, third-party taps, source-only packages, and other
+platforms. They are not silently omitted or advertised as executable support.
+Additional adapters must meet the same contracts before enabling upgrade paths.
 This narrows initial execution, not the requirement to select historical
 eligible versions.
 

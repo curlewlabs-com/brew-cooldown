@@ -39,7 +39,7 @@ module BrewCooldown
             execute_component(planning, resolution, directory, expected)
           end
           unless result["status"] == "completed"
-            result["recovery"] ||= recovery_commands(resolution)
+            result["recovery"] = recovery_commands(resolution)
           end
           results << result.merge("roots" => resolution.roots.map(&:to_h))
           observed = Prototype::Inventory.capture
@@ -59,42 +59,54 @@ module BrewCooldown
     private
 
     def recovery_commands(resolution)
-      resolution.selected.keys.select { |package| package.kind == :formula }.to_h do |package|
+      resolution.selected.keys.to_h do |package|
         name = "#{package.tap}/#{package.name}"
-        [name, Prototype::Recovery.commands(name)]
+        ["#{package.kind}/#{name}", Prototype::Recovery.commands(name, kind: package.kind.to_s)]
       end
     end
 
     def execute_component(planning, resolution, directory, expected)
       Prototype::Execution.check_homebrew!
-      if resolution.selected.keys.any? { |package| package.kind == :cask }
-        raise Prototype::Refused, "Cask planning is available; command execution is still being connected to the native cask adapter"
-      end
       observed = Prototype::Inventory.capture
       unless observed == expected
         return { "status" => "drift", "drift" => Prototype::Inventory.differences(expected, observed),
                  "error" => "Installed state changed before candidate revalidation" }
       end
-      candidates = resolution.selected.map do |package, option|
+      candidates = resolution.selected.to_h do |package, option|
         candidate = planning.discovery.prepared[option.release.identity]
         raise Prototype::Refused, "#{package.name}: native execution cannot validate this installed consumer" unless candidate
 
-        candidate
+        [package, candidate]
       end
       revalidation = HomebrewAdapter::Revalidation.new(config: @config, inventory: planning.inventory, prepared: planning.discovery.prepared,
                                                        state_directory: @directory, log: @log, clock: @clock)
       revalidation.check!(resolution.selected)
-      map = Prototype::ExactMap.new(candidates)
+      map = Prototype::ExactMap.new(candidates.select { |package, _candidate| package.kind == :formula }.values)
+      casks = candidates.select { |package, _candidate| package.kind == :cask }
+      predecessors = casks.filter_map do |package, candidate|
+        next unless candidate.install?
+
+        previous = planning.inventory.records[package]&.retained&.cask
+        [candidate.cask.full_name, previous] if previous
+      end.to_h
+      operations = casks.values.select(&:install?).map do |candidate|
+        Prototype::CaskOperation.new(candidate, predecessor: predecessors[candidate.cask.full_name])
+      end
       map.activate
+      Prototype::CaskMap.new(candidates: casks.values, predecessors:).activate
       before_install = lambda do |candidate|
-        selection = resolution.selected.select { |package, _option| package.name == candidate.formula.name }
+        selection = resolution.selected.select { |_package, option| planning.discovery.prepared[option.release.identity].equal?(candidate) }
         revalidation.check!(selection, verify_payload: false)
       end
-      Prototype::Execution.new(map, state_directory: directory).apply(expected_inventory: expected, before_install:)
+      Prototype::Execution.new(map, state_directory: directory, casks: operations).apply(expected_inventory: expected, before_install:)
     end
 
     def owned_change?(path, resolution, prepared)
       resolution.selected.values.reject(&:retained).any? do |option|
+        if option.release.package.kind == :cask
+          cask = prepared.fetch(option.release.identity).cask
+          next path.start_with?("#{cask.caskroom_path}/")
+        end
         formula = prepared.fetch(option.release.identity).formula
         names = [formula.name, *formula.aliases, *formula.oldnames]
         path.start_with?("#{formula.rack}/") || names.any? do |name|

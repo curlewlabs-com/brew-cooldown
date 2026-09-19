@@ -29,13 +29,15 @@ module BrewCooldown
     end
 
     module Recovery
-      def self.commands(name, previous_keg: nil, keg_only: false)
+      def self.commands(name, previous_keg: nil, keg_only: false, kind: "formula")
+        raise ArgumentError, "Unknown package kind: #{kind}" unless %w[formula cask].include?(kind)
+
         brew = HOMEBREW_BREW_FILE.to_s
         commands = [
-          { "purpose" => "Inspect installed versions", "command" => Shellwords.join([brew, "list", "--versions", name]) },
-          { "purpose" => "Inspect package details and pin state", "command" => Shellwords.join([brew, "info", "--json=v2", name]) }
+          { "purpose" => "Inspect installed versions", "command" => Shellwords.join([brew, "list", "--#{kind}", "--versions", name]) },
+          { "purpose" => "Inspect package details and pin state", "command" => Shellwords.join([brew, "info", "--#{kind}", "--json=v2", name]) }
         ]
-        if previous_keg && Pathname(previous_keg).directory?
+        if kind == "formula" && previous_keg && Pathname(previous_keg).directory?
           method = keg_only ? "optlink" : "link"
           code = "require 'keg'; Keg.new(Pathname(#{previous_keg.to_s.dump})).#{method}"
           commands << {
@@ -46,7 +48,7 @@ module BrewCooldown
         end
         commands << {
           "purpose" => "Repair forward with Homebrew's current release, outside the cooldown policy",
-          "command" => Shellwords.join([brew, "reinstall", "--formula", name])
+          "command" => Shellwords.join([brew, "reinstall", "--#{kind}", name])
         }
         commands
       end

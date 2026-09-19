@@ -32,6 +32,12 @@ module BrewCooldown
 
         data
       end
+
+      def self.verify_candidate!(current, version)
+        if Version.new(version) > Version.new(current.fetch("version"))
+          raise RegistryError, "#{current.fetch('token')}: historical candidate exceeds current cask version; possible rollback"
+        end
+      end
     end
   end
 end

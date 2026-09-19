@@ -39,11 +39,15 @@ module BrewCooldown
           unless entry.is_a?(Hash) && entry.fetch("name").is_a?(String) && entry.fetch("name").match?(/\A[a-z0-9][a-z0-9+@._-]*\z/) &&
                  entry.fetch("version").is_a?(String) && !entry.fetch("version").empty? &&
                  (entry["previous_keg"].nil? || entry["previous_keg"].is_a?(String)) &&
+                 %w[formula cask].include?(entry.fetch("kind", "formula")) &&
                  %w[pending started completed failed].include?(entry.fetch("status")) &&
                  [true, false].include?(entry.fetch("keg_only"))
             raise Refused, "invalid journal operation"
           end
         end
+        keys = parsed.fetch("operations").map { |entry| [entry.fetch("kind", "formula"), entry.fetch("name")] }
+        raise Refused, "duplicate journal operation identity" unless keys.uniq.length == keys.length
+
         @data = parsed
 
         data
@@ -57,8 +61,8 @@ module BrewCooldown
         persist
       end
 
-      def record(name, status, inventory: nil, error: nil)
-        operation = data.fetch("operations").find { |entry| entry.fetch("name") == name }
+      def record(name, status, kind: "formula", inventory: nil, error: nil)
+        operation = data.fetch("operations").find { |entry| entry.fetch("name") == name && entry.fetch("kind", "formula") == kind }
         raise Refused, "unplanned journal operation #{name}" unless operation
 
         operation["status"] = status
@@ -91,6 +95,7 @@ module BrewCooldown
           "operations" => data.fetch("operations").map do |entry|
             entry.merge("status" => entry.fetch("status") == "started" ? "unconfirmed" : entry.fetch("status"),
                         "recovery" => Recovery.commands(entry.fetch("name"),
+                                                        kind: entry.fetch("kind", "formula"),
                                                         previous_keg: entry["previous_keg"],
                                                         keg_only: entry.fetch("keg_only")))
           end

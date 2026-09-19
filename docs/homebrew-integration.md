@@ -215,7 +215,7 @@ version-aware advisory source is supported.
 ## Casks and third-party taps
 
 The planner evaluates official casks using reachable recipe history and native
-download verification. Their command executor is being connected to the
+download verification. Their command executor uses the
 [validated cask adapter](cask-execution.md). Third-party taps remain
 `unsupported_executor`. Cask execution must retain exact recipe and download
 digests, honor platform requirements and pins, and constrain uninstall/install

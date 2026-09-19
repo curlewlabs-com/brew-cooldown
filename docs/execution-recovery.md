@@ -2,7 +2,7 @@
 
 Status: the execution and interruption experiments passed on the platform and
 Homebrew commit recorded in [installer boundaries](installer-boundaries.md).
-The checkout exposes core-formula execution through `brew-cooldown upgrade`
+The checkout exposes formula and cask execution through `brew-cooldown upgrade`
 and journal inspection through `brew-cooldown recover`, with JSON output
 available for both commands.
 
@@ -16,7 +16,7 @@ preserved and reported for inspection. No installation receipt is created.
 
 Execute a dependency-ordered component through native installers. Prepare and
 verify candidates before mutation. Acquire the tool's prefix-scoped lock and
-native package locks, then re-read receipts, active links, pins and the Homebrew
+native formula locks, then re-read receipts, active links, pins and the Homebrew
 identity. A changed assumption is reported as drift and passed back for
 replanning. The native locks reduce collisions but cannot exclude all external
 Homebrew writers; avoid overlapping package-changing commands.
@@ -33,7 +33,7 @@ inspects all unfinished component journals as well as the original root-level
 journal. Acknowledgment binds the complete inspected set and native inventory.
 
 Native installer guards are process-local. Each component runs in a forked
-Homebrew Ruby process so its exact formula map cannot leak into discovery or
+Homebrew Ruby process so its exact package maps cannot leak into discovery or
 another component. The child inherits the coordinator's open lock, keeping
 ownership if the parent dies before the installer exits. Prepared candidates
 and expected inventory exist only in the process snapshot, not an executable
@@ -55,7 +55,7 @@ release on death. A private temporary file is flushed, renamed over the active
 journal and its directory synced. Failure to persist an intended operation
 prevents that mutation. Failure to persist its result leaves it unconfirmed.
 
-The journal records selected identities and the baseline inventory, with
+The journal records selected identities, package kind and baseline inventory, with
 package states `pending`, `started`, `completed` or `failed`. Persist `started`
 before unlinking the old package. Persist `completed` only after native finish,
 receipt and link verification, and required consumer linkage checks. The
@@ -63,7 +63,7 @@ journal stores evidence references and inventory fingerprints, not recipes or
 artifacts. Homebrew owns reusable downloads.
 
 The tool owns changes only to the planned packages. A component holds its native
-locks until completion; native per-installer cleanup must not release them
+formula locks until completion; native per-installer cleanup must not release them
 early. A new invocation reads an unfinished journal before any mutation.
 During a journaled package operation, native implicit dependency installation
 and unlinking a different package fail before those mutations. Dependencies
@@ -83,6 +83,12 @@ Quote every shell argument. Native reinstall adopts Homebrew's current release
 and is outside the tool's cooldown selection; relinking does not undo changes
 made by a post-install hook. Do not suggest forced overwrites or unpinning as
 automatic repair.
+
+Cask choices use `--cask` explicitly and retain the previous version in the
+report. Homebrew can remove versioned files during a failed upgrade and its
+best-effort restoration can fail too. The tool therefore offers native forward
+repair, without claiming a retained cask can always be restored. See the native
+failure experiment in [cask execution](cask-execution.md).
 
 Commands use the observed Homebrew executable's absolute path so they also
 work when a scheduler or Homebrew subprocess has a restricted `PATH`.
@@ -114,6 +120,16 @@ and ripgrep 15.2.0 from historical baselines in the disposable VM. Native
 receipts, active links, a PCRE runtime expression and successful journal removal
 were verified. The run included fresh configuration, rollback, artifact and
 advisory checks before installation.
+
+The formula command experiment also passed with historical Codex retained as
+an installed cask consumer. PCRE2 and ripgrep advanced through the shared
+coordinator while the cask remained installed; its runtime package requirements
+did not invent bottle ABI constraints.
+
+`test/integration/command_upgrade.rb mixed` also passed a component containing
+formula and cask upgrades together. PCRE2, ripgrep and Codex completed through
+the shared journal, the installed binaries ran, and no unfinished journal
+remained.
 
 In the independent-component experiment, a held native PCRE2 lock caused that
 component to report failure while Ruby 3.3.11 advanced to 3.3.12. Its installed

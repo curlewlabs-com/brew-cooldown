@@ -101,7 +101,7 @@ module BrewCooldown
             candidate = history.candidate(entry)
             version = Version.new(candidate.cask.version.to_s)
             next if baseline && version <= Version.new(baseline.build.version)
-            raise RegistryError, "#{package.name}: historical candidate exceeds current cask version; possible rollback" if version > Version.new(current.fetch("version"))
+            CurrentCask.verify_candidate!(current, version.to_s)
 
             candidate.prepare
             release = CaskEvidence.release(package, candidate, published_at: entry.published_at)

@@ -73,7 +73,8 @@ module BrewCooldown
             records[record.installed.package] = record
           rescue StandardError => error
             details = { operation: "read_installed_cask", package: name, error: error.message,
-                        error_class: error.class.name, backtrace: error.backtrace }
+                        error_class: error.class.name, backtrace: error.backtrace,
+                        recovery: Prototype::Recovery.commands(name, kind: "cask") }
             errors << details
             log.call(**details)
           end

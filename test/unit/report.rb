@@ -48,6 +48,17 @@ BrewCooldown::Report.print_recovery({ status: "drift", changes: [{ "path" => "/o
 raise "Pre-install drift details hidden" unless output.string.include?("Changed /opt/homebrew/opt/app") &&
   output.string.include?("../Cellar/app/2.0")
 
+# A failed cask and a formula may share a token. Terminal recovery must retain
+# the kind and cask baseline rather than suggesting the wrong repair target.
+output = StringIO.new
+cask_recovery = BrewCooldown::Prototype::Recovery.commands("shared-token", kind: "cask")
+BrewCooldown::Report.print_recovery({ status: "needs_reconciliation", operations: [
+  { "kind" => "cask", "name" => "shared-token", "version" => "2.0", "previous_version" => "1.0",
+    "status" => "failed", "recovery" => cask_recovery }
+] }, output)
+raise "Cask recovery identity hidden" unless output.string.include?("cask/shared-token 2.0: failed") &&
+  output.string.include?("Previous version: 1.0") && output.string.include?("reinstall --cask shared-token")
+
 package = BrewCooldown::PackageId.new(kind: :formula, tap: "homebrew/core", name: "pcre2")
 instant = Time.iso8601("2026-09-18T23:45:00-07:00")
 value = BrewCooldown::Report.json_value({ errors: [{ package:, boundary: instant }] })

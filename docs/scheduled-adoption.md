@@ -1,29 +1,28 @@
 # Scheduled adoption
 
-The checkout can perform policy-selected core-formula upgrades on the validated
+The checkout can perform policy-selected formula and cask upgrades on the validated
 runtime. It is not yet a complete replacement for a job that runs `brew update`
 followed by `brew bundle install --upgrade`. A partial result remains an error
-for the scheduler even when independent formula upgrades succeed.
+for the scheduler even when independent upgrades succeed.
 
 ## Casks and shared formula dependencies
 
 A Brewfile containing casks needs the cask adapter. Core-formula bottle
 verification cannot establish the identity and age of a cask's vendor payload.
 Cask planning now uses historical recipe provenance, immutable download
-identity and source publication evidence. Native installation has passed its
-historical experiment; command execution and recovery are being connected while
-preserving the selected dependency plan.
+identity and source publication evidence. Command execution uses native
+installation and the shared operation journal while preserving the selected
+dependency plan.
 
 Casks already constrain the installed graph. A cask depending on a formula can
 therefore affect that formula's component even when the cask itself is outside
-the requested upgrade scope. The current executor reports that it cannot
-validate such an installed consumer. Cask receipts supply runtime package
+the requested upgrade scope. Cask receipts supply runtime package
 requirements rather than bottle ABI constraints. Native installation and
 retained-dependency behavior have passed the disposable-VM experiment.
 
-The next implementation target connects cask execution, revalidation and
-recovery to the command. Keep unsupported candidates visible and continue
-independent core work. Running
+Qualification must include the actual Brewfile and its runtime closure before
+changing scheduling. Keep unsupported candidates visible and continue
+independent work. Running
 an ordinary latest-release cask upgrade as a fallback would bypass the user's
 cooldown policy.
 
