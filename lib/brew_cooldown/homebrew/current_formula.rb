@@ -4,6 +4,7 @@ require "utils/curl"
 require "uri"
 require_relative "../policy"
 require_relative "registry_transport"
+require "pkg_version"
 
 module BrewCooldown
   module HomebrewAdapter
@@ -31,8 +32,26 @@ module BrewCooldown
         if data.fetch("disabled")
           raise RegistryError, "Homebrew has disabled #{name}: #{data['disable_reason'] || 'no reason supplied'}"
         end
+        unless data.dig("versions", "stable").is_a?(String) && !data.dig("versions", "stable").empty? &&
+               data["revision"].is_a?(Integer) && data["revision"] >= 0
+          raise RegistryError, "Current package version unavailable for #{name}"
+        end
 
         data
+      end
+
+      def self.verify_candidate!(current, build)
+        scheme_order = build.scheme <=> current.fetch("version_scheme")
+        return if scheme_order.negative?
+
+        comparison = PkgVersion.new(Version.new(build.version), build.revision) <=>
+                     PkgVersion.new(Version.new(current.fetch("versions").fetch("stable")), current.fetch("revision"))
+        return if scheme_order.zero? && comparison.negative?
+
+        current_rebuild = current.dig("bottle", "stable", "rebuild")
+        return if scheme_order.zero? && comparison.zero? && current_rebuild.is_a?(Integer) && build.rebuild <= current_rebuild
+
+        raise RegistryError, "#{current.fetch('name')}: candidate exceeds the currently published build; possible rollback or unavailable bottle evidence"
       end
     end
   end

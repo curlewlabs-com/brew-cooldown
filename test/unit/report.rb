@@ -32,6 +32,22 @@ BrewCooldown::Report.print_human({ status: "assessed", scope: [], errors: [],
 raise "Dependency conflict hidden" unless output.string.include?("app 2.0.0: #{conflict}")
 raise "Unknown security coverage hidden" unless output.string.include?("app: no_records")
 
+# Security-only execution may intentionally skip an eligible routine upgrade.
+# Terminal output must not present the proposal as an executed operation.
+output = StringIO.new
+BrewCooldown::Report.print_upgrade({ status: "completed", scope: [], errors: [], candidates: [], installed_security: [], execution: [],
+  components: [{ rejected_options: {}, selected: [{ operation: "upgrade", package: { name: "app" },
+    build: { version: "2.0.0", revision: 0, rebuild: 0 }, decision: { reason: "Mature release" } }] }] }, output)
+raise "Unexecuted proposal presented as an upgrade" if output.string.include?("Upgrade app")
+
+# A native pre-install drift result must expose the changed path as well as
+# repair commands, before an unfinished journal exists.
+output = StringIO.new
+BrewCooldown::Report.print_recovery({ status: "drift", changes: [{ "path" => "/opt/homebrew/opt/app",
+  "expected" => "../Cellar/app/1.0", "observed" => "../Cellar/app/2.0" }] }, output)
+raise "Pre-install drift details hidden" unless output.string.include?("Changed /opt/homebrew/opt/app") &&
+  output.string.include?("../Cellar/app/2.0")
+
 package = BrewCooldown::PackageId.new(kind: :formula, tap: "homebrew/core", name: "pcre2")
 instant = Time.iso8601("2026-09-18T23:45:00-07:00")
 value = BrewCooldown::Report.json_value({ errors: [{ package:, boundary: instant }] })

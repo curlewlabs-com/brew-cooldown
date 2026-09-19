@@ -2,6 +2,7 @@
 
 require_relative "registry"
 require_relative "advisories"
+require_relative "candidate_evidence"
 require_relative "current_formula"
 require_relative "installed_inventory"
 require_relative "compatibility"
@@ -63,7 +64,7 @@ module BrewCooldown
               next unless metadata_advances?(metadata, baseline, current.fetch("version_scheme"))
 
               candidate = prepare(metadata)
-              option = evaluate(package, candidate, metadata, baseline)
+              option = evaluate(package, candidate, metadata, baseline, current)
               @domains[package] ||= []
               @domains[package] << option
               @prepared[option.release.identity] = candidate
@@ -120,18 +121,10 @@ module BrewCooldown
         candidate
       end
 
-      def evaluate(package, candidate, metadata, baseline)
+      def evaluate(package, candidate, metadata, baseline, current)
         formula = candidate.formula
-        build = Build.new(version: formula.version.to_s, revision: formula.revision,
-                          rebuild: candidate.rebuild, scheme: formula.version_scheme)
-        # An index can gain another platform without changing this artifact.
-        # Only the selected platform, recipe and bottle belong in its clock key.
-        identity = Digest::SHA256.hexdigest(JSON.generate(package: package.to_h, build: build.to_h,
-                                                        platform: metadata.platform, manifest: metadata.platform_sha256,
-                                                        bottle: metadata.bottle_sha256,
-                                                        recipe: candidate.worker_record.fetch("recipe_sha256")))
-        release = Release.new(package:, build:, identity:, verified: true, published_at: metadata.published_at,
-                              publication_source: metadata.published_at && :platform_manifest)
+        release = CandidateEvidence.release(package, candidate, metadata)
+        CurrentFormula.verify_candidate!(current, release.build)
         first_seen = @observations.first_seen(release, now: @now) unless metadata.published_at
         installed_formula = @inventory.records[package]&.retained&.formula
         assessment = @advisories.assess(release:, installed: baseline,
@@ -139,7 +132,7 @@ module BrewCooldown
                                         installed_patches: installed_formula ? Advisories.patch_identifiers(installed_formula) : [])
         policy = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
         decision = policy.evaluate(release:, installed: baseline, now: @now, security: assessment.evidence, first_seen:)
-        @decisions << { package: package.to_h, build: build.to_h, identity:, decision: decision.to_h,
+        @decisions << { package: package.to_h, build: release.build.to_h, identity: release.identity, decision: decision.to_h,
                         security: { coverage: assessment.coverage, evidence: assessment.evidence.to_h,
                                     advisories: assessment.advisories.map(&:to_h) } }
         Option.new(release:, decision:, dependencies: InstalledInventory.requirements(candidate.runtime_dependencies),

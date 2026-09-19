@@ -247,6 +247,10 @@ and dependency semantics. A bare dependency name is not a promise of binary
 compatibility. Exact recorded dependency versions are admissible; replacing
 them with another version requires positive compatibility evidence supported
 by the adapter. A minimum version by itself supplies no upper ABI guarantee.
+An unchanged installed dependency can satisfy its recorded upstream version
+and formula revision without a bottle rebuild identifier, matching Homebrew's
+installed-dependency contract. This does not authorize a rebuild-only upgrade
+or infer which artifact was installed.
 
 Read reverse dependencies across the entire installed prefix. Packages outside
 scope are fixed constraints, not automatic additional upgrade targets. If a

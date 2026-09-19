@@ -65,7 +65,8 @@ HOMEBREW_DEVELOPER=1 brew ruby -- test/integration/advisories.rb
 ```
 
 The feed format is documented by the [Homebrew advisory project][homebrew] and
-the [OSV schema][osv]. The adapter is not connected to installation yet.
+the [OSV schema][osv]. Upgrade workers refresh the feed and reassess selected
+candidates before entering the installer.
 
 [homebrew]: https://github.com/Homebrew/advisory-database/blob/main/CONTRIBUTING.md
 [osv]: https://ossf.github.io/osv-schema/

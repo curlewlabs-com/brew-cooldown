@@ -75,9 +75,6 @@ module BrewCooldown
           end
         end
         fingerprint = Prototype::Inventory.capture
-        Cask::Caskroom.path.glob("*/.metadata/**/{INSTALL_RECEIPT.json,*.rb,*.json}").sort.each do |path|
-          fingerprint[path.to_s] = Digest::SHA256.file(path).hexdigest if path.file?
-        end
         InventoryResult.new(records: records.freeze, errors: errors.freeze, fingerprint: fingerprint.sort.to_h.freeze)
       end
 

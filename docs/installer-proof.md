@@ -50,6 +50,11 @@ must fail before mutation. Homebrew's requirement traversal normally loads
 build-only dependencies even for bottles. The adapter omits those edges unless
 the bottle also names them as runtime dependencies, then lets Homebrew perform
 its normal runtime and platform checks. No source build is permitted.
+The launcher uses developer mode to enter Homebrew Ruby without changing its
+persistent settings. Native installation temporarily uses ordinary runtime
+mode: the developer-only source-cycle diagnostic otherwise resolves build
+recipes even for bottles. The planner checks installation cycles, and native
+runtime dependency, architecture and pin checks remain enabled.
 
 The integration test uses Homebrew's normal installer, including dependency
 installation, relocation and receipts. It checks canonical and alias links

@@ -76,12 +76,12 @@ result = resolve([base_root, base_library, old_root, old_library.with(compatibil
 assert_version(result, "app", "1.0.1")
 assert_version(result, "outside", "5.0.0")
 
-# Unknown installed rebuilds cannot satisfy an exact artifact requirement.
-# Explicit compatibility metadata remains an independent route to agreement.
+# A retained dependency at the recorded package version satisfies Homebrew's
+# native requirement without claiming to know its installed bottle rebuild.
 unknown_library = base_library.with(release: base_library.release.with(build: base_library.release.build.with(rebuild: nil)))
 exact_root = old_root.with(dependencies: [requirement("library", "1.0.0")])
 result = resolve([base_root, unknown_library, exact_root], roots: ["app"]).fetch(0)
-raise "Unknown rebuild was treated as exact evidence" unless result.status == :unchanged
+assert_version(result, "app", "1.0.1")
 zero_required = requirement("library", "1.0.0", cohort: 0)
 raise "Explicit cohort lost to unknown rebuild" unless BrewCooldown::HomebrewAdapter::Compatibility.call(zero_required, unknown_library.with(compatibility_version: 0))
 

@@ -9,6 +9,10 @@ module BrewCooldown
     module Compatibility
       def self.validate!(dependency, selected)
         version_matches = dependency.fetch("pkg_version") == selected.formula.pkg_version.to_s
+        # Homebrew can satisfy an installed dependency from its package version
+        # and revision even when its bottle rebuild was not recorded.
+        return if version_matches && !selected.install?
+
         required_rebuild = dependency["bottle_rebuild"]
         rebuild_matches = required_rebuild.is_a?(Integer) && selected.rebuild.is_a?(Integer) &&
                           required_rebuild == selected.rebuild
