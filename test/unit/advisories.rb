@@ -99,6 +99,13 @@ patch = changed_record { |row| row["affected"][0]["ecosystem_specific"]["fix"] =
 expect(:cooldown, assess(records: { "git" => [patch] }).last.status, "today's patch annotation is not historical evidence")
 expect(:security_fix, assess(records: { "git" => [patch] }, candidate_patches: ["CVE-2025-40918"]).last.status,
        "verified recipe patch attribution")
+# An already patched installation must not be reported as still affected or
+# create an installed-affected-to-fixed exception for a later candidate.
+patched, patched_decision = assess(records: { "git" => [patch] }, before: "2.55.0", after: "2.55.1",
+                                  candidate_patches: ["CVE-2025-40918"],
+                                  installed_patches: ["CVE-2025-40918"])
+expect(false, patched.evidence.installed_affected, "installed recipe patch attribution")
+expect(:cooldown, patched_decision.status, "already patched installation does not expedite")
 expect(:cooldown, assess(records: { "git" => [patch] }, candidate_patches: ["CVE-unrelated"]).last.status,
        "unrelated patch cannot authorize bypass")
 patch["upstream"] << "CVE-another"

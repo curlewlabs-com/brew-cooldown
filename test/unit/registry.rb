@@ -95,6 +95,20 @@ def metadata_reader(index = JSON.parse(INDEX_BODY))
                                                      index:, index_sha256: Digest::SHA256.hexdigest(INDEX_BODY))
 end
 
+# Native selection, including older-OS fallback, must decide which platform
+# to evaluate. Merely matching the host's current tag would strand old bottles.
+if Utils::Bottles.tag.to_sym == :arm64_tahoe
+  automatic = BrewCooldown::HomebrewAdapter::RegistryMetadata.new(name: "pcre2", tag: "10.47", platform: nil,
+                                                                index:, index_sha256: index_digest)
+  raise "Native platform selection changed" unless automatic.complete(platform).platform == "arm64_tahoe"
+  older = Marshal.load(Marshal.dump(index))
+  older["manifests"].reject! { |entry| entry.dig("annotations", "org.opencontainers.image.ref.name") == "10.47.arm64_tahoe" }
+  fallback = BrewCooldown::HomebrewAdapter::RegistryMetadata.new(name: "pcre2", tag: "10.47", platform: nil,
+                                                               index: older, index_sha256: index_digest)
+  expected = older.fetch("manifests").find { |entry| entry.dig("annotations", "org.opencontainers.image.ref.name") == "10.47.arm64_sequoia" }
+  raise "Native older-platform fallback failed" unless fallback.platform_sha256 == expected.fetch("digest").delete_prefix("sha256:")
+end
+
 changed_index = Marshal.load(Marshal.dump(index))
 changed_index["annotations"]["org.opencontainers.image.created"] = "2026-09-19T00:00:00Z"
 raise "Index clock displaced platform publication" unless metadata_reader(changed_index).complete(platform).published_at == metadata.published_at

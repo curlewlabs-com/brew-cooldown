@@ -8,20 +8,23 @@ module BrewCooldown
   module Prototype
     class Refused < StandardError; end
 
-    # A fixed official bottle used to probe Homebrew's historical installer.
+    # An exact official bottle used by Homebrew's historical installer adapter.
     # Registry responses stay in Homebrew's cache, not in a project catalog.
     class Candidate
       DOMAIN = "https://ghcr.io/v2/homebrew/core"
       TAG = :arm64_tahoe
 
-      attr_reader :formula, :bottle, :runtime_dependencies, :rebuild
+      attr_reader :formula, :bottle, :runtime_dependencies, :rebuild, :tag
 
       def initialize(record)
         @name = record.fetch("name")
         @version = record.fetch("version")
         @rebuild = record.fetch("rebuild", 0)
+        @tag = Utils::Bottles::Tag.from_symbol(record.fetch("platform", TAG).to_sym)
         @index_sha256 = record.fetch("index_sha256")
-        raise Refused, "unsupported test identity" unless %w[pcre2 ripgrep fish ncurses ruby@3.3].include?(@name)
+        raise Refused, "expected canonical core formula name" unless @name.is_a?(String) &&
+          @name.match?(/\A[a-z0-9][a-z0-9+@._-]*\z/) && !@name.include?("..")
+        raise Refused, "invalid package version" unless @version.is_a?(String) && !@version.empty?
         raise Refused, "invalid index digest" unless @index_sha256.match?(/\A[0-9a-f]{64}\z/)
         raise Refused, "invalid bottle rebuild" unless rebuild.is_a?(Integer) && rebuild >= 0
       end
@@ -34,7 +37,7 @@ module BrewCooldown
         end
 
         index = registry_json("manifests", @index_sha256)
-        reference = "#{@version}.#{TAG}"
+        reference = "#{@version}.#{tag}"
         reference += ".#{rebuild}" if rebuild.positive?
         descriptors = index.fetch("manifests").select do |entry|
           entry.fetch("annotations").fetch("org.opencontainers.image.ref.name") == reference
@@ -58,8 +61,8 @@ module BrewCooldown
         specification = BottleSpecification.new
         specification.root_url(DOMAIN)
         specification.rebuild(rebuild)
-        specification.sha256(cellar: HOMEBREW_CELLAR.to_s, TAG => digest)
-        staged = Bottle.new(nil, specification, Utils::Bottles.tag(TAG),
+        specification.sha256(cellar: HOMEBREW_CELLAR.to_s, tag.to_sym => digest)
+        staged = Bottle.new(nil, specification, tag,
                             name: @name, pkg_version: PkgVersion.parse(@version))
         staged.fetch
         # Verify before evaluating the recipe; a matching registry hash alone
@@ -81,9 +84,10 @@ module BrewCooldown
 
         formula.bottle_specification.root_url(DOMAIN)
         formula.bottle_specification.rebuild(rebuild)
-        formula.bottle_specification.sha256(cellar: HOMEBREW_CELLAR.to_s, TAG => digest)
+        formula.bottle_specification.sha256(cellar: HOMEBREW_CELLAR.to_s, tag.to_sym => digest)
         @bottle = formula.bottle
         raise Refused, "bottle incompatible with this machine" unless bottle
+        raise Refused, "native bottle selection differs from evaluated platform" unless bottle.tag == tag
 
         # Keep the native Bottle and its dependency reader, but resolve its
         # manifest by immutable digest instead of the moving version tag.
@@ -121,7 +125,7 @@ module BrewCooldown
 
       def identity
         { "name" => @name, "version" => @version, "rebuild" => rebuild,
-          "platform" => TAG.to_s, "index_sha256" => @index_sha256,
+          "platform" => tag.to_s, "index_sha256" => @index_sha256,
           "bottle_sha256" => bottle.resource.checksum.hexdigest }
       end
 

@@ -59,6 +59,10 @@ module BrewCooldown
         @diagnostics = diagnostics
       end
 
+      def self.patch_identifiers(formula)
+        formula.patchlist.flat_map { |patch| patch.respond_to?(:resolves) ? patch.resolves : [] }.uniq
+      end
+
       def assess(release:, installed:, candidate_patches: [], installed_patches: [])
         package = release.package
         raise ArgumentError, "Installed and candidate identities differ" if installed && installed.package != package

@@ -40,6 +40,11 @@ module BrewCooldown
       unless release.verified && release.identity.is_a?(String) && release.identity.match?(/\A[0-9a-f]{64}\z/)
         return decision(:unverified, "Exact candidate identity has not been verified")
       end
+      if installed && installed.build.scheme == release.build.scheme &&
+         installed.build.version == release.build.version && installed.build.revision == release.build.revision &&
+         installed.build.rebuild.nil?
+        return decision(:unknown_installed_build, "Homebrew has no installed bottle rebuild identity to establish advancement")
+      end
       if installed && @compare_builds.call(release.build, installed.build) <= 0
         return decision(:not_newer, "Candidate does not advance the active installation")
       end

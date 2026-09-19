@@ -3,6 +3,7 @@
 require "date"
 require "time"
 require "pkg_version"
+require "bottle_specification"
 
 module BrewCooldown
   module HomebrewAdapter
@@ -13,7 +14,7 @@ module BrewCooldown
       attr_reader :platform_sha256
 
       def initialize(name:, tag:, platform:, index:, index_sha256:)
-        @name, @tag, @platform, @index_sha256 = name, tag, platform.to_s, index_sha256
+        @name, @tag, @index_sha256 = name, tag, index_sha256
         annotations = object!(index, "index").fetch("annotations")
         object!(annotations, "index annotations")
         unless index["schemaVersion"] == 2 && annotations["org.opencontainers.image.title"] == name &&
@@ -29,9 +30,11 @@ module BrewCooldown
         else
           raise RegistryError, "Index version and rebuild differ for #{name} #{tag}"
         end
-        @reference = GitHubPackages.version_rebuild(Version.new(@version), @rebuild, @platform)
         manifests = index["manifests"]
         raise RegistryError, "Index manifests must be objects" unless manifests.is_a?(Array) && manifests.all? { |entry| entry.is_a?(Hash) }
+
+        @platform = platform ? platform.to_s : native_platform(manifests)
+        @reference = GitHubPackages.version_rebuild(Version.new(@version), @rebuild, @platform)
 
         matching = manifests.select { |entry| entry.dig("annotations", "org.opencontainers.image.ref.name") == @reference }
         raise RegistryError, "Missing or ambiguous platform #{@platform} for #{name} #{tag}" unless matching.length == 1
@@ -83,6 +86,25 @@ module BrewCooldown
       end
 
       private
+
+      def native_platform(manifests)
+        specification = BottleSpecification.new
+        manifests.each do |entry|
+          annotations = object!(entry["annotations"], "platform annotations")
+          reference = text!(annotations["org.opencontainers.image.ref.name"], "platform reference")
+          prefix = "#{@version}."
+          suffix = @rebuild.positive? ? ".#{@rebuild}" : ""
+          next unless reference.start_with?(prefix) && reference.end_with?(suffix)
+
+          tag = reference.delete_prefix(prefix).delete_suffix(suffix)
+          digest = digest!("sha256:#{annotations['sh.brew.bottle.digest']}", "bottle annotation")
+          specification.sha256(tag.to_sym => digest)
+        end
+        selected = specification.tag_specification_for(Utils::Bottles.tag)
+        raise RegistryError, "No native-compatible bottle for #{@name} #{@tag}" unless selected
+
+        selected.tag.to_s
+      end
 
       def object!(value, field)
         raise RegistryError, "#{field} must be an object" unless value.is_a?(Hash)

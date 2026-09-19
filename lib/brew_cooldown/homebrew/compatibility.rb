@@ -7,6 +7,7 @@ module BrewCooldown
         required = requirement.build
         selected = option.release.build
         return true if required.version == selected.version && required.revision == selected.revision &&
+                       required.rebuild.is_a?(Integer) && selected.rebuild.is_a?(Integer) &&
                        required.rebuild == selected.rebuild
 
         cohort = requirement.compatibility_version

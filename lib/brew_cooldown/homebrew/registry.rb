@@ -37,7 +37,7 @@ module BrewCooldown
         raise RegistryError, "Invalid registry tag JSON for #{name}: #{error.message}"
       end
 
-      def resolve(name, tag, platform:)
+      def resolve(name, tag, platform: nil)
         image = image_name(name)
         unless tag.is_a?(String) && tag.match?(/\A[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}\z/)
           raise RegistryError, "Invalid registry tag"

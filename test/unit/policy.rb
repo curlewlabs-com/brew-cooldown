@@ -55,6 +55,9 @@ end
 assert_equal(:default, evaluate.call(release, nil).delay_kind, "new dependency has no semantic baseline")
 assert_equal(:not_newer, evaluate.call(release.with(build: build("1.1.9"))).status, "never downgrade")
 assert_equal(:not_newer, evaluate.call(release.with(build: installed.build)).status, "do not reinstall unchanged build")
+assert_equal(:unknown_installed_build,
+             evaluate.call(release.with(build: installed.build.with(rebuild: 1)), installed.with(build: installed.build.with(rebuild: nil))).status,
+             "missing installed rebuild is not evidence of rebuild zero")
 
 # Publication churn adds options without resetting an older candidate's clock.
 releases = (1..30).map do |patch|
