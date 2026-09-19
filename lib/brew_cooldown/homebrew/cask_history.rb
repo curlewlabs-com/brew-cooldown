@@ -21,29 +21,31 @@ module BrewCooldown
         @current, @log, @request = current, log, request
       end
 
+      # Newest first, fetched a page at a time as the caller advances. A caller
+      # that stops at the installed version pays for the commits since then,
+      # not for every commit the cask has ever had.
       def entries
-        results = []
-        seen = Set.new
-        page = 1
-        loop do
-          query = URI.encode_www_form(path: @current.fetch("ruby_source_path"), sha: @current.fetch("tap_git_head"), per_page: 100, page:)
-          rows = request("#{API}/commits?#{query}")
-          raise RegistryError, "Invalid cask history page" unless rows.is_a?(Array)
+        Enumerator.new do |results|
+          seen = Set.new
+          page = 1
+          loop do
+            query = URI.encode_www_form(path: @current.fetch("ruby_source_path"), sha: @current.fetch("tap_git_head"), per_page: 100, page:)
+            rows = request("#{API}/commits?#{query}")
+            raise RegistryError, "Invalid cask history page" unless rows.is_a?(Array)
+            raise RegistryError, "Official cask history is empty" if page == 1 && rows.empty?
 
-          rows.each do |row|
-            commit = row.fetch("sha")
-            raise RegistryError, "Invalid or repeated cask history commit" unless commit.is_a?(String) && commit.match?(/\A[0-9a-f]{40}\z/) && seen.add?(commit)
+            rows.each do |row|
+              commit = row.fetch("sha")
+              raise RegistryError, "Invalid or repeated cask history commit" unless commit.is_a?(String) && commit.match?(/\A[0-9a-f]{40}\z/) && seen.add?(commit)
 
-            timestamp = row.dig("commit", "committer", "date")
-            results << CaskHistoryEntry.new(commit:, published_at: publication_time(timestamp, commit:))
+              timestamp = row.dig("commit", "committer", "date")
+              results << CaskHistoryEntry.new(commit:, published_at: publication_time(timestamp, commit:))
+            end
+            break if rows.length < 100
+
+            page += 1
           end
-          break if rows.length < 100
-
-          page += 1
         end
-        raise RegistryError, "Official cask history is empty" if results.empty?
-
-        results
       end
 
       def candidate(entry)
