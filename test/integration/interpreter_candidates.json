@@ -1,0 +1,12 @@
+{
+  "baseline": {
+    "name": "ruby@3.3",
+    "version": "3.3.11",
+    "index_sha256": "525c58fca877eb85eacf3a8b2daa12bd80e350f210f96149af4a9fe6e8466670"
+  },
+  "upgrade": {
+    "name": "ruby@3.3",
+    "version": "3.3.12",
+    "index_sha256": "b90d0eef16b9005d80937414b696c0788859baa64cf89dae4538b6f4e00e95ee"
+  }
+}

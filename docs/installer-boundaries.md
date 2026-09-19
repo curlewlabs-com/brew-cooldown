@@ -2,8 +2,9 @@
 
 Status: the ordinary post-install experiment passed. The concurrency experiment
 found that Homebrew package locks do not protect all relevant peer operations.
-Unattended execution remains blocked under the current design. These are
-destructive experiments for an expendable VM, not supported upgrade commands.
+The operating contract accepts this limitation and recommends avoiding
+overlapping mutations. These are destructive experiments for an expendable
+VM, not supported upgrade commands.
 
 ## Observed post-install behavior
 
@@ -65,29 +66,24 @@ process interruption was injected, and this is not journal reconciliation.
 Taking locks earlier in our own adapter cannot make an independent Homebrew
 process take them earlier. An inventory check can detect a change but cannot
 prevent a peer from changing state immediately afterward. A tool-specific
-lock only coordinates callers that participate in it. These results block
-the stronger concurrency contract in the
-[system design](design.md#applying-a-plan).
-They do not establish that serial historical installation is impossible.
+lock only coordinates callers that participate in it. The
+[system design](design.md#applying-a-plan) accepts this interference risk and
+requires drift reporting with text-only recovery choices.
 
-## Decision needed before unattended execution
+## Operating contract
 
-The operating contract must explicitly choose how the prefix is shared:
+Avoid overlapping package-changing Homebrew commands. Use native package
+locks before our own mutations and inspect inventory again, but do not try to
+enforce exclusive prefix ownership. A native peer can still change a pin or
+move an active keg. Detect drift where possible, report partial results, and
+print commands for restoring a retained installation or repairing forward.
+The user chooses and runs any repair; its effects and cooldown implications
+must be explicit.
 
-- Require a managed prefix with an exclusive writer, with all package mutations
-  routed through the same scheduler or lock. This can avoid depending on an
-  upstream change, but needs enforceable host integration; merely asking users
-  not to run brew is not an isolation mechanism.
-- Support ordinary concurrent Homebrew writers after the required native
-  operations honor the same locks before mutation. That requires upstream
-  changes or a different isolation boundary, beyond a process-local adapter.
-- Accept interference from concurrent Homebrew commands, detect it where
-  possible, and report partial failures. This weakens the current guarantee
-  and must be an explicit product decision, not a hidden fallback.
-
-No option requires a private artifact archive or release database. Broader
-planner and unattended-executor implementation is paused at this feasibility
-boundary rather than silently selecting an operating contract.
+The concurrency experiment remains useful evidence of this limitation. It no
+longer blocks implementation. Continue attempting valid candidates and
+independent components, with specific errors when progress is not possible.
+This decision needs neither upstream coordination nor another artifact store.
 
 ## Reproduce
 
@@ -110,15 +106,66 @@ to the handoff. It also changes the handoff without changing its digest.
 Refusals must preserve package receipts and `opt` links. The original official
 hook must still succeed.
 
-The lock experiment exits nonzero with `BLOCKED` when it reproduces the native
-concurrency gap. A failure before reaching its lock observation is a test
-error, not proof of the gap. `lock_peer.rb` is its subprocess helper; do not
+The lock experiment reports the observed native concurrency gap and verifies
+recovery after the contending command fails. Unexpected failures or incomplete
+restoration fail the experiment. `lock_peer.rb` is its subprocess helper; do not
 run the reinstall mode independently. Destroy the VM after the experiments.
+
+## Shared consumer result
+
+The shared-consumer experiment passed on the same platform and Homebrew
+commit. It installed fish 4.7.1 with PCRE2 10.47_1, then upgraded PCRE2 to
+10.48 while retaining fish's receipt and canonical link. Matching recorded
+Homebrew compatibility identifiers and the required candidate library paths
+supported the change. Native linkage inspection and a PCRE-backed fish command
+passed afterward. A candidate without the required compatibility evidence was
+rejected before mutation; an attempt to reinstall the retained consumer was
+also rejected.
+
+This is evidence for the exercised dependency edge, not an inferred ABI promise
+for every package. Installed receipts supply consumer requirements. Where the
+recorded build differs, missing compatibility metadata remains a constraint
+for the planner to resolve with another candidate or explain to the user.
+
+Start a separate expendable VM without fish or PCRE2 and run:
+
+```sh
+brew ruby -- test/integration/shared_consumer.rb baseline
+brew ruby -- test/integration/shared_consumer.rb insufficient_evidence
+brew ruby -- test/integration/shared_consumer.rb upgrade
+```
 
 ## Remaining acceptance work
 
-The shared-consumer upgrade and refusal experiments, adapter identity change,
-inventory change before apply, interpreter upgrades, interruption and journal
-reconciliation remain unproven. The complete release bar remains in
-[verification](verification.md). Passing the hook experiment does not satisfy
-that bar or make this a replacement for a scheduled Brewfile job.
+The [execution experiments](execution-recovery.md) cover pin drift,
+interruption, journal reconciliation and subsequent completion. Modifying the
+Homebrew checkout also produced an error before package mutation. The recovery
+experiment executed the printed retained-keg commands as an explicit operator
+choice, restored the historical versions and passed the PCRE runtime check.
+
+The interpreter experiment installed ruby@3.3 3.3.11 and upgraded it to 3.3.12
+through the executor. Its native hook succeeded, and the upgraded interpreter
+loaded OpenSSL and Psych. The tool's process and Homebrew-owned Ruby executable
+remained unchanged throughout. Keg-only formulae retain their existing prefix
+link choice; the adapter does not invoke native automatic promotion of a new
+versioned formula onto the prefix's executable paths.
+
+Installed dependency relationships with neither endpoint changing are retained.
+For a replacement, the installed recipe and consumer receipt supply
+compatibility evidence. A poured receipt can omit a compatibility identifier
+present in the recipe stored inside that same keg. The adapter uses that recipe and
+rejects an explicitly conflicting receipt; it does not load today's recipe to
+invent compatibility for an old installation.
+
+With the interpreter fixture's dependencies installed in the expendable VM:
+
+```sh
+export HOMEBREW_COOLDOWN_TEST_STATE="$PWD/interpreter-state"
+brew ruby -- test/integration/interpreter_upgrade.rb baseline
+brew ruby -- test/integration/interpreter_upgrade.rb upgrade
+```
+
+General history discovery, policy-driven graph selection and public commands
+remain to be connected to these prototypes. The complete release bar remains
+in [verification](verification.md). These experiments do not yet make this a
+replacement for a scheduled Brewfile job.

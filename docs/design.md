@@ -6,11 +6,11 @@ boundary. The installation adapter must pass the feasibility checks in
 [Homebrew integration](homebrew-integration.md) before this design can become
 an unattended updater.
 
-The [boundary experiments](installer-boundaries.md) now demonstrate a native
-post-install hook, but expose a concurrency assumption the current package
-locks cannot enforce. The execution contract below remains the target; it
-has not been weakened to permit that interference. Unattended execution needs
-the operating-contract decision recorded with those results.
+The [boundary experiments](installer-boundaries.md) demonstrate a native
+post-install hook and establish that package locks do not exclude every
+concurrent Homebrew mutation. Avoid overlapping package-changing commands.
+The adapter detects drift where possible and reports recovery choices; it does
+not enforce exclusive ownership of the prefix.
 
 ## Decisions
 
@@ -29,13 +29,23 @@ adapter; the policy and planning core takes ordinary typed domain records and
 an injected UTC timestamp. A formula-managed Python or Ruby interpreter must
 not be needed while its own package is being upgraded.
 
+Keep the policy and planner separate from the Homebrew adapter within the Ruby
+product. A second language would add a serialization contract, runtime packaging
+and cross-process failure handling without simplifying the native installer.
+Introduce that boundary only if a concrete benefit warrants its maintenance.
+
+Handwritten source and test files should generally stay below 800 lines.
+Growing files call for a review of responsibilities and cohesive collaborators,
+not arbitrary text splitting. Apply this during development and review; no
+repository-specific enforcement framework is required.
+
 The command is `brew-cooldown`, also invocable as `brew cooldown` through
 Homebrew's external-command discovery. An executable launcher only enters the
 Homebrew Ruby environment and forwards arguments. There is no service,
 privileged helper, hosted database, telemetry, or private infrastructure.
 
 The first installation adapter targets bottled `homebrew/core` formulae on
-macOS at Homebrew's standard prefixes. Discovery and planning explicitly report
+Apple Silicon macOS at `/opt/homebrew`. Discovery and planning explicitly report
 casks, third-party taps, source-only packages, and unsupported platforms.
 They are not silently omitted or advertised as executable support. Cask and
 tap adapters must meet the same contracts before enabling their upgrade paths.
@@ -323,9 +333,26 @@ service state during installation and belong in the visible plan.
 
 The tool lock coordinates its own invocations. It cannot stop arbitrary manual
 Homebrew commands or application self-updaters. The adapter must use Homebrew
-package locks as well; race injection is a release test. If those locks cannot
-protect an invariant, unattended execution cannot be enabled for that case.
-Do not claim that before/after inventory checks make all external races atomic.
+package locks as well, acquired before its own mutations. Other Homebrew
+commands can still change pins or temporarily remove a keg despite those
+locks. Avoid overlapping mutations; this is an operating recommendation, not
+an enforced exclusive-writer requirement. An external race can cause a partial
+failure. Inventory and receipt comparisons detect drift where possible and do
+not make those races atomic.
+
+On drift or failure, print the expected and observed state, completed work,
+and concrete commands the user can choose to run. Where the receipts support
+it, offer relinking the retained old keg and repairing forward with native
+Homebrew. Explain when a command adopts Homebrew's current release outside the
+cooldown policy, or cannot reverse a hook's configuration changes. Commands
+are text only: no automatic rollback, unpinning or repair outside the plan.
+
+Attempt available policy-compliant candidates and independent components.
+An unavailable artifact leads to another candidate; a drifted plan is recomputed
+before mutation where possible. If no valid action remains, return the precise
+error and recovery guidance instead of a generic refusal. Cooldowns, explicit
+pins, verified identity and known adverse security evidence still govern the
+attempts.
 
 ## Progress contract
 

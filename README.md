@@ -5,9 +5,9 @@ expedited updates for verified security fixes.
 
 **Status: installer feasibility work.** There is no installable release yet.
 Historical installation and an ordinary post-install hook work in a disposable
-VM. The [boundary experiments](docs/installer-boundaries.md) found a Homebrew
-locking gap that requires an explicit concurrency contract before unattended
-execution can proceed.
+VM. The [boundary experiments](docs/installer-boundaries.md) document Homebrew
+locking limitations. Avoid overlapping package-changing Homebrew commands;
+detected drift will be reported with recovery commands for you to review.
 The behavior and command examples below describe the proposed tool. Read the
 [system design](docs/design.md) for the architecture and the
 [installer experiment](docs/installer-proof.md) for executable feasibility
@@ -142,9 +142,9 @@ is too young, pinned incompatibly, or cannot be evaluated, the affected upgrade
 would be held. A security exception for one package would not automatically
 waive the policy for all of its dependencies.
 
-The first executor would support bottled `homebrew/core` formulae on macOS at
-standard Homebrew prefixes. Casks, third-party taps, and other platforms would
-be reported as unsupported until their adapters meet the same requirements.
+The first executor would support bottled `homebrew/core` formulae on Apple
+Silicon macOS at `/opt/homebrew`. Casks, third-party taps, and other platforms
+would be reported as unsupported until their adapters meet the same requirements.
 They remain part of the intended product scope. Unrelated installed packages
 would stay outside a Brewfile run, but their dependency requirements would
 still constrain changes to shared libraries.
@@ -185,7 +185,9 @@ transactional upgrades or automatic rollback.
 - [Installer experiment](docs/installer-proof.md): reproducible historical
   bottle installation in an expendable macOS VM.
 - [Boundary experiments](docs/installer-boundaries.md): native post-install
-  workers, reproduced concurrency limitations and the pending design decision.
+  workers, shared consumers and accepted concurrency limitations.
+- [Execution and recovery](docs/execution-recovery.md): drift reporting,
+  interrupted upgrades and text-only recovery commands.
 
 The historical installation proof comes first. A working latest-only updater
 would not satisfy the design.

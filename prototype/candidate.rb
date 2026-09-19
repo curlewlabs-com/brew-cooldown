@@ -14,14 +14,16 @@ module BrewCooldown
       DOMAIN = "https://ghcr.io/v2/homebrew/core"
       TAG = :arm64_tahoe
 
-      attr_reader :formula, :bottle, :runtime_dependencies
+      attr_reader :formula, :bottle, :runtime_dependencies, :rebuild
 
       def initialize(record)
         @name = record.fetch("name")
         @version = record.fetch("version")
+        @rebuild = record.fetch("rebuild", 0)
         @index_sha256 = record.fetch("index_sha256")
-        raise Refused, "unsupported test identity" unless %w[pcre2 ripgrep fish ncurses].include?(@name)
+        raise Refused, "unsupported test identity" unless %w[pcre2 ripgrep fish ncurses ruby@3.3].include?(@name)
         raise Refused, "invalid index digest" unless @index_sha256.match?(/\A[0-9a-f]{64}\z/)
+        raise Refused, "invalid bottle rebuild" unless rebuild.is_a?(Integer) && rebuild >= 0
       end
 
       def prepare(allow_hooks: false)
@@ -33,6 +35,7 @@ module BrewCooldown
 
         index = registry_json("manifests", @index_sha256)
         reference = "#{@version}.#{TAG}"
+        reference += ".#{rebuild}" if rebuild.positive?
         descriptors = index.fetch("manifests").select do |entry|
           entry.fetch("annotations").fetch("org.opencontainers.image.ref.name") == reference
         end
@@ -54,6 +57,7 @@ module BrewCooldown
         @runtime_dependencies = JSON.parse(annotations.fetch("sh.brew.tab")).fetch("runtime_dependencies")
         specification = BottleSpecification.new
         specification.root_url(DOMAIN)
+        specification.rebuild(rebuild)
         specification.sha256(cellar: HOMEBREW_CELLAR.to_s, TAG => digest)
         staged = Bottle.new(nil, specification, Utils::Bottles.tag(TAG),
                             name: @name, pkg_version: PkgVersion.parse(@version))
@@ -76,6 +80,7 @@ module BrewCooldown
         end
 
         formula.bottle_specification.root_url(DOMAIN)
+        formula.bottle_specification.rebuild(rebuild)
         formula.bottle_specification.sha256(cellar: HOMEBREW_CELLAR.to_s, TAG => digest)
         @bottle = formula.bottle
         raise Refused, "bottle incompatible with this machine" unless bottle
@@ -83,7 +88,7 @@ module BrewCooldown
         # Keep the native Bottle and its dependency reader, but resolve its
         # manifest by immutable digest instead of the moving version tag.
         resource = bottle.github_packages_manifest_resource
-        resource.url("#{DOMAIN}/#{@name}/manifests/sha256:#{@index_sha256}",
+        resource.url("#{DOMAIN}/#{GitHubPackages.image_formula_name(@name)}/manifests/sha256:#{@index_sha256}",
                      using: CurlGitHubPackagesDownloadStrategy,
                      headers: ["Accept: application/vnd.oci.image.index.v1+json"])
         resource.fetch
@@ -106,13 +111,27 @@ module BrewCooldown
         }
       end
 
+      def install?
+        true
+      end
+
+      def compatibility_version
+        formula.compatibility_version
+      end
+
+      def identity
+        { "name" => @name, "version" => @version, "rebuild" => rebuild,
+          "platform" => TAG.to_s, "index_sha256" => @index_sha256,
+          "bottle_sha256" => bottle.resource.checksum.hexdigest }
+      end
+
       private
 
       def registry_json(kind, digest)
         raise Refused, "invalid registry digest" unless digest.match?(/\A[0-9a-f]{64}\z/)
 
         resource = Resource.new("#{@name}-#{digest}")
-        resource.url("#{DOMAIN}/#{@name}/#{kind}/sha256:#{digest}",
+        resource.url("#{DOMAIN}/#{GitHubPackages.image_formula_name(@name)}/#{kind}/sha256:#{digest}",
                      using: CurlGitHubPackagesDownloadStrategy,
                      headers: ["Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json"])
         resource.version(@version)
