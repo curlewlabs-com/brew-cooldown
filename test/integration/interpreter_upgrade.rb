@@ -20,6 +20,29 @@ end
 map = BrewCooldown::Prototype::ExactMap.new([candidate, *retained])
 map.activate
 inventory = BrewCooldown::Prototype::Inventory.capture
+
+# A native sibling-link or dependency operation must fail at its mutation
+# boundary, before a later inventory comparison could merely report damage.
+begin
+  BrewCooldown::Prototype.executing_name = candidate.formula.name
+  begin
+    retained.first.keg.unlink
+    raise "Unplanned dependency unlink was allowed"
+  rescue BrewCooldown::Prototype::Refused => error
+    raise unless error.message.include?("unplanned unlink")
+  end
+  begin
+    installer = FormulaInstaller.new(candidate.formula)
+    installer.install_dependency(Dependency.new(retained.first.formula.name))
+    raise "Implicit dependency installation was allowed"
+  rescue BrewCooldown::Prototype::Refused => error
+    raise unless error.message.include?("was not completed before installation")
+  end
+  raise "Guard probe changed inventory" unless inventory == BrewCooldown::Prototype::Inventory.capture
+ensure
+  BrewCooldown::Prototype.executing_name = nil
+end
+
 runtime_path = Pathname(RbConfig.ruby).realpath
 raise "Tool is running from a formula-managed interpreter" if runtime_path.to_s.start_with?(HOMEBREW_CELLAR.to_s)
 runtime_identity = Digest::SHA256.file(runtime_path).hexdigest

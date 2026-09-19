@@ -109,6 +109,7 @@ module BrewCooldown
           journal.record(formula.name, "started")
           progress&.call(formula.name, "started")
           begin
+            Prototype.executing_name = formula.name
             Homebrew.failed = false
             Postinstall.with_map(map) do
               requested = formula.opt_prefix.exist? && Tab.for_keg(Keg.new(formula.opt_prefix.realpath)).installed_on_request
@@ -141,6 +142,8 @@ module BrewCooldown
                                "error" => "#{error.class}: #{error.message}", "backtrace" => error.backtrace)
             journal.record(formula.name, "failed", error: "#{error.class}: #{error.message}")
             return journal.report
+          ensure
+            Prototype.executing_name = nil
           end
           progress&.call(formula.name, "completed")
         end

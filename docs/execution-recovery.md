@@ -30,6 +30,9 @@ artifacts. Homebrew owns reusable downloads.
 The tool owns changes only to the planned packages. A component holds its native
 locks until completion; native per-installer cleanup must not release them
 early. A new invocation reads an unfinished journal before any mutation.
+During a journaled package operation, native implicit dependency installation
+and unlinking a different package fail before those mutations. Dependencies
+must already have completed their own journaled operation.
 Unstarted work is not presented as failed and an installed receipt alone does
 not prove that a hook completed. An interrupted `started` operation remains
 unconfirmed even if its selected keg exists. The operator can repair that

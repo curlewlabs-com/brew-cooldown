@@ -43,17 +43,19 @@ module BrewCooldown
             next unless candidate.install? || target.install?
 
             Compatibility.validate!(dependency, target)
+            candidate.check_candidate!(target) unless candidate.install?
           end
         end
         Prototype.active_map = self
         Formulary.singleton_class.prepend(ResolverGuard)
         Dependency.singleton_class.prepend(BottleDependencyGraph)
         FormulaInstaller.prepend(InstallerGuard)
+        Keg.prepend(KegGuard)
       end
     end
 
     class << self
-      attr_accessor :active_map, :worker_plan
+      attr_accessor :active_map, :worker_plan, :executing_name
     end
 
     module ResolverGuard
@@ -111,6 +113,14 @@ module BrewCooldown
         raise Refused, "source build requested: #{formula.full_name}"
       end
 
+      def install_dependency(dependency, dependency_formula = dependency.to_formula)
+        if Prototype.executing_name
+          raise Refused, "#{Prototype.executing_name}: dependency #{dependency.name} was not completed before installation"
+        end
+
+        super
+      end
+
       def post_install
         raise Refused, "post-install worker has no candidate map" unless Prototype.worker_plan
 
@@ -140,6 +150,16 @@ module BrewCooldown
         raise Refused, "source fallback requested: #{formula.full_name}" unless pour_bottle?
         raise Refused, "dependency checks disabled" if ignore_deps?
         raise Refused, "forced bottle compatibility" if force_bottle?
+      end
+    end
+
+    module KegGuard
+      def unlink(**options)
+        if Prototype.executing_name && name != Prototype.executing_name
+          raise Refused, "#{Prototype.executing_name}: unplanned unlink of #{name}"
+        end
+
+        super
       end
     end
   end
