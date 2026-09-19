@@ -76,6 +76,13 @@ result = resolve([base_root, base_library, old_root, old_library.with(compatibil
 assert_version(result, "app", "1.0.1")
 assert_version(result, "outside", "5.0.0")
 
+# Native compatibility identifiers are explicit integers, not positive counts.
+# Treating zero as absent would needlessly hold a compatible shared dependency.
+zero_consumer = consumer.with(dependencies: [requirement("library", "1.0.0", cohort: 0)])
+result = resolve([base_root, base_library, old_root, old_library.with(compatibility_version: 0), zero_consumer], roots: ["app"]).fetch(0)
+assert_version(result, "app", "1.0.1")
+assert_version(result, "outside", "5.0.0")
+
 # Among compatible dependencies, preserve the installed choice before doing
 # unnecessary work simply because a newer compatible release exists.
 cohort_root = old_root.with(dependencies: [requirement("library", "1.0.1", cohort: 1)])
