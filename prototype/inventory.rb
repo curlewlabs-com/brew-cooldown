@@ -10,7 +10,7 @@ module BrewCooldown
       def self.capture
         files = HOMEBREW_CELLAR.glob("*/*/INSTALL_RECEIPT.json") + HOMEBREW_CELLAR.glob("*/*/.brew/*.rb")
         state = files.to_h { |path| [path.to_s, Digest::SHA256.file(path).hexdigest] }
-        [HOMEBREW_PREFIX/"opt", HOMEBREW_PINNED_KEGS, HOMEBREW_LINKED_KEGS].each do |directory|
+        [HOMEBREW_PREFIX/"opt", HOMEBREW_PINNED_KEGS, HOMEBREW_PINNED_CASKS, HOMEBREW_LINKED_KEGS].each do |directory|
           next unless directory.directory?
 
           directory.children.select(&:symlink?).each { |path| state[path.to_s] = path.readlink.to_s }

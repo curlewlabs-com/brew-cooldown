@@ -67,6 +67,9 @@ module BrewCooldown
 
     def execute_component(planning, resolution, directory, expected)
       Prototype::Execution.check_homebrew!
+      if resolution.selected.keys.any? { |package| package.kind == :cask }
+        raise Prototype::Refused, "Cask planning is available; command execution is still being connected to the native cask adapter"
+      end
       observed = Prototype::Inventory.capture
       unless observed == expected
         return { "status" => "drift", "drift" => Prototype::Inventory.differences(expected, observed),

@@ -1,0 +1,44 @@
+{
+  "current": {
+    "token": "codex",
+    "tap": "homebrew/cask",
+    "version": "0.155.1",
+    "disabled": false,
+    "tap_git_head": "3e113459c2e257ba44a9e4de92171b1ce6a17c7a",
+    "ruby_source_path": "Casks/c/codex.rb"
+  },
+  "commits": [
+    {
+      "sha": "00799c30022f4a3b89f837f8137387a298717a9f",
+      "commit": {
+        "committer": {
+          "date": "2026-07-18T15:51:23Z"
+        }
+      }
+    },
+    {
+      "sha": "83808edf1032d7ef935144e8f249b2cecbc0461e",
+      "commit": {
+        "committer": {
+          "date": "2026-07-16T04:39:39Z"
+        }
+      }
+    }
+  ],
+  "contents": {
+    "00799c30022f4a3b89f837f8137387a298717a9f": {
+      "type": "file",
+      "path": "Casks/c/codex.rb",
+      "encoding": "base64",
+      "content": "Y2FzayAiY29kZXgiIGRvCiAgYXJjaCBhcm06ICJhYXJjaDY0IiwgaW50ZWw6\nICJ4ODZfNjQiCiAgb3MgbWFjb3M6ICJhcHBsZS1kYXJ3aW4iLCBsaW51eDog\nInVua25vd24tbGludXgtbXVzbCIKCiAgdmVyc2lvbiAiMC4xNDQuNiIKICBz\naGEyNTYgYXJtOiAgICAgICAgICAiMDIzNTkwZjgyOGJjOTUwN2FjNjExMzJl\nZTM1ZTc0ZDNjNWQzM2ZiNWJhM2UxY2E0ZmMyZTAxM2EyZjcxYTNkNyIsCiAg\nICAgICAgIGludGVsOiAgICAgICAgIjc2M2M4MWE1NmJhMjRhNGY2YzJmZDI1\nNmVkN2VlMTc3NWNhZWNjZDIyNTM3ZDI4ODg3ZGU4ZjY4NjRhYzU5NDciLAog\nICAgICAgICBhcm02NF9saW51eDogICI4ZWRkYWU1ZTZjMDA5ZGZmOWJhNTFh\nZTFiZmUzYmRkOWZmNGMxY2NjOTNhNDhjYzY4NjBkYjFjZDlmZGYxMWJlIiwK\nICAgICAgICAgeDg2XzY0X2xpbnV4OiAiNmE5ZGVmNTFhMGFkOGNlYTY2ODRk\nOGViM2JmMDMzYzg5ZjMzZTNiYzVjZmU0OTJmMWExZTBhNzE4NDUxYTFjNiIK\nCiAgdXJsICJodHRwczovL2dpdGh1Yi5jb20vb3BlbmFpL2NvZGV4L3JlbGVh\nc2VzL2Rvd25sb2FkL3J1c3QtdiN7dmVyc2lvbn0vY29kZXgtI3thcmNofS0j\ne29zfS50YXIuZ3oiCiAgbmFtZSAiQ29kZXgiCiAgZGVzYyAiT3BlbkFJJ3Mg\nY29kaW5nIGFnZW50IHRoYXQgcnVucyBpbiB5b3VyIHRlcm1pbmFsIgogIGhv\nbWVwYWdlICJodHRwczovL2dpdGh1Yi5jb20vb3BlbmFpL2NvZGV4IgoKICBs\naXZlY2hlY2sgZG8KICAgIHVybCA6dXJsCiAgICByZWdleCgvXnJ1c3RbLl8t\nXXY/KFxkKyg/OlwuXGQrKSspJC9pKQogICAgc3RyYXRlZ3kgOmdpdGh1Yl9s\nYXRlc3QKICBlbmQKCiAgZGVwZW5kc19vbiBmb3JtdWxhOiAicmlwZ3JlcCIK\nCiAgYmluYXJ5ICJjb2RleC0je2FyY2h9LSN7b3N9IiwgdGFyZ2V0OiAiY29k\nZXgiCgogIGdlbmVyYXRlX2NvbXBsZXRpb25zX2Zyb21fZXhlY3V0YWJsZSAi\nY29kZXgtI3thcmNofS0je29zfSIsICJjb21wbGV0aW9uIiwgYmFzZV9uYW1l\nOiAiY29kZXgiCgogIHphcCBybWRpcjogIn4vLmNvZGV4IgplbmQK\n",
+      "sha": "9f5fef8f201248aae29201dcf5af255e558c714c"
+    },
+    "83808edf1032d7ef935144e8f249b2cecbc0461e": {
+      "type": "file",
+      "path": "Casks/c/codex.rb",
+      "encoding": "base64",
+      "content": "Y2FzayAiY29kZXgiIGRvCiAgYXJjaCBhcm06ICJhYXJjaDY0IiwgaW50ZWw6\nICJ4ODZfNjQiCiAgb3MgbWFjb3M6ICJhcHBsZS1kYXJ3aW4iLCBsaW51eDog\nInVua25vd24tbGludXgtbXVzbCIKCiAgdmVyc2lvbiAiMC4xNDQuNSIKICBz\naGEyNTYgYXJtOiAgICAgICAgICAiYTViNzdkMmZiMzkzZjIwMTc3NzgwOTQy\nNWFiMjhkOWJlYjY1ZWUwYzBiMmJmNzkyZjA5ZWFmOGVmMTE1MTU5MiIsCiAg\nICAgICAgIGludGVsOiAgICAgICAgImZmNWM4OTRhOWZmYTZkOTdjMjI1Yzhk\nM2M4NjljN2VmNzU3M2RjYmQwY2Y5Yjc2MmVjZmI5ZmE5NmRiYjdkODgiLAog\nICAgICAgICBhcm02NF9saW51eDogICI1NDMzNzg5Y2Q2NmUwZGIzYjc4Y2Nj\nZDIxOGQ4OTQ0NzFlZDllOTJmZTkzNDY1MTIwZDEzNTY1MDg5NTIwODRkIiwK\nICAgICAgICAgeDg2XzY0X2xpbnV4OiAiYjZiZWExM2JlZGY0OTMyMzJmNjcx\nNzcxNGM0NWU3ODM3ODhjNjk1Y2VkY2YzN2MzNDRmNzNhZmM5N2IxZWM5ZiIK\nCiAgdXJsICJodHRwczovL2dpdGh1Yi5jb20vb3BlbmFpL2NvZGV4L3JlbGVh\nc2VzL2Rvd25sb2FkL3J1c3QtdiN7dmVyc2lvbn0vY29kZXgtI3thcmNofS0j\ne29zfS50YXIuZ3oiCiAgbmFtZSAiQ29kZXgiCiAgZGVzYyAiT3BlbkFJJ3Mg\nY29kaW5nIGFnZW50IHRoYXQgcnVucyBpbiB5b3VyIHRlcm1pbmFsIgogIGhv\nbWVwYWdlICJodHRwczovL2dpdGh1Yi5jb20vb3BlbmFpL2NvZGV4IgoKICBs\naXZlY2hlY2sgZG8KICAgIHVybCA6dXJsCiAgICByZWdleCgvXnJ1c3RbLl8t\nXXY/KFxkKyg/OlwuXGQrKSspJC9pKQogICAgc3RyYXRlZ3kgOmdpdGh1Yl9s\nYXRlc3QKICBlbmQKCiAgZGVwZW5kc19vbiBmb3JtdWxhOiAicmlwZ3JlcCIK\nCiAgYmluYXJ5ICJjb2RleC0je2FyY2h9LSN7b3N9IiwgdGFyZ2V0OiAiY29k\nZXgiCgogIGdlbmVyYXRlX2NvbXBsZXRpb25zX2Zyb21fZXhlY3V0YWJsZSAi\nY29kZXgtI3thcmNofS0je29zfSIsICJjb21wbGV0aW9uIiwgYmFzZV9uYW1l\nOiAiY29kZXgiCgogIHphcCBybWRpcjogIn4vLmNvZGV4IgplbmQK\n",
+      "sha": "97b0be5730687f8eed54178737f223e0ee1516a6"
+    }
+  }
+}

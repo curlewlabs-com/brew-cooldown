@@ -33,7 +33,7 @@ module BrewCooldown
       installed_security = roots.map do |package|
         baseline = inventory.records.fetch(package).installed
         retained = discovery.domains.fetch(package).find(&:retained)
-        formula = inventory.records.fetch(package).retained&.formula
+        formula = package.kind == :formula ? inventory.records.fetch(package).retained&.formula : nil
         patches = formula ? HomebrewAdapter::Advisories.patch_identifiers(formula) : []
         assessment = advisory.assess(release: retained.release, installed: baseline,
                                     candidate_patches: patches, installed_patches: patches)
@@ -88,7 +88,7 @@ module BrewCooldown
         [:ambiguous, "More than one installed package matches this name; qualify the tap"]
       elsif matches.empty?
         [:missing, "Root package is not installed; scope does not install missing roots"]
-      elsif package.kind != :formula || package.tap != "homebrew/core"
+      elsif !((package.kind == :formula && package.tap == "homebrew/core") || (package.kind == :cask && package.tap == "homebrew/cask"))
         [:unsupported_executor, "Historical execution for this package type or tap is not available"]
       elsif inventory.records.fetch(package).installed.pinned
         [:pinned, "Explicit Homebrew pin"]

@@ -19,6 +19,12 @@ commands. Formula and cask receipts supply reverse-dependency constraints,
 including consumers outside the selected scope. Current API recipes cannot
 rewrite those installed requirements.
 
+Cask dependency receipts record packages present at installation. Those edges
+require an active package; they do not claim bottle build-time ABI evidence.
+Formula consumers continue to constrain the same dependency through their
+recorded bottle requirements. Native cask pins are included in both scope
+decisions and inventory fingerprints.
+
 Homebrew's installed receipt does not reliably retain the bottle rebuild
 identity. An embedded recipe's default rebuild value cannot establish which
 bottle was poured: the recipe can have no bottle block, or carry older bottle
@@ -52,8 +58,9 @@ evidence, and executes independently resolved core-formula components. It
 uses the validated Homebrew runtime described in
 [installer boundaries](installer-boundaries.md). `--security-only` selects
 components containing an evidenced installed-vulnerability fix; dependencies
-still need normal eligibility. Casks and third-party taps remain explicit
-unsupported scope. The result includes proposed selections and actual
+still need normal eligibility. Casks can be planned, but their command execution
+is still being connected to the proven native adapter. Third-party taps remain
+explicit unsupported scope. The result includes proposed selections and actual
 execution outcomes separately.
 
 Run the current read-only command from a checkout:
@@ -78,7 +85,23 @@ Candidates ahead of Homebrew's currently published version, revision or rebuild
 are rejected too: a rollback can leave the withdrawn artifact in the registry.
 Version-scheme ordering still takes precedence over ordinary version strings.
 
+Cask discovery uses fresh official metadata to anchor the source history to a
+Homebrew commit. Each historical recipe is bound to its Git blob, loaded through
+the native cask evaluator and paired with its verified vendor download. The
+source commit supplies the age of that exact recipe and checksum; missing or
+unusable dates use the observation fallback. Current withdrawals and version
+rollbacks constrain historical candidates. Independent recipe identities keep
+their own clocks, and equally versioned eligible recipes prefer the later
+publication. See [cask execution](cask-execution.md).
+
 ## Verification
+
+`test/integration/command_cask_plan.rb` passed against a historical Codex
+installation in the disposable Apple Silicon VM. The command selected
+`0.153.4` while the current `0.155.1` was still cooling, reported unsupported
+cask advisory coverage, and left installed state unchanged. A native cask pin
+prevented the same upgrade. Recorded source fixtures exercise history
+pagination, blob verification and missing publication evidence separately.
 
 `test/integration/command_plan.rb` runs the actual command against retained
 historical installations in an expendable VM. It checks that advancing

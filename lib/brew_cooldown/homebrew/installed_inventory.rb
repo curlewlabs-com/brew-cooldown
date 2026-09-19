@@ -8,6 +8,7 @@ require "cask/tab"
 require_relative "../planner"
 require_relative "../../../prototype/compatibility"
 require_relative "../../../prototype/inventory"
+require_relative "../../../prototype/cask_retained"
 
 module BrewCooldown
   module HomebrewAdapter
@@ -16,6 +17,9 @@ module BrewCooldown
 
     module InstalledInventory
       def self.package(name, kind: :formula, default_tap: "homebrew/core")
+        unless name.is_a?(String) && name.match?(/\A(?:[a-z0-9_-]+\/[a-z0-9_-]+\/)?[a-z0-9][a-z0-9+@._-]*\z/) && !name.include?("..")
+          raise ArgumentError, "Invalid package identity: #{name}"
+        end
         pieces = name.split("/")
         case pieces.length
         when 1 then PackageId.new(kind:, tap: default_tap, name:)
@@ -122,10 +126,27 @@ module BrewCooldown
 
         identity = package("#{tap}/#{name}", kind: :cask)
         build = Build.new(version:, revision: 0, rebuild: 0, scheme: 0)
-        installed = Installed.new(package: identity, build:, pinned: false)
-        InstalledRecord.new(installed:, dependencies: requirements(runtime.fetch("formula", [])),
-                            compatibility_version: nil, retained: nil, receipt: receipt.to_s,
+        retained = Prototype::CaskRetained.new(name)
+        installed = Installed.new(package: identity, build:, pinned: retained.cask.pinned?)
+        InstalledRecord.new(installed:, dependencies: cask_requirements(runtime),
+                            compatibility_version: nil, retained:, receipt: receipt.to_s,
                             identity: Digest::SHA256.file(receipt).hexdigest)
+      end
+
+      def self.cask_requirements(runtime)
+        raise ArgumentError, "Missing cask runtime dependency evidence" unless runtime.is_a?(Hash)
+
+        { "formula" => :formula, "cask" => :cask }.flat_map do |field, kind|
+          rows = runtime.fetch(field, [])
+          raise ArgumentError, "Invalid cask #{field} requirements" unless rows.is_a?(Array)
+
+          rows.map do |row|
+            raise ArgumentError, "Invalid cask dependency record" unless row.is_a?(Hash) && row["full_name"].is_a?(String)
+
+            identity = package(row.fetch("full_name"), kind:, default_tap: kind == :cask ? "homebrew/cask" : "homebrew/core")
+            RuntimeRequirement.new(package: identity)
+          end
+        end
       end
     end
   end

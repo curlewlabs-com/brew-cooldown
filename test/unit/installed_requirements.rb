@@ -22,3 +22,18 @@ raise "Third-party tap became core" unless tapped.package.tap == "example/tap"
   end
 end
 puts "PASS: native dependency identities, formula revisions, explicit cohorts and unknown rebuilds"
+
+# Cask receipts observe local dependencies, not the vendor's binary build.
+# Preserve package identity without inventing an exact bottle ABI constraint.
+presence = BrewCooldown::HomebrewAdapter::InstalledInventory.cask_requirements({ "formula" => [native],
+  "cask" => [{ "full_name" => "homebrew/cask/codex", "version" => "0.144.6" }] })
+raise "Cask dependency became a bottle ABI requirement" unless presence.all? { |entry| entry.is_a?(BrewCooldown::RuntimeRequirement) }
+raise "Cask dependency kind was lost" unless presence.last.package.kind == :cask && presence.last.package.tap == "homebrew/cask"
+[nil, { "formula" => nil }, { "formula" => [{ "full_name" => "../escape" }] }, { "cask" => [nil] }].each do |runtime|
+  begin
+    BrewCooldown::HomebrewAdapter::InstalledInventory.cask_requirements(runtime)
+  rescue ArgumentError
+    next
+  end
+  raise "Invalid cask dependency evidence accepted"
+end

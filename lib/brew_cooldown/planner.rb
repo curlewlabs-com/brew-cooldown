@@ -4,7 +4,12 @@ require "set"
 require_relative "policy"
 
 module BrewCooldown
-  Requirement = Data.define(:package, :build, :compatibility_version)
+  Requirement = Data.define(:package, :build, :compatibility_version) do
+    def description = "compatible with #{build.version}"
+  end
+  RuntimeRequirement = Data.define(:package) do
+    def description = "installed and active"
+  end
   Option = Data.define(:release, :decision, :dependencies, :compatibility_version, :retained)
   Resolution = Data.define(:roots, :status, :selected, :attempts, :reason, :rejected_options)
 
@@ -82,6 +87,9 @@ module BrewCooldown
             left.retained ? -1 : 1
           else
             comparison = @compare_builds.call(right.release.build, left.release.build)
+            if comparison.zero? && left.release.published_at && right.release.published_at
+              comparison = right.release.published_at <=> left.release.published_at
+            end
             comparison.zero? ? left.release.identity <=> right.release.identity : comparison
           end
         end
@@ -147,7 +155,7 @@ module BrewCooldown
           end
           unless compatible
             @last_conflict = "#{key(package).join('/')} #{option.release.build.version} requires " \
-                             "#{key(requirement.package).join('/')} compatible with #{requirement.build.version}"
+                             "#{key(requirement.package).join('/')} #{requirement.description}"
           end
           compatible
         end
