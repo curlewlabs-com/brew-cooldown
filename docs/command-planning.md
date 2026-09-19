@@ -120,6 +120,12 @@ publication. See [cask execution](cask-execution.md).
 
 ## Verification
 
+`test/integration/command_explain.rb` runs the actual package explanation with
+an empty Homebrew cache. It compares the reported baseline with the native cask
+receipt and checks that the complete scope assessment and security coverage
+survive the focused view, without changing installed state. This also exercises
+upstream history discovery without fixture downloads or a private catalog.
+
 `test/integration/runtime_scope.rb` passed with Codex pinned at its historical
 baseline. Its installed PCRE2 and ripgrep dependencies advanced while the cask
 receipt and pin remained unchanged. The retained cask and upgraded dependency
@@ -145,6 +151,11 @@ the policy, planner, registry, and advisory tests.
 `test/integration/command_upgrade.rb` runs the actual upgrade command against
 historical fixtures in the disposable VM, verifies native receipts and runtime
 linkage, and checks that successful journals are removed. Its `partial` mode
-holds a real Homebrew package lock while an independent component upgrades.
+holds the first component's native Ruby lock while PCRE2 and ripgrep upgrade.
+Use a minimal fixture prefix for that mode: additional installed consumers can
+connect Ruby and PCRE2 through shared runtime dependencies. In that connected
+graph, holding either package's lock correctly holds the entire component and
+does not exercise independent progress. Full-Brewfile qualification is a separate
+check.
 `test/integration/command_recovery.rb` checks inspection and acknowledgment of
 unfinished work, including rejection when inventory or the journal set changes.

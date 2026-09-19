@@ -42,9 +42,9 @@ Dir.mktmpdir("cooldown-upgrade-command-") do |directory|
   brewfile.write(baseline.keys.map { |name| "brew #{name.dump}\n" }.join + (mixed ? "cask \"codex\"\n" : ""))
   with_env(XDG_STATE_HOME: state.to_s) do
     before = BrewCooldown::Prototype::Inventory.capture
-    # Contend on a real native package lock; a separate dependency component
-    # must still make progress after this one fails before installation.
-    held_lock = FormulaLock.new("pcre2") if partial
+    # The interpreter's ca-certificates root precedes the PCRE component in
+    # runtime scope. Hold its lock so success proves progress after failure.
+    held_lock = FormulaLock.new("ruby@3.3") if partial
     held_lock&.lock
     begin
       stdout, stderr, status = Open3.capture3(launcher, "upgrade", "--brewfile", brewfile.to_s, "--json")
@@ -56,15 +56,16 @@ Dir.mktmpdir("cooldown-upgrade-command-") do |directory|
     result = JSON.parse(stdout)
     puts JSON.pretty_generate(result)
     if partial
+      execution = result.fetch("execution")
       raise "Independent component did not complete: #{status}" unless status.exitstatus == 1 && result["status"] == "incomplete" &&
-        result.fetch("execution").first["status"] == "error" && result.fetch("execution").last["status"] == "completed"
+        execution.dig(0, "status") == "error" && execution.last&.fetch("status") == "completed"
     else
       raise "Upgrade did not complete: #{status}" unless status.success? && result["status"] == "completed" &&
         result.fetch("execution").any? && result.fetch("execution").all? { |entry| entry["status"] == "completed" }
     end
     baseline.each do |name, version|
       active = Keg.new((HOMEBREW_PREFIX/"opt"/name).realpath)
-      if partial && name != "ruby@3.3"
+      if partial && name == "ruby@3.3"
         raise "Failed component changed #{name}" unless active.version == PkgVersion.parse(version)
       else
         raise "#{name} did not advance" unless active.version > PkgVersion.parse(version)
