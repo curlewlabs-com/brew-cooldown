@@ -15,4 +15,11 @@ raise "Historical publication missing" unless metadata.published_at
 puts JSON.pretty_generate(metadata.to_h)
 versioned = registry.resolve("ruby@3.3", "3.3.12", platform: :arm64_tahoe)
 raise "Versioned formula identity changed" unless versioned.name == "ruby@3.3"
+[
+  ["lz4", "1.10.0"], ["libyaml", "0.2.5"], ["libxcb", "1.17.0"], ["lzo", "2.10"],
+].each do |name, tag|
+  historical = registry.resolve(name, tag)
+  raise "Historical identity changed" unless historical.name == name && historical.pkg_version == tag
+  puts JSON.pretty_generate(historical.to_h)
+end
 puts "PASS: live paginated core history and immutable platform metadata (no package changes)"

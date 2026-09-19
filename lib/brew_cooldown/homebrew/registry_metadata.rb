@@ -11,6 +11,10 @@ module BrewCooldown
                                  :bottle_sha256, :published_at, :runtime_dependencies, :source)
 
     class RegistryMetadata
+      # Older official indexes preserve the GitHub organization's original case
+      # even when Homebrew appends a newly built platform manifest to them.
+      VENDORS = %w[homebrew Homebrew].freeze
+
       attr_reader :platform_sha256
 
       def initialize(name:, tag:, platform:, index:, index_sha256:)
@@ -19,7 +23,7 @@ module BrewCooldown
         object!(annotations, "index annotations")
         unless index["schemaVersion"] == 2 && annotations["org.opencontainers.image.title"] == name &&
                annotations["org.opencontainers.image.ref.name"] == tag &&
-               annotations["org.opencontainers.image.vendor"] == "homebrew"
+               VENDORS.include?(annotations["org.opencontainers.image.vendor"])
           raise RegistryError, "Index identity differs for #{name} #{tag}"
         end
         @version = text!(annotations["org.opencontainers.image.version"], "package version")
@@ -51,7 +55,7 @@ module BrewCooldown
         unless manifest["schemaVersion"] == 2 && annotations["org.opencontainers.image.ref.name"] == @reference &&
                annotations["org.opencontainers.image.version"] == @version &&
                annotations["org.opencontainers.image.title"] == "#{@name} #{@reference}" &&
-               annotations["org.opencontainers.image.vendor"] == "homebrew"
+               VENDORS.include?(annotations["org.opencontainers.image.vendor"])
           raise RegistryError, "Platform manifest identity differs for #{@name} #{@tag}"
         end
         layers = manifest["layers"]
@@ -73,11 +77,7 @@ module BrewCooldown
         unless JSON.parse(text!(descriptor_annotations["sh.brew.tab"], "descriptor receipt")) == tab
           raise RegistryError, "Descriptor and platform runtime receipts differ for #{@name} #{@tag}"
         end
-        published_at = annotations["org.opencontainers.image.created"]
-        if published_at
-          DateTime.rfc3339(text!(published_at, "publication timestamp"))
-          published_at = Time.iso8601(published_at).utc
-        end
+        published_at = publication_time(annotations["org.opencontainers.image.created"])
         BottleMetadata.new(name: @name, pkg_version: @version, rebuild: @rebuild, platform: @platform,
                            index_sha256: @index_sha256, platform_sha256:, bottle_sha256:, published_at:,
                            runtime_dependencies: dependencies.freeze, source: annotations["org.opencontainers.image.source"])
@@ -86,6 +86,21 @@ module BrewCooldown
       end
 
       private
+
+      def publication_time(value)
+        return if value.nil?
+
+        text!(value, "publication timestamp")
+        if value.match?(/\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z/)
+          # Historical Homebrew manifests can record only a calendar date.
+          # It has no timezone or time of day; use the observation clock
+          # rather than inventing an elapsed-time boundary at midnight.
+          Date.iso8601(value)
+          return
+        end
+        DateTime.rfc3339(value)
+        Time.iso8601(value).utc
+      end
 
       def native_platform(manifests)
         specification = BottleSpecification.new

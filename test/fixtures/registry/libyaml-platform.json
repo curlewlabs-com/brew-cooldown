@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 2,
+  "config": {
+    "mediaType": "application/vnd.oci.image.config.v1+json",
+    "digest": "sha256:9db2b890bdca5eedbc3b8d9852b9cd2287b82c2bf40cd42b0d1003617aadf091",
+    "size": 220
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:5cd5a1875da18599e25283465b2fb8735eb8717ee7158ef17f8f4260205404f2",
+      "size": 107700,
+      "annotations": {
+        "org.opencontainers.image.title": "libyaml--0.2.5.arm64_tahoe.bottle.tar.gz"
+      }
+    }
+  ],
+  "annotations": {
+    "com.github.package.type": "homebrew_bottle",
+    "org.opencontainers.image.created": "2025-09-10T18:51:04Z",
+    "org.opencontainers.image.description": "YAML Parser",
+    "org.opencontainers.image.documentation": "https://formulae.brew.sh/formula/libyaml",
+    "org.opencontainers.image.license": "MIT",
+    "org.opencontainers.image.ref.name": "0.2.5.arm64_tahoe",
+    "org.opencontainers.image.source": "https://github.com/Homebrew/homebrew-core/blob/HEAD/Formula/libyaml.rb",
+    "org.opencontainers.image.title": "libyaml 0.2.5.arm64_tahoe",
+    "org.opencontainers.image.url": "https://github.com/yaml/libyaml",
+    "org.opencontainers.image.vendor": "Homebrew",
+    "org.opencontainers.image.version": "0.2.5",
+    "sh.brew.bottle.digest": "5cd5a1875da18599e25283465b2fb8735eb8717ee7158ef17f8f4260205404f2",
+    "sh.brew.bottle.installed_size": "359196",
+    "sh.brew.bottle.size": "107700",
+    "sh.brew.license": "MIT",
+    "sh.brew.tab": "{\"homebrew_version\":\"4.6.10-33-g34be148\",\"changed_files\":[\"lib/pkgconfig/yaml-0.1.pc\"],\"source_modified_time\":1591046390,\"compiler\":\"clang\",\"runtime_dependencies\":[],\"arch\":\"arm64\",\"built_on\":{\"os\":\"Macintosh\",\"os_version\":\"macOS 26\",\"cpu_family\":\"dunno\",\"xcode\":\"26.0\",\"clt\":\"26.0.0.0.1.1756965055\",\"preferred_perl\":\"5.34\"}}"
+  }
+}
