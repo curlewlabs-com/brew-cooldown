@@ -7,6 +7,7 @@ require_relative "report"
 require_relative "recovery"
 require_relative "state_directory"
 require_relative "upgrade"
+require_relative "explanation"
 
 module BrewCooldown
   module CLI
@@ -17,7 +18,7 @@ module BrewCooldown
       STDOUT.reopen(STDERR)
       options = { installed: false, json: false }
       parser = OptionParser.new do |flags|
-        flags.banner = "Usage: brew-cooldown plan|upgrade [scope options] | recover [--accept-current DIGEST] [--json]"
+        flags.banner = "Usage: brew-cooldown plan|upgrade [scope options] | explain PACKAGE [scope options] | recover [--accept-current DIGEST] [--json]"
         flags.on("--brewfile PATH", "Installed roots from a trusted Brewfile") { |value| options[:brewfile] = value }
         flags.on("--installed", "All installed Homebrew packages") { options[:installed] = true }
         flags.on("--config PATH", "Read configuration from PATH") { |value| options[:config] = value }
@@ -31,8 +32,10 @@ module BrewCooldown
       end
       command = arguments.first && !arguments.first.start_with?("-") ? arguments.shift : "plan"
       parser.parse!(arguments)
+      requested = arguments.shift if command == "explain"
+      raise ConfigurationError, "explain requires a package name" if command == "explain" && !requested
       raise ConfigurationError, "Unexpected arguments: #{arguments.join(' ')}" unless arguments.empty?
-      raise ConfigurationError, "Command #{command.inspect} is not available; this build supports plan, upgrade and recover" unless %w[plan upgrade recover].include?(command)
+      raise ConfigurationError, "Command #{command.inspect} is not available; this build supports plan, upgrade, explain and recover" unless %w[plan upgrade explain recover].include?(command)
 
       log = ->(**event) { warn JSON.generate(event) }
       if command == "recover"
@@ -50,7 +53,11 @@ module BrewCooldown
         else
           raise ConfigurationError, "--security-only belongs to upgrade" if options[:security_only]
 
-          result = Planning.new(config:, scope:, now: Time.now.utc, log:, state_directory: StateDirectory.path).call
+          planning = Planning.new(config:, scope:, now: Time.now.utc, log:, state_directory: StateDirectory.path)
+          result = planning.call
+          if command == "explain"
+            result = Explanation.call(result, requested:, installed: planning.inventory.records.values.map(&:installed))
+          end
         end
       end
       if options[:json]
@@ -59,6 +66,7 @@ module BrewCooldown
         case command
         when "recover" then Report.print_recovery(result, output)
         when "upgrade" then Report.print_upgrade(result, output)
+        when "explain" then Report.print_explanation(result, output)
         else Report.print_human(result, output)
         end
       end

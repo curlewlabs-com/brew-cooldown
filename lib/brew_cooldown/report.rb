@@ -4,6 +4,41 @@ require "time"
 
 module BrewCooldown
   module Report
+    def self.print_explanation(result, output)
+      explanation = result.fetch(:explanation)
+      output.puts("Explanation for #{explanation.fetch(:requested)}: #{explanation.fetch(:status)}")
+      output.puts(explanation[:reason]) if explanation[:reason]
+      package = explanation[:package]
+      if (baseline = explanation[:installed])
+        build = baseline.fetch(:build).to_h
+        output.puts("Installed: #{build.fetch(:version)} (revision #{build.fetch(:revision)}, rebuild #{build[:rebuild] || 'unknown'})")
+      end
+      result.fetch(:candidates).select { |entry| entry.fetch(:package) == package }.each do |candidate|
+        decision = candidate.fetch(:decision)
+        output.puts("Candidate #{candidate.fetch(:build).fetch(:version)} [#{candidate.fetch(:identity)}]: #{decision.fetch(:status)} - #{decision.fetch(:reason)}")
+        output.puts("  Cooldown class: #{decision[:delay_kind]}; age source: #{decision[:age_source]}")
+        output.puts("  Eligible at: #{decision[:eligible_at].getutc.iso8601}") if decision[:eligible_at]
+        fixes = decision.fetch(:fixed_advisories)
+        output.puts("  Fixed advisories: #{fixes.join(', ')}") unless fixes.empty?
+        output.puts("  Security coverage: #{candidate.fetch(:security).fetch(:coverage)}")
+      end
+      components = result.fetch(:components).select do |component|
+        component.fetch(:roots).include?(package) || component.fetch(:selected).any? { |entry| entry.fetch(:package) == package }
+      end
+      components.each { |component| output.puts("Dependency component: #{component.fetch(:status)} - #{component.fetch(:reason)}") }
+      identities = components.flat_map { |component| component.fetch(:rejected_options).keys }
+      # Preserve errors for the full assessment even when narrowing its display;
+      # unrelated failures must not become successful package explanations.
+      focused = result.merge(
+        scope: result.fetch(:scope).select { |entry| package && entry[:package] == package },
+        components:,
+        candidates: result.fetch(:candidates).select { |entry| identities.include?(entry.fetch(:identity)) },
+        installed_security: result.fetch(:installed_security).select { |entry| entry.fetch(:package) == package },
+        diagnostics: Array(result[:diagnostics]).select { |entry| !entry[:package] || entry[:package] == package },
+      )
+      print_human(focused, output, heading: "Scope assessment")
+    end
+
     def self.print_upgrade(result, output)
       if result[:scope]
         print_human(result, output, heading: "Homebrew cooldown upgrade", show_proposals: false)

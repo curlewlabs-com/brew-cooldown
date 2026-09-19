@@ -83,6 +83,20 @@ Apply eligible upgrades with `./bin/brew-cooldown upgrade --brewfile
 /path/to/Brewfile`. Inspect unfinished work with `./bin/brew-cooldown recover`.
 These commands do not run Brewfile installation hooks or install missing roots.
 
+`explain PACKAGE` runs the same scope assessment and focuses its human output on
+the requested package's installed version, candidate decisions, eligibility
+times, security coverage and dependency component. It accepts the same explicit
+scope options as `plan`, or uses configured scope. It does not add the named
+package to scope. The query matches declared roots and their installed runtime
+dependencies. An outside-scope name is reported without widening the plan;
+an ambiguous name requires a canonical `formula:TAP/NAME` or `cask:TAP/NAME`.
+Qualified tap names and declared Brewfile aliases also identify scoped packages.
+
+Explanations retain assessment errors from the whole scope, since a focused
+view must not turn a failed plan into success. JSON includes the full plan plus
+an `explanation` object with the matched identity and native installed baseline.
+No separate explanation cache or saved plan is maintained.
+
 Discovery first reads fresh current formula metadata to establish Homebrew's
 version scheme. When that matches the installed scheme, native version
 ordering excludes old tags before downloading their bottles. A scheme change
