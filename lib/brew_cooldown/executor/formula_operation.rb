@@ -3,7 +3,7 @@
 require_relative "postinstall"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     # The native formula operation owns installer options, active-keg verification
     # and the paths that pouring and linking this formula may change.
     class FormulaOperation
@@ -38,7 +38,7 @@ module BrewCooldown
       end
 
       def install
-        Prototype.executing_name = name
+        Executor.executing_name = name
         # The launcher enables developer mode only to enter `brew ruby`.
         # Its source-cycle diagnostic loads build-only recipes even when
         # pouring bottles. Normal runtime/architecture checks still run.
@@ -60,7 +60,7 @@ module BrewCooldown
 
         Retained.new(Keg.new(expected)).check_linkage!
       ensure
-        Prototype.executing_name = nil
+        Executor.executing_name = nil
       end
 
       def owns_path?(path)

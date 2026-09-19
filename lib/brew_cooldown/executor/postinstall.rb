@@ -5,25 +5,25 @@ require "tmpdir"
 require "sandbox"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     # The parent owns this temporary handoff until the synchronous worker exits.
     # Nothing in it survives as history or grants permission to a later run.
     module Postinstall
       def self.with_map(map)
-        raise Refused, "post-install map already active" if Prototype.worker_plan
+        raise Refused, "post-install map already active" if Executor.worker_plan
 
         Dir.mktmpdir("brew-cooldown-worker-") do |directory|
           stage = Pathname(directory).realpath
           contents = JSON.generate(map.candidates.values.map(&:worker_record))
           (stage/"recipes.json").write(contents)
           FileUtils.copy_file(File.join(__dir__, "worker.rb"), stage/"worker.rb")
-          Prototype.worker_plan = stage
+          Executor.worker_plan = stage
           with_env(HOMEBREW_COOLDOWN_WORKER_PLAN: (stage/"recipes.json").to_s,
                    HOMEBREW_COOLDOWN_WORKER_DIGEST: Digest::SHA256.hexdigest(contents)) do
             yield
           end
         ensure
-          Prototype.worker_plan = nil
+          Executor.worker_plan = nil
         end
       end
     end
@@ -32,7 +32,7 @@ module BrewCooldown
       def run_or_fork(*args, step:, **options, &configure)
         return super unless step == "running post-install"
 
-        stage = Prototype.worker_plan
+        stage = Executor.worker_plan
         expected = (HOMEBREW_LIBRARY_PATH/"postinstall.rb").to_s
         unless stage && args[-2].to_s == expected && args[-3] == "--"
           raise Refused, "unexpected post-install subprocess"
@@ -51,4 +51,4 @@ module BrewCooldown
   end
 end
 
-Sandbox.singleton_class.prepend(BrewCooldown::Prototype::PostinstallSandbox)
+Sandbox.singleton_class.prepend(BrewCooldown::Executor::PostinstallSandbox)

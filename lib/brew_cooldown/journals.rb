@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../../prototype/journal"
+require_relative "executor/journal"
 
 module BrewCooldown
   # The coordinator owns the set; each native component retains its existing
@@ -13,7 +13,7 @@ module BrewCooldown
 
     def with_lock
       File.open(@directory/"upgrade.lock", File::RDWR | File::CREAT, 0600) do |lock|
-        raise Prototype::Refused, "Another brew-cooldown upgrade or recovery owns #{@directory}" unless
+        raise Executor::Refused, "Another brew-cooldown upgrade or recovery owns #{@directory}" unless
           lock.flock(File::LOCK_EX | File::LOCK_NB)
 
         yield
@@ -22,7 +22,7 @@ module BrewCooldown
 
     def pending
       paths = [@directory/"active.json", *@directory.glob("components/*/active.json")].select(&:file?).sort
-      paths.map { |path| Prototype::Journal.new(path.dirname) }
+      paths.map { |path| Executor::Journal.new(path.dirname) }
     end
 
     def component_directory(packages)

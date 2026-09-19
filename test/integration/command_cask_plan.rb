@@ -7,7 +7,7 @@ require_relative "../../lib/brew_cooldown/homebrew/installed_inventory"
 require_relative "../../lib/brew_cooldown/homebrew/current_cask"
 
 abort "Run only in an expendable VM with historical Codex installed" unless ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] == "1"
-cask = BrewCooldown::Prototype::CaskRetained.new("codex").cask
+cask = BrewCooldown::Executor::CaskRetained.new("codex").cask
 raise "Fixture cask must be unpinned" if cask.pinned?
 before_version = Version.new(cask.version.to_s)
 current = BrewCooldown::HomebrewAdapter::CurrentCask.fetch("codex", log: ->(**_event) {})
@@ -17,12 +17,12 @@ Dir.mktmpdir("cooldown-cask-plan-") do |directory|
   brewfile = Pathname(directory)/"Brewfile"
   brewfile.write("cask \"codex\"\n")
   with_env(XDG_STATE_HOME: (Pathname(directory)/"state").to_s) do
-    before = BrewCooldown::Prototype::Inventory.capture
+    before = BrewCooldown::Executor::Inventory.capture
     stdout, stderr, status = Open3.capture3(launcher, "plan", "--brewfile", brewfile.to_s, "--json")
     warn stderr
     result = JSON.parse(stdout)
     puts JSON.pretty_generate(result)
-    raise "Planning changed packages or pins" unless BrewCooldown::Prototype::Inventory.capture == before
+    raise "Planning changed packages or pins" unless BrewCooldown::Executor::Inventory.capture == before
     raise "Cask planning is incomplete" unless status.success? && result.fetch("status") == "assessed"
 
     selected = result.fetch("components").flat_map { |component| component.fetch("selected") }
@@ -55,7 +55,7 @@ Dir.mktmpdir("cooldown-cask-plan-") do |directory|
     ensure
       cask.unpin
     end
-    raise "Cask pin test changed installed inventory" unless BrewCooldown::Prototype::Inventory.capture == before
+    raise "Cask pin test changed installed inventory" unless BrewCooldown::Executor::Inventory.capture == before
   end
 end
 puts "PASS: historical cask command planning, cooldowns, native pins and unchanged installed state"

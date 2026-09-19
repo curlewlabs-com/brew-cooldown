@@ -6,7 +6,7 @@ require "time"
 require "uri"
 require "set"
 require_relative "current_cask"
-require_relative "../../../prototype/cask_candidate"
+require_relative "../executor/cask_candidate"
 
 module BrewCooldown
   module HomebrewAdapter
@@ -49,7 +49,7 @@ module BrewCooldown
       end
 
       def candidate(entry)
-        Prototype::CaskCandidate.new(source_record(entry)).load_recipe
+        Executor::CaskCandidate.new(source_record(entry)).load_recipe
       end
 
       def source_record(entry)

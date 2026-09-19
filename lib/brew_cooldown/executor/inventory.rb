@@ -5,7 +5,7 @@ require "shellwords"
 require "cask/caskroom"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     class Inventory
       def self.capture
         files = HOMEBREW_CELLAR.glob("*/*/INSTALL_RECEIPT.json") + HOMEBREW_CELLAR.glob("*/*/.brew/*.rb")

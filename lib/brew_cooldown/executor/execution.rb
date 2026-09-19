@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
 require "open3"
-require_relative "../lib/brew_cooldown/validated_homebrew"
+require_relative "../validated_homebrew"
 require_relative "formula_operation"
 require_relative "cask_operation"
 require_relative "journal"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     class Execution
       attr_reader :map, :journal
 

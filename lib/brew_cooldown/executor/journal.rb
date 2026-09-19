@@ -6,7 +6,7 @@ require_relative "inventory"
 require_relative "errors"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     class Journal
       attr_reader :path, :data
 

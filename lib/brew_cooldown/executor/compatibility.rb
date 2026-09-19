@@ -5,7 +5,7 @@ require "open3"
 require "linkage_checker"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     module Compatibility
       def self.validate!(dependency, selected)
         version_matches = dependency.fetch("pkg_version") == selected.formula.pkg_version.to_s

@@ -7,7 +7,7 @@ require "digest"
 require_relative "errors"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     # An official historical recipe and its native cask download. Source and
     # payload caches remain owned by Homebrew, including native checksum checks.
     class CaskCandidate

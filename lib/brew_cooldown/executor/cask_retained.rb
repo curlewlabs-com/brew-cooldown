@@ -4,7 +4,7 @@ require "cask/cask_loader"
 require_relative "errors"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     class CaskRetained
       attr_reader :cask
 

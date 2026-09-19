@@ -9,7 +9,7 @@ log = ->(**_event) {}
 # Planning is what reads the clock. A preflight that lets planning begin would
 # download and attest bottles that this runtime can never install.
 planning_started = -> { raise "Planning began on an unqualified runtime" }
-unqualified = -> { raise BrewCooldown::Prototype::Refused, "Homebrew checkout abc is not the qualified commit" }
+unqualified = -> { raise BrewCooldown::Executor::Refused, "Homebrew checkout abc is not the qualified commit" }
 
 Dir.mktmpdir("cooldown-upgrade-preflight-") do |directory|
   upgrade = BrewCooldown::Upgrade.new(config: nil, scope: nil, state_directory: directory, log:,
@@ -25,7 +25,7 @@ Dir.mktmpdir("cooldown-upgrade-preflight-") do |directory|
 
   # An interrupted upgrade outranks the runtime: its journal needs inspection
   # whichever Homebrew commit is checked out now.
-  journal = BrewCooldown::Prototype::Journal.new(directory)
+  journal = BrewCooldown::Executor::Journal.new(directory)
   operation = { "name" => "example", "version" => "1.0", "status" => "pending", "keg_only" => false }
   journal.with_lock { journal.start([operation], {}) }
   result = upgrade.call

@@ -4,7 +4,7 @@ require "cask/upgrade"
 require_relative "cask_candidate"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     class << self
       attr_accessor :cask_map
     end
@@ -51,9 +51,9 @@ module BrewCooldown
       end
 
       def activate
-        raise Refused, "cask map already active" if Prototype.cask_map
+        raise Refused, "cask map already active" if Executor.cask_map
 
-        Prototype.cask_map = self
+        Executor.cask_map = self
         Cask::CaskLoader.singleton_class.prepend(CaskResolverGuard)
         Cask::Installer.prepend(CaskInstallerGuard)
       end
@@ -61,17 +61,17 @@ module BrewCooldown
 
     module CaskResolverGuard
       def load(reference, config: nil, warn: true)
-        Prototype.cask_map.resolve(reference)
+        Executor.cask_map.resolve(reference)
       end
 
       def load_from_installed_caskfile(path, **options)
-        Prototype.cask_map.installed(path)
+        Executor.cask_map.installed(path)
       end
     end
 
     module CaskInstallerGuard
       def initialize(cask, **options)
-        Prototype.cask_map.validate(cask)
+        Executor.cask_map.validate(cask)
         if options[:force] || options[:adopt] || options[:skip_cask_deps] || options[:zap] ||
            options[:verify_download_integrity] == false || options[:installed_on_request] == false
           raise Refused, "cask installation options bypass the selected operation"
@@ -80,8 +80,8 @@ module BrewCooldown
       end
 
       def prelude
-        Prototype.cask_map.validate(cask)
-        Prototype.cask_map.installation_candidate(cask).verify!
+        Executor.cask_map.validate(cask)
+        Executor.cask_map.installation_candidate(cask).verify!
         super
       end
 
@@ -94,7 +94,7 @@ module BrewCooldown
       end
 
       def install
-        unless cask.equal?(Prototype.cask_map.installation_candidate(cask).cask)
+        unless cask.equal?(Executor.cask_map.installation_candidate(cask).cask)
           raise Refused, "the installed cask predecessor is not an installation target"
         end
 
@@ -102,8 +102,8 @@ module BrewCooldown
       end
 
       def stage
-        Prototype.cask_map.validate(cask)
-        Prototype.cask_map.installation_candidate(cask).verify!
+        Executor.cask_map.validate(cask)
+        Executor.cask_map.installation_candidate(cask).verify!
         super
       end
     end

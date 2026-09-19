@@ -17,9 +17,9 @@ end
 
 def run_plan(brewfile)
   command = File.expand_path("../../bin/brew-cooldown", __dir__)
-  before = BrewCooldown::Prototype::Inventory.capture
+  before = BrewCooldown::Executor::Inventory.capture
   stdout, stderr, status = Open3.capture3(command, "plan", "--brewfile", brewfile.to_s, "--json")
-  raise "Planning changed installed packages or pins" unless BrewCooldown::Prototype::Inventory.capture == before
+  raise "Planning changed installed packages or pins" unless BrewCooldown::Executor::Inventory.capture == before
   if stdout.empty?
     warn stderr
     raise "Plan command returned no JSON (exit #{status.exitstatus})"

@@ -15,7 +15,7 @@ module BrewCooldown
       @journals.with_lock do
         pending = @journals.pending
         if pending.empty?
-          raise Prototype::Refused, "No unfinished journal matches this acknowledgment" if accept_current
+          raise Executor::Refused, "No unfinished journal matches this acknowledgment" if accept_current
 
           return { schema: 1, command: "recover", status: "idle", message: "No unfinished upgrade journal." }
         end
@@ -24,13 +24,13 @@ module BrewCooldown
             @log.call(operation: "read_recovery_journal", path: journal.path.to_s)
             journal.load
           end
-          inventory = Prototype::Inventory.capture
+          inventory = Executor::Inventory.capture
           evidence = pending.map { |journal| [journal.path.to_s, journal.path.read] }
           # The acknowledgment covers this whole set, including each journal's
           # identity, so replacement or newly unfinished work needs inspection.
           digest = Digest::SHA256.hexdigest(JSON.generate([evidence, inventory]))
           if accept_current
-            raise Prototype::Refused, "Journal or inventory changed; run recover again before accepting current state" unless
+            raise Executor::Refused, "Journal or inventory changed; run recover again before accepting current state" unless
               accept_current == digest
 
             accepted = pending.map { |journal| journal.accept_current(expected_inventory: inventory) }

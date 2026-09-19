@@ -3,8 +3,8 @@
 require "open3"
 
 abort "Run only in an expendable VM" unless ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] == "1"
-require_relative "../../prototype/execution"
-BrewCooldown::Prototype::Execution.check_homebrew!
+require_relative "../../lib/brew_cooldown/executor/execution"
+BrewCooldown::Executor::Execution.check_homebrew!
 
 phase = ARGV.fetch(0)
 state = Pathname(ENV.fetch("HOMEBREW_COOLDOWN_TEST_STATE"))
@@ -19,8 +19,8 @@ if phase == "crash_check"
 end
 
 if %w[reconcile unconfirmed].include?(phase)
-  journal = BrewCooldown::Prototype::Journal.new(state)
-  before = BrewCooldown::Prototype::Inventory.capture
+  journal = BrewCooldown::Executor::Journal.new(state)
+  before = BrewCooldown::Executor::Inventory.capture
   expected = phase == "unconfirmed" ? "unconfirmed" : "completed"
   journal.with_lock do
     report = journal.report
@@ -30,19 +30,19 @@ if %w[reconcile unconfirmed].include?(phase)
     raise "Recovery output missing" unless report.fetch("operations").all? { |entry| entry.fetch("recovery").any? }
     puts JSON.pretty_generate(report)
   end
-  raise "Reconciliation changed installed packages" unless BrewCooldown::Prototype::Inventory.capture == before
+  raise "Reconciliation changed installed packages" unless BrewCooldown::Executor::Inventory.capture == before
   puts "PASS: interruption reconciled with #{expected} and pending work, text-only recovery"
   exit
 end
 
 if phase == "accept"
-  journal = BrewCooldown::Prototype::Journal.new(state)
-  before = BrewCooldown::Prototype::Inventory.capture
+  journal = BrewCooldown::Executor::Journal.new(state)
+  before = BrewCooldown::Executor::Inventory.capture
   journal.with_lock do
     journal.load
     puts JSON.pretty_generate(journal.accept_current(expected_inventory: before))
   end
-  raise "Acceptance changed packages" unless BrewCooldown::Prototype::Inventory.capture == before
+  raise "Acceptance changed packages" unless BrewCooldown::Executor::Inventory.capture == before
   raise "Accepted journal retained" if journal.path.exist?
   puts "PASS: explicit acceptance cleared the journal without package mutation"
   exit
@@ -54,7 +54,7 @@ if phase == "restore_links"
   %w[ripgrep pcre2].each do |name|
     version = name == "ripgrep" ? "15.0.0" : "10.46"
     old = HOMEBREW_CELLAR/name/version
-    commands = BrewCooldown::Prototype::Recovery.commands(name, previous_keg: old.to_s)
+    commands = BrewCooldown::Executor::Recovery.commands(name, previous_keg: old.to_s)
     choice = commands.find { |entry| entry.fetch("purpose").start_with?("Restore retained keg") }
     raise "No retained-keg command for #{name}" unless choice
     output, status = Open3.capture2e("/bin/sh", "-c", choice.fetch("command"))
@@ -72,15 +72,15 @@ records = JSON.parse(File.read(File.join(__dir__, "candidates.json"))).fetch("up
 candidates = records.map do |record|
   formula_path = HOMEBREW_PREFIX/"opt"/record.fetch("name")
   if %w[resume identity].include?(phase) && formula_path.exist? && Keg.new(formula_path.realpath).version.to_s == record.fetch("version")
-    BrewCooldown::Prototype::Retained.new(Keg.new(formula_path.realpath))
+    BrewCooldown::Executor::Retained.new(Keg.new(formula_path.realpath))
   else
-    BrewCooldown::Prototype::Candidate.new(record).prepare
+    BrewCooldown::Executor::Candidate.new(record).prepare
   end
 end
-map = BrewCooldown::Prototype::ExactMap.new(candidates)
+map = BrewCooldown::Executor::ExactMap.new(candidates)
 map.activate
-execution = BrewCooldown::Prototype::Execution.new(map, state_directory: state)
-inventory = BrewCooldown::Prototype::Inventory.capture
+execution = BrewCooldown::Executor::Execution.new(map, state_directory: state)
+inventory = BrewCooldown::Executor::Inventory.capture
 
 case phase
 when "identity"
@@ -91,7 +91,7 @@ when "identity"
     result = execution.apply(expected_inventory: inventory)
     raise "Modified Homebrew was accepted: #{result}" unless result.fetch("status") == "error" &&
       result.fetch("error").include?("Homebrew checkout changed")
-    raise "Identity error changed packages" unless inventory == BrewCooldown::Prototype::Inventory.capture
+    raise "Identity error changed packages" unless inventory == BrewCooldown::Executor::Inventory.capture
     puts "PASS: modified Homebrew rejected before package mutation"
   ensure
     path.binwrite(original)
@@ -101,10 +101,10 @@ when "drift"
   output, status = Open3.capture2e(HOMEBREW_BREW_FILE.to_s, "pin", "pcre2")
   raise "Could not inject actual pin drift: #{output}" unless status.success?
   begin
-    changed = BrewCooldown::Prototype::Inventory.capture
+    changed = BrewCooldown::Executor::Inventory.capture
     result = execution.apply(expected_inventory: inventory)
     raise "Drift was not reported: #{result}" unless result.fetch("status") == "drift"
-    raise "Drift mutated packages" unless changed == BrewCooldown::Prototype::Inventory.capture
+    raise "Drift mutated packages" unless changed == BrewCooldown::Executor::Inventory.capture
     raise "Drift omitted recovery commands" unless result.fetch("recovery").fetch("formula/pcre2").any?
     puts JSON.pretty_generate(result)
     puts "PASS: pin drift detected before mutation, with recovery commands"

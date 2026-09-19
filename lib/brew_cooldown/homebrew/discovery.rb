@@ -83,7 +83,7 @@ module BrewCooldown
             rescue UnknownInstalledBuild => error
               details = { operation: "inspect_installed_artifact", status: "unknown_installed_build",
                           package: package.to_h, reason: error.message, tag:,
-                          recovery: Prototype::Recovery.commands(package.name) }
+                          recovery: Executor::Recovery.commands(package.name) }
               @diagnostics << details
               @log.call(**details)
             rescue StandardError => error
@@ -165,12 +165,12 @@ module BrewCooldown
       end
 
       def prepare(metadata)
-        candidate = Prototype::Candidate.new("name" => metadata.name, "version" => metadata.pkg_version,
+        candidate = Executor::Candidate.new("name" => metadata.name, "version" => metadata.pkg_version,
                                               "index_sha256" => metadata.index_sha256, "rebuild" => metadata.rebuild,
                                               "platform" => metadata.platform).prepare(allow_hooks: true)
         unless candidate.bottle.resource.checksum.hexdigest == metadata.bottle_sha256 &&
                candidate.runtime_dependencies == metadata.runtime_dependencies
-          raise Prototype::Refused, "Prepared artifact differs from discovered metadata"
+          raise Executor::Refused, "Prepared artifact differs from discovered metadata"
         end
 
         candidate
