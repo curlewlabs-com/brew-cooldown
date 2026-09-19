@@ -46,7 +46,8 @@ reported for provisioning, and Brewfile installation hooks are not executed.
 An adoption change must keep provisioning explicit rather than silently turning
 new tool installation into a routine cooldown upgrade.
 
-Runtime dependencies are considered when needed for selected root upgrades;
-compatible installed dependencies are preferred. Proactively refreshing every
-dependency in an installed closure is a different scope policy. Establish that
-policy before substituting this command for a job that promises that behavior.
+Installed runtime dependencies are upgrade targets alongside Brewfile entries,
+even when the entries stay unchanged. Scope follows Homebrew's installed
+receipts, and each added target identifies its requesting consumer. Packages
+outside that closure remain fixed compatibility constraints. New dependencies
+required by a selected candidate still receive their own policy assessment.

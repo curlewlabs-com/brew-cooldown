@@ -49,7 +49,9 @@ Dir.mktmpdir("cooldown-cask-plan-") do |directory|
       report = JSON.parse(pinned)
       raise "Pinned cask assessment failed" unless check.success?
       raise "Native cask pin was omitted" unless report.fetch("scope").any? { |row| row["status"] == "pinned" }
-      raise "Pinned cask selected for upgrade" if report.fetch("components").flat_map { |row| row.fetch("selected") }.any? { |row| row["operation"] == "upgrade" }
+      raise "Pinned cask selected for upgrade" if report.fetch("components").flat_map { |row| row.fetch("selected") }.any? do |row|
+        row.fetch("package").fetch("kind") == "cask" && row["operation"] == "upgrade"
+      end
     ensure
       cask.unpin
     end

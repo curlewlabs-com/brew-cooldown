@@ -8,6 +8,9 @@ require_relative "../../lib/brew_cooldown/homebrew/installed_inventory"
 abort "Run only in an expendable VM with historical Codex installed" unless ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] == "1"
 before_cask = BrewCooldown::Prototype::CaskRetained.new("codex").cask
 raise "Fixture cask must be unpinned" if before_cask.pinned?
+before_cask.depends_on.formula.each do |name|
+  raise "Cask-only fixture needs current formula dependency: #{name}" if Formulary.factory(name).outdated?
+end
 before_version = Version.new(before_cask.version.to_s)
 launcher = File.expand_path("../../bin/brew-cooldown", __dir__)
 

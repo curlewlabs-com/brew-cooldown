@@ -19,6 +19,12 @@ commands. Formula and cask receipts supply reverse-dependency constraints,
 including consumers outside the selected scope. Current API recipes cannot
 rewrite those installed requirements.
 
+Brewfile scope includes the installed runtime dependency closure. These
+dependencies are upgrade targets even if their requesting root is unchanged or
+pinned; each keeps its own pin, cooldown and security assessment. Scope output
+identifies the consumers that brought an added package into scope. Traversal
+follows installed dependencies, not reverse consumers or build-only recipes.
+
 Cask dependency receipts record packages present at installation. Those edges
 require an active package; they do not claim bottle build-time ABI evidence.
 Formula consumers continue to constrain the same dependency through their
@@ -29,8 +35,12 @@ Homebrew's installed receipt does not reliably retain the bottle rebuild
 identity. An embedded recipe's default rebuild value cannot establish which
 bottle was poured: the recipe can have no bottle block, or carry older bottle
 metadata. Inventory therefore represents the installed rebuild as unknown.
-Rebuild-only candidates receive an explicit identity error with inspection and
-forward-repair commands. Retaining a dependency at its recorded package version
+Rebuild-only candidates receive an explicit identity diagnostic with inspection
+and forward-repair commands. An already installed version and revision do not
+fail the run solely because its bottle rebuild is unknown. This follows native
+Homebrew's version-based upgrade boundary, without claiming identical installed
+artifact bytes. A known installed vulnerability without an actionable fix still
+fails assessment. Retaining a dependency at its recorded package version
 and revision follows Homebrew's installed-dependency contract, which does not
 require a bottle rebuild. This does not establish exact installed artifact
 identity. Replacing a dependency uses exact build evidence or an explicit
@@ -95,6 +105,13 @@ their own clocks, and equally versioned eligible recipes prefer the later
 publication. See [cask execution](cask-execution.md).
 
 ## Verification
+
+`test/integration/runtime_scope.rb` passed with Codex pinned at its historical
+baseline. Its installed PCRE2 and ripgrep dependencies advanced while the cask
+receipt and pin remained unchanged. The retained cask and upgraded dependency
+binaries ran, and the repeated plan succeeded while still reporting unknown
+installed bottle rebuild identity. The test uses the historical formula and
+cask baseline fixtures described in the installer experiments.
 
 `test/integration/command_cask_plan.rb` passed against a historical Codex
 installation in the disposable Apple Silicon VM. The command selected

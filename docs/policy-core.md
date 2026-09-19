@@ -23,9 +23,10 @@ reassess the selected candidates before entering the installer.
 The planner receives eligible candidates and retained installed options from
 discovery. Fixed consumers outside the selected root scope remain constraints.
 It resolves independent connected components separately, prioritizes security
-fixes and the oldest waiting roots, and prefers retaining compatible installed
-dependencies. Native Homebrew version ordering and recorded compatibility
-cohorts supply the adapter's comparison and compatibility rules.
+fixes and the oldest waiting roots. Installed runtime dependencies in the
+Brewfile closure are roots too. Compatible installed dependencies outside that
+upgrade scope are preferred over replacements. Native Homebrew version ordering
+and recorded compatibility cohorts supply the adapter's comparison and compatibility rules.
 
 Candidate selection backtracks when the newest eligible version has no usable
 dependency closure. A missing dependency from a rejected candidate does not
