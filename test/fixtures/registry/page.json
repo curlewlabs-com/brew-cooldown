@@ -1,0 +1,15 @@
+{
+  "body": {
+    "name": "homebrew/core/pcre2",
+    "tags": [
+      "10.36",
+      "10.37",
+      "10.37_1",
+      "10.38",
+      "10.38_1"
+    ]
+  },
+  "link": "</v2/homebrew/core/pcre2/tags/list?last=10.38_1&n=5>; rel=\"next\"",
+  "retrieved_at": "2026-09-19T00:39:40Z",
+  "source": "https://ghcr.io/v2/homebrew/core/pcre2/tags/list?n=5"
+}

@@ -143,6 +143,13 @@ Upstream owns the datasets:
 - Homebrew's reviewed advisory feed supplies vulnerability records.
 - Homebrew's existing caches hold ordinary reusable metadata and downloads.
 
+Installed artifact identity also remains Homebrew-owned. Never create a
+supplemental receipt or installation identity database, even for upgrades this
+tool performs. An absent installed bottle rebuild remains unknown; an embedded
+recipe's default cannot fill that gap. Ordinary version and revision advances
+can still qualify. A rebuild-only candidate whose advancement cannot be proved
+gets an explicit diagnostic, while independent eligible work proceeds.
+
 The normalized candidate graph exists in memory for one invocation. Historical
 queries are scoped to selected roots and discovered dependencies, paginated,
 and conditional where upstream supports it. Use Homebrew's existing fetch and

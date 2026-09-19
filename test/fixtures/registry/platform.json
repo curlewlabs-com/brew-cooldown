@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "config": {
+    "mediaType": "application/vnd.oci.image.config.v1+json",
+    "digest": "sha256:6d26a18140ad86ebf680d65f8d207ab52a77c9f524337e15061d5390cdf1d8cc",
+    "size": 220
+  },
+  "layers": [
+    {
+      "mediaType": "application/vnd.oci.image.layer.v1.tar+gzip",
+      "digest": "sha256:10bd8c1cf3784ab8a736f01b7f85d091276d69c5a8d48bd022b01209fb4eb870",
+      "size": 2442260,
+      "annotations": {
+        "org.opencontainers.image.title": "pcre2--10.47.arm64_tahoe.bottle.tar.gz"
+      }
+    }
+  ],
+  "annotations": {
+    "com.github.package.type": "homebrew_bottle",
+    "org.opencontainers.image.created": "2025-10-21T11:24:29Z",
+    "org.opencontainers.image.description": "Perl compatible regular expressions library with a new API",
+    "org.opencontainers.image.documentation": "https://formulae.brew.sh/formula/pcre2",
+    "org.opencontainers.image.licenses": "BSD-3-Clause",
+    "org.opencontainers.image.ref.name": "10.47.arm64_tahoe",
+    "org.opencontainers.image.revision": "c89429908aed23aaa8b00980c61ace58fd790922",
+    "org.opencontainers.image.source": "https://github.com/homebrew/homebrew-core/blob/c89429908aed23aaa8b00980c61ace58fd790922/Formula/p/pcre2.rb",
+    "org.opencontainers.image.title": "pcre2 10.47.arm64_tahoe",
+    "org.opencontainers.image.url": "https://www.pcre.org/",
+    "org.opencontainers.image.vendor": "homebrew",
+    "org.opencontainers.image.version": "10.47",
+    "sh.brew.bottle.digest": "10bd8c1cf3784ab8a736f01b7f85d091276d69c5a8d48bd022b01209fb4eb870",
+    "sh.brew.bottle.installed_size": "7328130",
+    "sh.brew.bottle.size": "2442260",
+    "sh.brew.license": "BSD-3-Clause",
+    "sh.brew.path_exec_files": "bin/pcre2grep,bin/pcre2test,bin/pcre2-config",
+    "sh.brew.tab": "{\"homebrew_version\":\"4.6.18-7-gbca9ba8\",\"changed_files\":[\"bin/pcre2-config\",\"lib/pkgconfig/libpcre2-16.pc\",\"lib/pkgconfig/libpcre2-32.pc\",\"lib/pkgconfig/libpcre2-8.pc\",\"lib/pkgconfig/libpcre2-posix.pc\"],\"source_modified_time\":1760960108,\"compiler\":\"clang\",\"runtime_dependencies\":[],\"arch\":\"arm64\",\"built_on\":{\"os\":\"Macintosh\",\"os_version\":\"macOS 26\",\"cpu_family\":\"dunno\",\"xcode\":\"26.0\",\"clt\":\"26.0.0.0.1.1756965055\",\"preferred_perl\":\"5.34\"}}"
+  }
+}

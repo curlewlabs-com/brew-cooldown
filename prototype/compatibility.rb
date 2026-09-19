@@ -9,7 +9,9 @@ module BrewCooldown
     module Compatibility
       def self.validate!(dependency, selected)
         version_matches = dependency.fetch("pkg_version") == selected.formula.pkg_version.to_s
-        rebuild_matches = dependency.fetch("bottle_rebuild", 0) == selected.rebuild
+        required_rebuild = dependency["bottle_rebuild"]
+        rebuild_matches = required_rebuild.is_a?(Integer) && selected.rebuild.is_a?(Integer) &&
+                          required_rebuild == selected.rebuild
         return if version_matches && rebuild_matches
 
         required = dependency["compatibility_version"]
@@ -38,7 +40,9 @@ module BrewCooldown
         @runtime_dependencies = tab.runtime_dependencies
         raise Refused, "#{name}: missing installed dependency metadata" unless runtime_dependencies.is_a?(Array)
 
-        @rebuild = formula.bottle_specification.rebuild
+        # Embedded recipes can omit or predate bottle metadata. Their default
+        # rebuild is not evidence of the installed artifact's rebuild.
+        @rebuild = nil
         # Homebrew can leave this field null in a poured receipt even when
         # the installed bottle's embedded recipe declares compatibility.
         # This is the recipe in the installed keg, never today's API recipe.

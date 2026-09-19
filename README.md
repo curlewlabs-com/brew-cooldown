@@ -3,7 +3,10 @@
 Conservative Homebrew upgrades with configurable release-age delays and
 expedited updates for verified security fixes.
 
-**Status: installer feasibility work.** There is no installable release yet.
+**Status: experimental read-only planning.** There is no installable release yet.
+The checkout's [plan command](docs/command-planning.md) evaluates a Brewfile or
+installed scope. Its installed-artifact identity limitation is documented there;
+the general upgrade command is not enabled yet.
 Historical installation and an ordinary post-install hook work in a disposable
 VM. The [boundary experiments](docs/installer-boundaries.md) document Homebrew
 locking limitations. Avoid overlapping package-changing Homebrew commands;
@@ -190,6 +193,12 @@ transactional upgrades or automatic rollback.
   interrupted upgrades and text-only recovery commands.
 - [Policy core](docs/policy-core.md): deterministic eligibility, fallback clocks
   and dependency selection, separate from installation.
+- [Security evidence](docs/security-evidence.md): native advisory refresh,
+  exact-version assessment and evidence required for expedited adoption.
+- [Registry discovery](docs/registry-discovery.md): upstream historical tags,
+  immutable manifest identity and platform publication evidence.
+- [Command planning](docs/command-planning.md): configuration, Brewfile scope,
+  active inventory and the experimental read-only command.
 
 The historical installation proof comes first. A working latest-only updater
 would not satisfy the design.
