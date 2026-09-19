@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require_relative "../lib/brew_cooldown/validated_homebrew"
 require_relative "formula_operation"
 require_relative "cask_operation"
 require_relative "journal"
@@ -8,8 +9,6 @@ require_relative "journal"
 module BrewCooldown
   module Prototype
     class Execution
-      HOMEBREW_COMMIT = "edb70f031e4170c780799633a1226ff73e1077f4"
-
       attr_reader :map, :journal
 
       def initialize(map, state_directory:, casks: [])
@@ -24,7 +23,10 @@ module BrewCooldown
 
         head, status = Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s, "rev-parse", "HEAD")
         raise Refused, "Homebrew checkout identity unavailable" unless status.success?
-        raise Refused, "Homebrew #{head.strip} has not passed adapter validation" unless head.strip == HOMEBREW_COMMIT
+        unless head.strip == VALIDATED_HOMEBREW_COMMIT
+          raise Refused, "Homebrew checkout #{head.strip} is not the commit the installer adapter was qualified on " \
+                         "(#{VALIDATED_HOMEBREW_COMMIT}); plan and explain still work, upgrade does not"
+        end
 
         changes, status = Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s,
                                        "status", "--porcelain", "--untracked-files=no")

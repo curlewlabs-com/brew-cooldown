@@ -28,10 +28,14 @@ cooldown policy.
 
 ## Homebrew runtime changes
 
-The native installer adapter is validated against the checkout recorded in
-[installer boundaries](installer-boundaries.md). A scheduled `brew update` can
-replace that code before execution. The current runtime check reports an
-unvalidated checkout before package mutation.
+The native installer adapter is validated against one Homebrew commit, recorded
+in `lib/brew_cooldown/validated_homebrew.rb`; the
+[boundary experiments](installer-boundaries.md) describe the qualification runs.
+A scheduled `brew update` can replace that code before execution. `upgrade`
+checks the runtime before it plans: on any other commit, or on a checkout with
+local changes, it reports `unsupported_runtime` without downloading candidates
+or starting a component. Each component checks again before its first mutation.
+`plan`, `explain` and `recover` install nothing and stay available.
 
 Release qualification must run the native installation, dependency, hook and
 recovery experiments on each newly supported Homebrew runtime. Broader runtime

@@ -8,9 +8,11 @@ require_relative "../../prototype/execution"
 
 module BrewCooldown
   class Upgrade
-    def initialize(config:, scope:, state_directory:, log:, clock:, security_only: false)
+    def initialize(config:, scope:, state_directory:, log:, clock:, security_only: false,
+                   runtime_check: Prototype::Execution.method(:check_homebrew!))
       @config, @scope, @directory, @log, @clock = config, scope, state_directory, log, clock
       @security_only = security_only
+      @runtime_check = runtime_check
     end
 
     def call
@@ -19,6 +21,16 @@ module BrewCooldown
         unless journals.pending.empty?
           return { schema: 1, command: "upgrade", status: "needs_reconciliation", components: [],
                    errors: [{ error: "Unfinished upgrades need inspection; run brew-cooldown recover" }] }
+        end
+        # Planning downloads and verifies every candidate bottle. None of that
+        # can be applied on a runtime the adapter was not qualified on, and one
+        # refusal per component would bury the single fact the operator needs.
+        begin
+          @runtime_check.call
+        rescue Prototype::Refused => error
+          @log.call(operation: "check_runtime", error: error.message, error_class: error.class.name)
+          return { schema: 1, command: "upgrade", status: "unsupported_runtime", components: [],
+                   errors: [{ operation: "check_runtime", error: error.message }] }
         end
         planning = Planning.new(config: @config, scope: @scope, now: @clock.call, log: @log, state_directory: @directory)
         plan = planning.call

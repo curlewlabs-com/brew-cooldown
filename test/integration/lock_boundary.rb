@@ -7,7 +7,8 @@ abort "Run only in an expendable VM" unless ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] 
 abort "This proof requires Apple Silicon Tahoe at /opt/homebrew" unless
   HOMEBREW_PREFIX.to_s == "/opt/homebrew" && Utils::Bottles.tag.to_sym == :arm64_tahoe
 
-expected = "edb70f031e4170c780799633a1226ff73e1077f4"
+require_relative "../../lib/brew_cooldown/validated_homebrew"
+expected = BrewCooldown::VALIDATED_HOMEBREW_COMMIT
 commit, status = Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s, "rev-parse", "HEAD")
 abort "Uninspected Homebrew checkout" unless status.success? && commit.strip == expected
 changes, status = Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s, "status", "--porcelain", "--untracked-files=no")
