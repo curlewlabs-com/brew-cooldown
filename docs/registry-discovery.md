@@ -1,10 +1,12 @@
 # Registry discovery
 
-The registry adapter enumerates official core bottle tags during each run and
-resolves a requested tag to immutable index, platform manifest and bottle
-digests. It does not keep a release catalog. Mutable tag lists and tag lookups
-are fetched afresh through Homebrew's curl helper; immutable documents use
-Homebrew's resource cache and checksum verification.
+For each package that is behind Homebrew's current build, the registry adapter
+enumerates official core bottle tags during the run and resolves a requested tag
+to immutable index, platform manifest and bottle digests. It does not keep a
+release catalog. Mutable tag lists and tag lookups are fetched afresh through
+Homebrew's curl helper; immutable documents use Homebrew's resource cache and
+checksum verification. A package that already has the current build installed
+is never looked up here; [command planning](command-planning.md) explains why.
 
 Pagination is complete only when the registry returns no next link. A failed
 page, unexpected response, repeated link or unexpected origin is an explicit
