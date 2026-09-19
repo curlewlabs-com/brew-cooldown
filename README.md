@@ -218,3 +218,9 @@ updater does not satisfy the design.
 Distribution through Homebrew is a goal for a future release. This project is
 independent of Homebrew and does not imply endorsement or acceptance into its
 package repositories.
+
+## Contributing, security and license
+
+[CONTRIBUTING.md](CONTRIBUTING.md) describes the checks and conventions. Report
+vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+`brew-cooldown` is released under the [MIT License](LICENSE).
