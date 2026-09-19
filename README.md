@@ -143,8 +143,8 @@ would be held. A security exception for one package would not automatically
 waive the policy for all of its dependencies.
 
 The first executor would support bottled `homebrew/core` formulae on Apple
-Silicon macOS at `/opt/homebrew`. Casks, third-party taps, and other platforms would
-be reported as unsupported until their adapters meet the same requirements.
+Silicon macOS at `/opt/homebrew`. Casks, third-party taps, and other platforms
+would be reported as unsupported until their adapters meet the same requirements.
 They remain part of the intended product scope. Unrelated installed packages
 would stay outside a Brewfile run, but their dependency requirements would
 still constrain changes to shared libraries.
