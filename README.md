@@ -190,6 +190,8 @@ transactional upgrades or automatic rollback.
   interrupted upgrades and text-only recovery commands.
 - [Policy core](docs/policy-core.md): deterministic eligibility, fallback clocks
   and dependency selection, separate from installation.
+- [Security evidence](docs/security-evidence.md): native advisory refresh,
+  exact-version assessment and evidence required for expedited adoption.
 
 The historical installation proof comes first. A working latest-only updater
 would not satisfy the design.
