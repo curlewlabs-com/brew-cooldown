@@ -1,0 +1,56 @@
+name: CI
+
+# Gate every PR (and post-merge main) on the checks a contributor runs locally:
+# shellcheck on Linux, and the syntax pass plus unit suite under real Homebrew
+# on macOS. See CONTRIBUTING.md.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      # Pin shellcheck to an exact release rather than ubuntu's preinstalled,
+      # floating version, so a new finding means a script changed.
+      - name: shellcheck
+        run: |
+          ver=0.11.0
+          url="https://github.com/koalaman/shellcheck/releases/download/v${ver}/shellcheck-v${ver}.linux.x86_64.tar.xz"
+          curl -fsSL "$url" | tar -xJ
+          "shellcheck-v${ver}/shellcheck" --version
+          "shellcheck-v${ver}/shellcheck" bin/brew-cooldown script/unit-tests
+
+  unit:
+    # Apple Silicon Tahoe is the platform the executor supports, and the
+    # registry tests exercise native bottle selection only on that tag.
+    runs-on: macos-26
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_ANALYTICS: 1
+    steps:
+      - uses: actions/checkout@v7.0.1
+      # The suite runs inside Homebrew's Ruby against Homebrew's internal
+      # libraries, which change without notice. Test against the commit the
+      # executor is qualified on instead of whatever the image shipped with.
+      # The value comes from the same file the executor enforces.
+      - name: pin Homebrew to the qualified commit
+        run: |
+          commit=$(ruby -r ./lib/brew_cooldown/validated_homebrew -e 'print BrewCooldown::VALIDATED_HOMEBREW_COMMIT')
+          repository=$(brew --repository)
+          git -C "$repository" fetch --quiet origin "$commit"
+          git -C "$repository" checkout --quiet --detach "$commit"
+          test "$(git -C "$repository" rev-parse HEAD)" = "$commit"
+          brew --version
+      - name: syntax pass and unit tests
+        run: script/unit-tests

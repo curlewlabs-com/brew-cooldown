@@ -22,8 +22,10 @@ script/unit-tests
 shellcheck bin/brew-cooldown script/unit-tests
 ```
 
-`script/unit-tests` parses every Ruby source and runs `test/unit` through
-Homebrew's own Ruby, so it needs only a Homebrew installation. The unit tests
+CI runs both on every pull request, the suite on Apple Silicon macOS with
+Homebrew pinned to the qualified commit. `script/unit-tests` parses every Ruby
+source and runs `test/unit` through Homebrew's own Ruby, so locally it needs
+only a Homebrew installation. The unit tests
 use fixed timestamps and recorded upstream responses; they install nothing and
 make no network requests.
 
@@ -77,4 +79,4 @@ evidence. A version range is never a substitute for that run.
 ## Submitting
 
 Keep each pull request focused on one change, make sure the checks pass, and
-describe the _why_ in the pull request body.
+describe the _why_ in the pull request body. CI must be green before merge.
