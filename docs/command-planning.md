@@ -63,15 +63,15 @@ Preparing a candidate can download its bottle to verify provenance and read
 the embedded recipe. Formula withdrawals are checked against fresh current
 metadata before historical recipes are evaluated.
 
-`upgrade` computes a fresh plan, revalidates selected artifact and security
-evidence, and executes independently resolved formula and cask components. It
-uses the validated Homebrew runtime described in
-[installer boundaries](installer-boundaries.md). `--security-only` selects
-components containing an evidenced installed-vulnerability fix; dependencies
-still need normal eligibility. Casks use the native adapter described in
-[cask execution](cask-execution.md). Third-party taps remain
-explicit unsupported scope. The result includes proposed selections and actual
-execution outcomes separately.
+`upgrade` first confirms that Homebrew is the
+[validated runtime](scheduled-adoption.md#homebrew-runtime-changes), then
+computes a fresh plan, revalidates selected artifact and security evidence, and
+executes independently resolved formula and cask components.
+`--security-only` selects components containing an evidenced
+installed-vulnerability fix; dependencies still need normal eligibility. Casks
+use the native adapter described in [cask execution](cask-execution.md).
+Third-party taps remain explicit unsupported scope. The result includes
+proposed selections and actual execution outcomes separately.
 
 Run the current read-only command from a checkout:
 
