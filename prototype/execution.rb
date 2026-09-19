@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 require "open3"
-require_relative "postinstall"
+require_relative "formula_operation"
+require_relative "cask_operation"
 require_relative "journal"
 
 module BrewCooldown
@@ -11,8 +12,9 @@ module BrewCooldown
 
       attr_reader :map, :journal
 
-      def initialize(map, state_directory:)
+      def initialize(map, state_directory:, casks: [])
         @map = map
+        @operations = map.candidates.values.select(&:install?).map { |candidate| FormulaOperation.new(candidate, map:) } + casks
         @journal = Journal.new(state_directory)
       end
 
@@ -45,7 +47,7 @@ module BrewCooldown
             actual = Inventory.capture
             unless actual == expected_inventory
               return { "status" => "drift", "changes" => Inventory.differences(expected_inventory, actual),
-                       "recovery" => map.candidates.keys.to_h { |name| [name, Recovery.commands(name)] } }
+                       "recovery" => recovery_commands }
             end
             raise Refused, "native installer already holds locks" unless FormulaInstaller.locked.empty?
 
@@ -62,107 +64,75 @@ module BrewCooldown
       rescue StandardError => error
         details = journal.path.file? ? journal.safe_report : { "status" => "error" }
         details.merge("error" => "#{error.class}: #{error.message}",
-                      "recovery" => map.candidates.keys.to_h { |name| [name, Recovery.commands(name)] })
+                      "recovery" => recovery_commands)
       end
 
       private
 
-      def ordered_candidates
+      def recovery_commands
+        formulae = map.candidates.values.to_h do |candidate|
+          name = candidate.formula.full_name
+          ["formula/#{name}", Recovery.commands(name)]
+        end
+        formulae.merge(@operations.to_h do |operation|
+          ["#{operation.kind}/#{operation.name}", Recovery.commands(operation.name, kind: operation.kind)]
+        end)
+      end
+
+      def ordered_operations
+        operations = @operations.to_h { |operation| [operation.key, operation] }
         result = []
         visiting = Set.new
         visited = Set.new
-        visit = lambda do |candidate|
-          # Retained edges constrain replacements but are not install steps.
-          # Walking through them would invent an installation cycle.
-          return unless candidate.install?
+        visit = lambda do |key|
+          # Retained dependencies constrain the plan but are not install steps.
+          # Traversing their edges would invent installation cycles.
+          return unless operations.key?(key)
+          return if visited.include?(key)
+          raise Refused, "dependency cycle at #{key.join('/')}" if visiting.include?(key)
 
-          name = candidate.formula.full_name
-          return if visited.include?(name)
-          raise Refused, "dependency cycle at #{name}" if visiting.include?(name)
-
-          visiting << name
-          candidate.runtime_dependencies.each { |dep| visit.call(map.candidates.fetch(dep.fetch("full_name"))) }
-          visiting.delete(name)
-          visited << name
-          result << candidate if candidate.install?
+          visiting << key
+          operation = operations.fetch(key)
+          operation.dependencies.each { |dependency| visit.call(dependency) }
+          visiting.delete(key)
+          visited << key
+          result << operation
         end
-        map.candidates.values.each { |candidate| visit.call(candidate) }
+        operations.each_key { |key| visit.call(key) }
         result
       end
 
       def execute(inventory, progress:, before_install:)
-        candidates = ordered_candidates
-        operations = candidates.map do |candidate|
-          formula = candidate.formula
-          previous = formula.opt_prefix.realpath.to_s if formula.opt_prefix.exist?
-          raise Refused, "#{formula.name} is pinned" if formula.pinned?
-          if previous
-            installed = Keg.new(Pathname(previous))
-            scheme_order = formula.version_scheme <=> installed.version_scheme
-            if scheme_order.negative? || (scheme_order.zero? && installed.version >= formula.pkg_version)
-              raise Refused, "#{formula.name}: selected version does not advance the active installation"
-            end
-          end
-          { "name" => formula.name, "version" => formula.pkg_version.to_s, "previous_keg" => previous,
-            "candidate" => candidate.identity, "keg_only" => formula.keg_only?, "status" => "pending" }
-        end
-        journal.start(operations, inventory)
-        candidates.each do |candidate|
-          formula = candidate.formula
+        operations = ordered_operations
+        journal.start(operations.map(&:record), inventory)
+        operations.each do |operation|
+          name, kind = operation.name, operation.kind
           self.class.check_homebrew!
           current = Inventory.capture
-          raise Refused, "inventory changed before #{formula.name}" unless current == inventory
-          raise Refused, "#{formula.name} became pinned" if formula.pinned?
-          before_install&.call(candidate)
-          raise Refused, "inventory changed during #{formula.name} revalidation" unless Inventory.capture == inventory
+          raise Refused, "inventory changed before #{kind}/#{name}" unless current == inventory
+          operation.verify_before!
+          before_install&.call(operation.candidate)
+          raise Refused, "inventory changed during #{kind}/#{name} revalidation" unless Inventory.capture == inventory
 
-          journal.record(formula.name, "started")
-          progress&.call(formula.name, "started")
+          journal.record(name, "started", kind:)
+          progress&.call(name, "started")
           begin
-            Prototype.executing_name = formula.name
             Homebrew.failed = false
-            # The launcher enables developer mode only to enter `brew ruby`.
-            # Its source-cycle diagnostic loads build-only recipes even when
-            # pouring bottles. Normal runtime/architecture checks still run.
-            with_env(HOMEBREW_DEVELOPER: nil) do
-              Postinstall.with_map(map) do
-                existing = formula.opt_prefix.exist?
-                requested = existing && Tab.for_keg(Keg.new(formula.opt_prefix.realpath)).installed_on_request
-                linked = existing ? formula.linked? : !formula.keg_only?
-                installer = FormulaInstaller.new(formula, installed_on_request: requested, link_keg: linked)
-                installer.prelude
-                installer.fetch
-                Homebrew::Install.install_formula(installer, upgrade: formula.opt_prefix.exist?)
-              end
-            end
-            raise Refused, "Homebrew reported failure for #{formula.name}" if Homebrew.failed?
-            expected = HOMEBREW_CELLAR/formula.name/formula.pkg_version.to_s
-            raise Refused, "#{formula.name}: selected keg is not active" unless formula.opt_prefix.realpath == expected
-            raise Refused, "#{formula.name}: installation receipt missing" unless (expected/"INSTALL_RECEIPT.json").file?
-            Retained.new(Keg.new(expected)).check_linkage!
+            operation.install
             map.candidates.values.reject(&:install?).each(&:check_linkage!)
-
             after = Inventory.capture
-            unexpected = Inventory.differences(inventory, after).reject do |change|
-              path = change.fetch("path")
-              names = [formula.name, *formula.aliases, *formula.oldnames]
-              path.start_with?("#{formula.rack}/") || names.any? do |name|
-                [HOMEBREW_PREFIX/"opt"/name, HOMEBREW_LINKED_KEGS/name].any? { |allowed| allowed.to_s == path }
-              end
-            end
-            raise Refused, "unplanned inventory change after #{formula.name}: #{unexpected}" unless unexpected.empty?
+            unexpected = Inventory.differences(inventory, after).reject { |change| operation.owns_path?(change.fetch("path")) }
+            raise Refused, "unplanned inventory change after #{kind}/#{name}: #{unexpected}" unless unexpected.empty?
 
             inventory = after
-            journal.record(formula.name, "completed", inventory:)
+            journal.record(name, "completed", kind:, inventory:)
           rescue StandardError => error
-            warn JSON.generate("operation" => "install", "package" => formula.name,
+            warn JSON.generate("operation" => "install", "kind" => kind, "package" => name,
                                "error" => "#{error.class}: #{error.message}", "backtrace" => error.backtrace)
-            journal.record(formula.name, "failed", error: "#{error.class}: #{error.message}")
+            journal.record(name, "failed", kind:, error: "#{error.class}: #{error.message}")
             return journal.report
-          ensure
-            Prototype.executing_name = nil
           end
-          progress&.call(formula.name, "completed")
+          progress&.call(name, "completed")
         end
         result = { "status" => "completed", "operations" => journal.data.fetch("operations") }
         journal.finish

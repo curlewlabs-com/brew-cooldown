@@ -1,9 +1,8 @@
 # Cask execution
 
-Status: the native historical Codex install and upgrade experiment passed.
-Historical discovery and policy selection are connected to `plan`. Component
-execution and recovery integration are the next step; the command does not yet
-execute casks.
+Status: historical discovery, policy selection, component execution and recovery
+are connected to the commands. The native cask adapter supports the binary and
+generated-completion artifacts used by Codex on the validated Homebrew runtime.
 
 ## Source, artifact and age
 
@@ -57,10 +56,22 @@ installer entrypoints so recursive installation, current-recipe substitution
 and unplanned formula operations fail before mutation. Preserve native
 platform, conflict, checksum, quarantine and pin checks.
 
+The component coordinator orders formula and cask operations from their runtime
+dependencies and owns the journal and inventory checks. Native operation
+adapters own installation and completion verification. Journal operation
+identity includes package kind so a formula and cask sharing a token remain
+distinct. Formula locks retain their existing native ownership; avoid concurrent
+package-changing Homebrew commands, including cask commands.
+
 The first experiment covers native binary and generated-completion artifacts,
 the artifact types used by the selected Codex recipes. Additional artifact and
 hook behavior needs equivalent execution evidence. The adapter does not run
 zap as part of an upgrade.
+
+Completion reads the persisted native receipt rather than Homebrew's in-process
+Tab cache, checks its version and source commit, and verifies binary targets and
+generated-completion paths. Formula dependencies keep their native linkage
+checks. No supplemental installed-artifact receipt is written.
 
 Journal cask operations before mutation and verify the native receipt and
 installed artifacts before recording completion. Homebrew's own best-effort
@@ -109,3 +120,23 @@ brew ruby -- test/integration/cask_install.rb upgrade
 
 These commands intentionally install historical software. They do not exercise
 the policy or journal yet, and are not workstation upgrade commands.
+
+The command-level test is `test/integration/command_cask_upgrade.rb`.
+In the disposable VM it selected and installed Codex 0.153.4 from a 0.144.6
+baseline while Homebrew's current release was 0.155.1. The persisted receipt
+matched the selected commit, the binary reported the selected version,
+completions existed, formula inventory was unchanged, and the completed journal
+was removed.
+
+`test/integration/cask_recovery.rb` exercises native cask pins, binary conflicts,
+worker termination and explicit recovery with a historical baseline. A binary
+conflict can also prevent Homebrew's best-effort restoration; the failed journal
+then remains even when native versioned files are absent. The printed native
+forward-repair command is an operator choice outside the cooldown policy, and
+repair does not acknowledge the journal automatically.
+
+The native conflict test preserved the foreign binary file and failed journal.
+Running the printed forward-repair command restored a runnable installation;
+explicit acknowledgment then cleared the journal without changing packages.
+SIGKILL at the persisted `started` and `completed` boundaries preserved the
+corresponding unconfirmed and completed cask states for read-only inspection.

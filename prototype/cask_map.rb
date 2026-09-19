@@ -10,30 +10,44 @@ module BrewCooldown
     end
 
     class CaskMap
-      attr_reader :candidate, :predecessor
-
-      def initialize(candidate, predecessor: nil)
-        @candidate, @predecessor = candidate, predecessor
-        @installed_path = predecessor&.installed_caskfile
+      def initialize(candidate = nil, predecessor: nil, candidates: nil, predecessors: {})
+        entries = candidates || [candidate]
+        @candidates = entries.to_h { |entry| [entry.cask.full_name, entry] }
+        @predecessors = predecessors.dup
+        @predecessors[candidate.cask.full_name] = predecessor if predecessor
+        @installed = entries.filter_map do |entry|
+          old = @predecessors[entry.cask.full_name] || (entry.cask unless entry.install?)
+          [old.installed_caskfile, old] if old&.installed_caskfile
+        end.to_h
       end
 
       def validate(cask)
-        return if cask.equal?(candidate.cask) || (predecessor && cask.equal?(predecessor))
+        selected = @candidates[cask.full_name]
+        return if selected && (cask.equal?(selected.cask) || cask.equal?(@predecessors[cask.full_name]))
 
         raise Refused, "unplanned cask object: #{cask.full_name}"
       end
 
       def resolve(reference)
-        return candidate.cask if reference.equal?(candidate.cask) ||
-          [candidate.cask.token, "homebrew/cask/#{candidate.cask.token}"].include?(reference.to_s)
+        selected = @candidates[reference.to_s.delete_prefix("homebrew/cask/")]
+        return selected.cask if selected
 
         raise Refused, "unplanned cask lookup: #{reference}"
       end
 
       def installed(path)
-        raise Refused, "unplanned installed cask lookup: #{path}" unless predecessor && Pathname(path) == @installed_path
+        selected = @installed[Pathname(path)]
+        raise Refused, "unplanned installed cask lookup: #{path}" unless selected
 
-        predecessor
+        selected
+      end
+
+      def installation_candidate(cask)
+        validate(cask)
+        selected = @candidates.fetch(cask.full_name)
+        raise Refused, "retained cask cannot be installed outside the plan: #{cask.full_name}" unless selected.install?
+
+        selected
       end
 
       def activate
@@ -67,7 +81,7 @@ module BrewCooldown
 
       def prelude
         Prototype.cask_map.validate(cask)
-        Prototype.cask_map.candidate.verify!
+        Prototype.cask_map.installation_candidate(cask).verify!
         super
       end
 
@@ -80,7 +94,7 @@ module BrewCooldown
       end
 
       def install
-        unless cask.equal?(Prototype.cask_map.candidate.cask)
+        unless cask.equal?(Prototype.cask_map.installation_candidate(cask).cask)
           raise Refused, "the installed cask predecessor is not an installation target"
         end
 
@@ -89,7 +103,7 @@ module BrewCooldown
 
       def stage
         Prototype.cask_map.validate(cask)
-        Prototype.cask_map.candidate.verify!
+        Prototype.cask_map.installation_candidate(cask).verify!
         super
       end
     end

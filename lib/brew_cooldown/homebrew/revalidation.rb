@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "candidate_evidence"
+require_relative "cask_history"
+require_relative "cask_evidence"
 require_relative "current_formula"
 require_relative "advisories"
 require_relative "registry"
@@ -23,28 +25,23 @@ module BrewCooldown
         selected.each do |package, option|
           next if option.retained
 
-          current = CurrentFormula.fetch(package.name, log: @log)
           candidate = @prepared.fetch(option.release.identity)
-          record = candidate.identity
-          tag = record.fetch("version")
-          tag += "-#{candidate.rebuild}" if candidate.rebuild.positive?
-          metadata = registry.resolve(package.name, tag, platform: candidate.tag)
-          release = CandidateEvidence.release(package, candidate, metadata)
-          CurrentFormula.verify_candidate!(current, release.build)
+          release = if package.kind == :cask
+            cask_release(package, candidate, verify_payload:)
+          else
+            formula_release(package, candidate, registry, verify_payload:)
+          end
           unless release.identity == option.release.identity
             raise Prototype::Refused, "#{package.name}: selected artifact changed upstream; run again to select from current history"
           end
-          # Reverify the cached payload before native pouring. A mutable tag or
-          # a cache replacement cannot inherit the plan's artifact authority.
-          if verify_payload
-            candidate.bottle.fetch
-            Homebrew::Attestation.check_core_attestation(candidate.bottle)
-            candidate.bottle.with_verified_snapshot(candidate.bottle.cached_download) { |_snapshot| nil }
-          end
           installed = @inventory.records[package]
-          assessment = advisory.assess(release:, installed: installed&.installed,
-                                       candidate_patches: Advisories.patch_identifiers(candidate.formula),
-                                       installed_patches: installed&.retained ? Advisories.patch_identifiers(installed.retained.formula) : [])
+          candidate_patches = package.kind == :formula ? Advisories.patch_identifiers(candidate.formula) : []
+          installed_patches = if package.kind == :formula && installed&.retained
+            Advisories.patch_identifiers(installed.retained.formula)
+          else
+            []
+          end
+          assessment = advisory.assess(release:, installed: installed&.installed, candidate_patches:, installed_patches:)
           now = @clock.call
           observations.remember_clock(now:)
           first_seen = observations.first_seen(release, now:) unless release.published_at
@@ -54,6 +51,41 @@ module BrewCooldown
 
           @log.call(operation: "revalidate_candidate", package: package.name, identity: release.identity, status: decision.status)
         end
+      end
+
+      private
+
+      def formula_release(package, candidate, registry, verify_payload:)
+        current = CurrentFormula.fetch(package.name, log: @log)
+        tag = candidate.identity.fetch("version")
+        tag += "-#{candidate.rebuild}" if candidate.rebuild.positive?
+        metadata = registry.resolve(package.name, tag, platform: candidate.tag)
+        release = CandidateEvidence.release(package, candidate, metadata)
+        CurrentFormula.verify_candidate!(current, release.build)
+        # Reverify the cached payload before native pouring. A mutable tag or
+        # a cache replacement cannot inherit the plan's artifact authority.
+        if verify_payload
+          candidate.bottle.fetch
+          Homebrew::Attestation.check_core_attestation(candidate.bottle)
+          candidate.bottle.with_verified_snapshot(candidate.bottle.cached_download) { |_snapshot| nil }
+        end
+        release
+      end
+
+      def cask_release(package, candidate, verify_payload:)
+        current = CurrentCask.fetch(package.name, log: @log)
+        CurrentCask.verify_candidate!(current, candidate.cask.version.to_s)
+        history = CaskHistory.new(current:, log: @log)
+        entry = history.entries.find { |row| row.commit == candidate.record.fetch("commit") }
+        raise Prototype::Refused, "#{package.name}: selected recipe is no longer reachable in current Homebrew history" unless entry
+
+        source = history.source_record(entry)
+        unless source.all? { |key, value| candidate.record[key] == value }
+          raise Prototype::Refused, "#{package.name}: selected cask source changed upstream"
+        end
+        candidate.download.fetch if verify_payload
+        candidate.verify!
+        CaskEvidence.release(package, candidate, published_at: entry.published_at)
       end
     end
   end

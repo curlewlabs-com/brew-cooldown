@@ -3,9 +3,9 @@
 Conservative Homebrew upgrades with configurable release-age delays and
 expedited updates for verified security fixes.
 
-**Status: experimental core-formula upgrades.** There is no installable release yet.
+**Status: experimental formula and cask upgrades.** There is no installable release yet.
 The checkout's [commands](docs/command-planning.md) evaluate a Brewfile or
-installed scope and execute eligible core-formula components on the validated
+installed scope and execute eligible formula and cask components on the validated
 Homebrew runtime. Its installed-artifact identity limitation is documented there.
 `recover` inspects unfinished upgrades and prints repair choices; see
 [recovery](docs/execution-recovery.md).
@@ -148,8 +148,8 @@ would be held. A security exception for one package would not automatically
 waive the policy for all of its dependencies.
 
 The first executor would support bottled `homebrew/core` formulae on Apple
-Silicon macOS at `/opt/homebrew`. Cask planning is available, with native cask
-execution being connected to the command. Third-party taps and other platforms
+Silicon macOS at `/opt/homebrew`. Cask execution supports the native binary and
+generated-completion artifacts used by Codex. Third-party taps and other platforms
 are reported as unsupported until their adapters meet the same requirements.
 They remain part of the intended product scope. Unrelated installed packages
 would stay outside a Brewfile run, but their dependency requirements would

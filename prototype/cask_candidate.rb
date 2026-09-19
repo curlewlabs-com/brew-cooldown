@@ -58,6 +58,8 @@ module BrewCooldown
         raise Refused, "#{cask.token}: cask is pinned" if cask.pinned?
       end
 
+      def install? = true
+
       private
 
       def installation_contract

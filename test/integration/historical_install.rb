@@ -12,7 +12,7 @@ abort "Uninspected Homebrew checkout" unless status.success? && commit.strip == 
 changes, status = Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s, "status", "--porcelain", "--untracked-files=no")
 abort "Modified Homebrew checkout" unless status.success? && changes.empty?
 
-require_relative "../../prototype/exact_map"
+require_relative "../../prototype/postinstall"
 
 def assert(condition, message)
   raise message unless condition
@@ -86,9 +86,15 @@ end
 before = inventory
 root = map.resolve("ripgrep")
 installer = FormulaInstaller.new(root, installed_on_request: true)
-installer.prelude
-installer.fetch
-Homebrew::Install.install_formula(installer, upgrade: phase == "upgrade")
+# Match the adapter's ordinary install environment: developer source-cycle
+# diagnostics otherwise resolve build-only recipes even for these bottles.
+with_env(HOMEBREW_DEVELOPER: nil) do
+  BrewCooldown::Prototype::Postinstall.with_map(map) do
+    installer.prelude
+    installer.fetch
+    Homebrew::Install.install_formula(installer, upgrade: phase == "upgrade")
+  end
+end
 assert(!Homebrew.failed?, "Homebrew reported installation failure")
 
 candidates.each do |candidate|

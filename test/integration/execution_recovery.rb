@@ -105,7 +105,7 @@ when "drift"
     result = execution.apply(expected_inventory: inventory)
     raise "Drift was not reported: #{result}" unless result.fetch("status") == "drift"
     raise "Drift mutated packages" unless changed == BrewCooldown::Prototype::Inventory.capture
-    raise "Drift omitted recovery commands" unless result.fetch("recovery").fetch("pcre2").any?
+    raise "Drift omitted recovery commands" unless result.fetch("recovery").fetch("formula/pcre2").any?
     puts JSON.pretty_generate(result)
     puts "PASS: pin drift detected before mutation, with recovery commands"
   ensure

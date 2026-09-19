@@ -46,6 +46,15 @@ rescue BrewCooldown::HomebrewAdapter::RegistryError
 end
 raise "Repeated history accepted" unless duplicate_rejected
 
+# A retained historical download must not evade Homebrew's current rollback.
+begin
+  BrewCooldown::HomebrewAdapter::CurrentCask.verify_candidate!(current.merge("version" => "0.144.5"), "0.144.6")
+rescue BrewCooldown::HomebrewAdapter::RegistryError => error
+  raise unless error.message.include?("possible rollback")
+  rollback_rejected = true
+end
+raise "Candidate ahead of current Homebrew accepted" unless rollback_rejected
+
 # GitHub's full page is not evidence that history has ended. Keep following
 # the anchored query until its final shorter page, even across a page boundary.
 full_page = 100.times.map do |index|

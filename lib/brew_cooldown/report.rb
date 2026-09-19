@@ -33,8 +33,9 @@ module BrewCooldown
         output.puts("Changed #{change.fetch('path')}: expected #{change['expected'].inspect}, observed #{change['observed'].inspect}")
       end
       Array(result[:operations]).each do |operation|
-        output.puts("#{operation.fetch('name')} #{operation.fetch('version')}: #{operation.fetch('status')}")
+        output.puts("#{operation.fetch('kind', 'formula')}/#{operation.fetch('name')} #{operation.fetch('version')}: #{operation.fetch('status')}")
         output.puts("  Previous keg: #{operation['previous_keg']}") if operation['previous_keg']
+        output.puts("  Previous version: #{operation['previous_version']}") if operation['previous_version']
         output.puts("  Error: #{operation['error']}") if operation['error']
         Array(operation['recovery']).each do |choice|
           output.puts("  #{choice.fetch('purpose')}:\n    #{choice.fetch('command')}")
