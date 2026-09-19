@@ -16,7 +16,8 @@ module BrewCooldown
 
     def self.load(path = nil, environment: ENV)
       explicit = !path.nil?
-      path ||= Pathname(environment.fetch("XDG_CONFIG_HOME") { File.join(Dir.home, ".config") })/"brew-cooldown/config.json"
+      root = environment.fetch("HOMEBREW_COOLDOWN_CONFIG_HOME") { environment.fetch("XDG_CONFIG_HOME") { File.join(Dir.home, ".config") } }
+      path ||= Pathname(root)/"brew-cooldown/config.json"
       path = Pathname(path).expand_path
       data = if path.file?
         JSON.parse(path.read)

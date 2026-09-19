@@ -64,6 +64,10 @@ eligible versions.
   eligibility or security exception.
 - `explain PACKAGE` shows candidate decisions and dependency blockers using
   the configured scope; a package outside that scope is reported as such.
+- `recover` inspects unfinished work and prints repair choices. Explicit
+  `recover --accept-current DIGEST` acknowledges the journal and installed
+  inventory shown during inspection; changed evidence requires inspection
+  again. It clears the journal without executing repairs or certifying hooks.
 - `--json` produces a versioned result on stdout. Diagnostics and Homebrew
   output go to stderr. Human output uses the same result records.
 

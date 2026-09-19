@@ -6,7 +6,8 @@ expedited updates for verified security fixes.
 **Status: experimental read-only planning.** There is no installable release yet.
 The checkout's [plan command](docs/command-planning.md) evaluates a Brewfile or
 installed scope. Its installed-artifact identity limitation is documented there;
-the general upgrade command is not enabled yet.
+the general upgrade command is not enabled yet. `recover` inspects an unfinished
+upgrade journal and prints repair choices; see [recovery](docs/execution-recovery.md).
 Historical installation and an ordinary post-install hook work in a disposable
 VM. The [boundary experiments](docs/installer-boundaries.md) document Homebrew
 locking limitations. Avoid overlapping package-changing Homebrew commands;
