@@ -1,0 +1,8 @@
+{
+  "cooldown": {
+    "patch_days": 14,
+    "minor_days": 21,
+    "major_days": 60,
+    "default_days": 14
+  }
+}
