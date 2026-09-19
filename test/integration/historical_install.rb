@@ -13,7 +13,7 @@ abort "Uninspected Homebrew checkout" unless status.success? && commit.strip == 
 changes, status = Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s, "status", "--porcelain", "--untracked-files=no")
 abort "Modified Homebrew checkout" unless status.success? && changes.empty?
 
-require_relative "../../prototype/postinstall"
+require_relative "../../lib/brew_cooldown/executor/postinstall"
 
 def assert(condition, message)
   raise message unless condition
@@ -33,7 +33,7 @@ def refuses(description)
   before = inventory
   begin
     yield
-  rescue BrewCooldown::Prototype::Refused => error
+  rescue BrewCooldown::Executor::Refused => error
     assert(inventory == before, "#{description} mutated installed packages")
     puts "Refused #{description} before mutation: #{error.message}"
     return
@@ -52,7 +52,7 @@ expected_links = records.flat_map do |record|
   end
 end.to_h
 current = %w[pcre2 ripgrep].to_h { |name| [name, Formulary.factory(name)] }
-candidates = records.map { |record| BrewCooldown::Prototype::Candidate.new(record).prepare }
+candidates = records.map { |record| BrewCooldown::Executor::Candidate.new(record).prepare }
 candidates.each do |candidate|
   formula = candidate.formula
   assert(current.fetch(formula.name).pkg_version > formula.pkg_version, "Expected newer current #{formula.name}")
@@ -66,10 +66,10 @@ end
 
 refuses("incomplete candidate graph") do
   root_only = candidates.select { |candidate| candidate.formula.name == "ripgrep" }
-  BrewCooldown::Prototype::ExactMap.new(root_only).activate
+  BrewCooldown::Executor::ExactMap.new(root_only).activate
 end
 
-map = BrewCooldown::Prototype::ExactMap.new(candidates)
+map = BrewCooldown::Executor::ExactMap.new(candidates)
 map.activate
 
 # These probes exercise the real Homebrew entrypoints, so a missed guard can
@@ -90,7 +90,7 @@ installer = FormulaInstaller.new(root, installed_on_request: true)
 # Match the adapter's ordinary install environment: developer source-cycle
 # diagnostics otherwise resolve build-only recipes even for these bottles.
 with_env(HOMEBREW_DEVELOPER: nil) do
-  BrewCooldown::Prototype::Postinstall.with_map(map) do
+  BrewCooldown::Executor::Postinstall.with_map(map) do
     installer.prelude
     installer.fetch
     Homebrew::Install.install_formula(installer, upgrade: phase == "upgrade")

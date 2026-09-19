@@ -4,12 +4,12 @@ require_relative "planning"
 require_relative "journals"
 require_relative "forked_component"
 require_relative "homebrew/revalidation"
-require_relative "../../prototype/execution"
+require_relative "executor/execution"
 
 module BrewCooldown
   class Upgrade
     def initialize(config:, scope:, state_directory:, log:, clock:, security_only: false,
-                   runtime_check: Prototype::Execution.method(:check_homebrew!))
+                   runtime_check: Executor::Execution.method(:check_homebrew!))
       @config, @scope, @directory, @log, @clock = config, scope, state_directory, log, clock
       @security_only = security_only
       @runtime_check = runtime_check
@@ -27,7 +27,7 @@ module BrewCooldown
         # refusal per component would bury the single fact the operator needs.
         begin
           @runtime_check.call
-        rescue Prototype::Refused => error
+        rescue Executor::Refused => error
           @log.call(operation: "check_runtime", error: error.message, error_class: error.class.name)
           return { schema: 1, command: "upgrade", status: "unsupported_runtime", components: [],
                    errors: [{ operation: "check_runtime", error: error.message }] }
@@ -54,8 +54,8 @@ module BrewCooldown
             result["recovery"] = recovery_commands(resolution)
           end
           results << result.merge("roots" => resolution.roots.map(&:to_h))
-          observed = Prototype::Inventory.capture
-          changes = Prototype::Inventory.differences(expected, observed)
+          observed = Executor::Inventory.capture
+          changes = Executor::Inventory.differences(expected, observed)
           unless changes.all? { |change| owned_change?(change.fetch("path"), resolution, planning.discovery.prepared) }
             errors << { operation: "inventory_drift", error: "Unexpected installed-state change; remaining selections need a fresh plan",
                         changes:, recovery: recovery_commands(resolution) }
@@ -73,27 +73,27 @@ module BrewCooldown
     def recovery_commands(resolution)
       resolution.selected.keys.to_h do |package|
         name = "#{package.tap}/#{package.name}"
-        ["#{package.kind}/#{name}", Prototype::Recovery.commands(name, kind: package.kind.to_s)]
+        ["#{package.kind}/#{name}", Executor::Recovery.commands(name, kind: package.kind.to_s)]
       end
     end
 
     def execute_component(planning, resolution, directory, expected)
-      Prototype::Execution.check_homebrew!
-      observed = Prototype::Inventory.capture
+      Executor::Execution.check_homebrew!
+      observed = Executor::Inventory.capture
       unless observed == expected
-        return { "status" => "drift", "drift" => Prototype::Inventory.differences(expected, observed),
+        return { "status" => "drift", "drift" => Executor::Inventory.differences(expected, observed),
                  "error" => "Installed state changed before candidate revalidation" }
       end
       candidates = resolution.selected.to_h do |package, option|
         candidate = planning.discovery.prepared[option.release.identity]
-        raise Prototype::Refused, "#{package.name}: native execution cannot validate this installed consumer" unless candidate
+        raise Executor::Refused, "#{package.name}: native execution cannot validate this installed consumer" unless candidate
 
         [package, candidate]
       end
       revalidation = HomebrewAdapter::Revalidation.new(config: @config, inventory: planning.inventory, prepared: planning.discovery.prepared,
                                                        state_directory: @directory, log: @log, clock: @clock)
       revalidation.check!(resolution.selected)
-      map = Prototype::ExactMap.new(candidates.select { |package, _candidate| package.kind == :formula }.values)
+      map = Executor::ExactMap.new(candidates.select { |package, _candidate| package.kind == :formula }.values)
       casks = candidates.select { |package, _candidate| package.kind == :cask }
       predecessors = casks.filter_map do |package, candidate|
         next unless candidate.install?
@@ -102,15 +102,15 @@ module BrewCooldown
         [candidate.cask.full_name, previous] if previous
       end.to_h
       operations = casks.values.select(&:install?).map do |candidate|
-        Prototype::CaskOperation.new(candidate, predecessor: predecessors[candidate.cask.full_name])
+        Executor::CaskOperation.new(candidate, predecessor: predecessors[candidate.cask.full_name])
       end
       map.activate
-      Prototype::CaskMap.new(candidates: casks.values, predecessors:).activate
+      Executor::CaskMap.new(candidates: casks.values, predecessors:).activate
       before_install = lambda do |candidate|
         selection = resolution.selected.select { |_package, option| planning.discovery.prepared[option.release.identity].equal?(candidate) }
         revalidation.check!(selection, verify_payload: false)
       end
-      Prototype::Execution.new(map, state_directory: directory, casks: operations).apply(expected_inventory: expected, before_install:)
+      Executor::Execution.new(map, state_directory: directory, casks: operations).apply(expected_inventory: expected, before_install:)
     end
 
     def owned_change?(path, resolution, prepared)

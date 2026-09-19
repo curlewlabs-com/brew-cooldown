@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "../../prototype/compatibility"
+require_relative "../../lib/brew_cooldown/executor/compatibility"
 
 # Retained dependencies follow native package-version requirements. New
 # artifacts still need exact recorded builds or explicit compatibility cohorts.
@@ -10,20 +10,20 @@ requirement = { "pkg_version" => "1.0.0" }
 [[requirement, target], [requirement, target.with(rebuild: 0)],
  [requirement.merge("bottle_rebuild" => 0), target]].each do |dependency, selected|
   begin
-    BrewCooldown::Prototype::Compatibility.validate!(dependency, selected)
-  rescue BrewCooldown::Prototype::Refused
+    BrewCooldown::Executor::Compatibility.validate!(dependency, selected)
+  rescue BrewCooldown::Executor::Refused
     next
   end
   raise "Unknown rebuild accepted as exact compatibility evidence"
 end
-BrewCooldown::Prototype::Compatibility.validate!(requirement.merge("bottle_rebuild" => 0), target.with(rebuild: 0))
-BrewCooldown::Prototype::Compatibility.validate!(requirement, target.with(install?: false))
+BrewCooldown::Executor::Compatibility.validate!(requirement.merge("bottle_rebuild" => 0), target.with(rebuild: 0))
+BrewCooldown::Executor::Compatibility.validate!(requirement, target.with(install?: false))
 begin
-  BrewCooldown::Prototype::Compatibility.validate!(requirement.merge("pkg_version" => "1.0.1"), target.with(install?: false))
-rescue BrewCooldown::Prototype::Refused
+  BrewCooldown::Executor::Compatibility.validate!(requirement.merge("pkg_version" => "1.0.1"), target.with(install?: false))
+rescue BrewCooldown::Executor::Refused
   mismatched_version_rejected = true
 end
 raise "A different retained package version was accepted without compatibility evidence" unless mismatched_version_rejected
-BrewCooldown::Prototype::Compatibility.validate!(requirement.merge("compatibility_version" => 0),
+BrewCooldown::Executor::Compatibility.validate!(requirement.merge("compatibility_version" => 0),
                                                target.with(compatibility_version: 0))
 puts "PASS: native-only rebuild evidence and explicit compatibility cohorts"

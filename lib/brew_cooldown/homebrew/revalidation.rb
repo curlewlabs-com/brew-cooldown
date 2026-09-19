@@ -32,7 +32,7 @@ module BrewCooldown
             formula_release(package, candidate, registry, verify_payload:)
           end
           unless release.identity == option.release.identity
-            raise Prototype::Refused, "#{package.name}: selected artifact changed upstream; run again to select from current history"
+            raise Executor::Refused, "#{package.name}: selected artifact changed upstream; run again to select from current history"
           end
           installed = @inventory.records[package]
           candidate_patches = package.kind == :formula ? Advisories.patch_identifiers(candidate.formula) : []
@@ -47,7 +47,7 @@ module BrewCooldown
           first_seen = observations.first_seen(release, now:) unless release.published_at
           decision = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
                            .evaluate(release:, installed: installed&.installed, now:, security: assessment.evidence, first_seen:)
-          raise Prototype::Refused, "#{package.name}: #{decision.reason}" unless decision.eligible?
+          raise Executor::Refused, "#{package.name}: #{decision.reason}" unless decision.eligible?
 
           @log.call(operation: "revalidate_candidate", package: package.name, identity: release.identity, status: decision.status)
         end
@@ -77,11 +77,11 @@ module BrewCooldown
         CurrentCask.verify_candidate!(current, candidate.cask.version.to_s)
         history = CaskHistory.new(current:, log: @log)
         entry = history.entries.find { |row| row.commit == candidate.record.fetch("commit") }
-        raise Prototype::Refused, "#{package.name}: selected recipe is no longer reachable in current Homebrew history" unless entry
+        raise Executor::Refused, "#{package.name}: selected recipe is no longer reachable in current Homebrew history" unless entry
 
         source = history.source_record(entry)
         unless source.all? { |key, value| candidate.record[key] == value }
-          raise Prototype::Refused, "#{package.name}: selected cask source changed upstream"
+          raise Executor::Refused, "#{package.name}: selected cask source changed upstream"
         end
         candidate.download.fetch if verify_payload
         candidate.verify!

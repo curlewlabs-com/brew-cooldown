@@ -3,10 +3,10 @@
 require_relative "../../lib/brew_cooldown/homebrew/installed_inventory"
 require_relative "../../lib/brew_cooldown/homebrew/scope"
 
-before = BrewCooldown::Prototype::Inventory.capture
+before = BrewCooldown::Executor::Inventory.capture
 log = ->(**event) { warn JSON.generate(event) }
 inventory = BrewCooldown::HomebrewAdapter::InstalledInventory.capture(log:)
-after = BrewCooldown::Prototype::Inventory.capture
+after = BrewCooldown::Executor::Inventory.capture
 raise "Inventory read changed installed state" unless before == after
 raise "Native inventory has errors; see diagnostics above" unless inventory.errors.empty?
 raise "Expected installed core formulae" unless inventory.records.keys.any? { |package| package.tap == "homebrew/core" }

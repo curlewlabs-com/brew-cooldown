@@ -13,11 +13,11 @@ abort "Uninspected Homebrew checkout" unless status.success? && commit.strip == 
 changes, status = Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s, "status", "--porcelain", "--untracked-files=no")
 abort "Modified Homebrew checkout" unless status.success? && changes.empty?
 
-require_relative "../../prototype/postinstall"
+require_relative "../../lib/brew_cooldown/executor/postinstall"
 
 records = JSON.parse(File.read(File.join(__dir__, "hook_candidates.json")))
-candidates = records.map { |record| BrewCooldown::Prototype::Candidate.new(record).prepare(allow_hooks: true) }
-map = BrewCooldown::Prototype::ExactMap.new(candidates)
+candidates = records.map { |record| BrewCooldown::Executor::Candidate.new(record).prepare(allow_hooks: true) }
+map = BrewCooldown::Executor::ExactMap.new(candidates)
 map.activate
 fish = map.resolve("fish")
 raise "Run hook_install.rb first" unless fish.opt_prefix.realpath == HOMEBREW_CELLAR/"fish/4.0.6"
@@ -45,8 +45,8 @@ probes.each do |description, (body, error_class, message)|
   report = fish.logs/"cooldown-refusal.json"
   raise "Probe report already exists" if report.exist?
   owns_report = true
-  BrewCooldown::Prototype::Postinstall.with_map(map) do
-    path = BrewCooldown::Prototype.worker_plan/"recipes.json"
+  BrewCooldown::Executor::Postinstall.with_map(map) do
+    path = BrewCooldown::Executor.worker_plan/"recipes.json"
     worker_records = JSON.parse(path.read)
     record = worker_records.find { |entry| entry.fetch("name") == "fish" }
     # Deliberately hostile hook fixtures exercise the real native worker.
@@ -83,8 +83,8 @@ end
 
 # A changed handoff must fail before recipe evaluation, even if it is valid JSON.
 before = inventory
-BrewCooldown::Prototype::Postinstall.with_map(map) do
-  (BrewCooldown::Prototype.worker_plan/"recipes.json").write("[]")
+BrewCooldown::Executor::Postinstall.with_map(map) do
+  (BrewCooldown::Executor.worker_plan/"recipes.json").write("[]")
   Homebrew.failed = false
   FormulaInstaller.new(fish).post_install
   raise "Worker accepted altered recipe map" unless Homebrew.failed?
@@ -93,6 +93,6 @@ raise "Altered map changed package inventory" unless inventory == before
 Homebrew.failed = false
 puts "PASS: refused changed recipe map before evaluation"
 
-BrewCooldown::Prototype::Postinstall.with_map(map) { FormulaInstaller.new(fish).post_install }
+BrewCooldown::Executor::Postinstall.with_map(map) { FormulaInstaller.new(fish).post_install }
 raise "Worker also rejected the original official hook" if Homebrew.failed?
 puts "PASS: original official hook still succeeds after refusal probes"

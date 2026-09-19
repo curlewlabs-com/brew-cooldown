@@ -4,11 +4,11 @@ require "stringio"
 require "json"
 require_relative "../../lib/brew_cooldown/report"
 require_relative "../../lib/brew_cooldown/policy"
-require_relative "../../prototype/inventory"
+require_relative "../../lib/brew_cooldown/executor/inventory"
 
 # A drift report groups recovery by package, unlike a candidate's flat list.
 # Both must expose the commands and their consequences to a terminal operator.
-recoveries = BrewCooldown::Prototype::Recovery.commands("pcre2")
+recoveries = BrewCooldown::Executor::Recovery.commands("pcre2")
 [recoveries, { "pcre2" => recoveries }].each do |recovery|
   result = { status: "incomplete", scope: [], components: [], candidates: [], installed_security: [],
              errors: [{ error: "Installed state changed", recovery: }] }
@@ -62,7 +62,7 @@ raise "Pre-install drift details hidden" unless output.string.include?("Changed 
 # A failed cask and a formula may share a token. Terminal recovery must retain
 # the kind and cask baseline rather than suggesting the wrong repair target.
 output = StringIO.new
-cask_recovery = BrewCooldown::Prototype::Recovery.commands("shared-token", kind: "cask")
+cask_recovery = BrewCooldown::Executor::Recovery.commands("shared-token", kind: "cask")
 BrewCooldown::Report.print_recovery({ status: "needs_reconciliation", operations: [
   { "kind" => "cask", "name" => "shared-token", "version" => "2.0", "previous_version" => "1.0",
     "status" => "failed", "recovery" => cask_recovery }

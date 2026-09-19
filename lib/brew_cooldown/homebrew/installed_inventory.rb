@@ -6,9 +6,9 @@ require "tab"
 require "cask/caskroom"
 require "cask/tab"
 require_relative "../planner"
-require_relative "../../../prototype/compatibility"
-require_relative "../../../prototype/inventory"
-require_relative "../../../prototype/cask_retained"
+require_relative "../executor/compatibility"
+require_relative "../executor/inventory"
+require_relative "../executor/cask_retained"
 
 module BrewCooldown
   module HomebrewAdapter
@@ -62,7 +62,7 @@ module BrewCooldown
           rescue StandardError => error
             details = { operation: "read_installed_formula", package: name, error: error.message,
                         error_class: error.class.name, backtrace: error.backtrace,
-                        recovery: Prototype::Recovery.commands(name) }
+                        recovery: Executor::Recovery.commands(name) }
             errors << details
             log.call(**details)
           end
@@ -74,12 +74,12 @@ module BrewCooldown
           rescue StandardError => error
             details = { operation: "read_installed_cask", package: name, error: error.message,
                         error_class: error.class.name, backtrace: error.backtrace,
-                        recovery: Prototype::Recovery.commands(name, kind: "cask") }
+                        recovery: Executor::Recovery.commands(name, kind: "cask") }
             errors << details
             log.call(**details)
           end
         end
-        fingerprint = Prototype::Inventory.capture
+        fingerprint = Executor::Inventory.capture
         InventoryResult.new(records: records.freeze, errors: errors.freeze, fingerprint: fingerprint.sort.to_h.freeze)
       end
 
@@ -103,7 +103,7 @@ module BrewCooldown
         raise ArgumentError, "#{name}: receipt has no tap identity" unless tap
 
         identity = package("#{tap}/#{name}")
-        retained = Prototype::Retained.new(keg) if tap == "homebrew/core"
+        retained = Executor::Retained.new(keg) if tap == "homebrew/core"
         # The embedded source recipe can omit its bottle block, or describe an
         # earlier bottle. Its default rebuild zero is not installed identity.
         build = Build.new(version: keg.version.version.to_s, revision: keg.version.revision,
@@ -127,7 +127,7 @@ module BrewCooldown
 
         identity = package("#{tap}/#{name}", kind: :cask)
         build = Build.new(version:, revision: 0, rebuild: 0, scheme: 0)
-        retained = Prototype::CaskRetained.new(name)
+        retained = Executor::CaskRetained.new(name)
         installed = Installed.new(package: identity, build:, pinned: retained.cask.pinned?)
         InstalledRecord.new(installed:, dependencies: cask_requirements(runtime),
                             compatibility_version: nil, retained:, receipt: receipt.to_s,

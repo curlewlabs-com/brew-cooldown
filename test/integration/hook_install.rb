@@ -13,15 +13,15 @@ abort "Uninspected Homebrew checkout" unless status.success? && commit.strip == 
 changes, status = Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s, "status", "--porcelain", "--untracked-files=no")
 abort "Modified Homebrew checkout" unless status.success? && changes.empty?
 
-require_relative "../../prototype/postinstall"
+require_relative "../../lib/brew_cooldown/executor/postinstall"
 
 records = JSON.parse(File.read(File.join(__dir__, "hook_candidates.json")))
-candidates = records.map { |record| BrewCooldown::Prototype::Candidate.new(record).prepare(allow_hooks: true) }
+candidates = records.map { |record| BrewCooldown::Executor::Candidate.new(record).prepare(allow_hooks: true) }
 candidates.each do |candidate|
   raise "This experiment requires #{candidate.formula.name} absent" unless candidate.formula.installed_kegs.empty?
 end
 
-map = BrewCooldown::Prototype::ExactMap.new(candidates)
+map = BrewCooldown::Executor::ExactMap.new(candidates)
 map.activate
 fish = map.resolve("fish")
 raise "Expected a real Ruby post-install hook" unless fish.post_install_defined?
@@ -38,7 +38,7 @@ fish_candidate.bottle.with_verified_snapshot(fish_candidate.bottle.cached_downlo
   end
 end
 
-BrewCooldown::Prototype::Postinstall.with_map(map) do
+BrewCooldown::Executor::Postinstall.with_map(map) do
   installer = FormulaInstaller.new(fish, installed_on_request: true)
   installer.prelude
   installer.fetch

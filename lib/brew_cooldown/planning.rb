@@ -60,10 +60,10 @@ module BrewCooldown
       current = HomebrewAdapter::InstalledInventory.capture(log: @log)
       if current.fingerprint != inventory.fingerprint
         errors << { operation: "inventory_drift", error: "Installed state changed during planning; rerun after package operations finish",
-                    changes: Prototype::Inventory.differences(inventory.fingerprint, current.fingerprint),
+                    changes: Executor::Inventory.differences(inventory.fingerprint, current.fingerprint),
                     recovery: roots.to_h do |package|
                       name = "#{package.tap}/#{package.name}"
-                      ["#{package.kind}/#{name}", Prototype::Recovery.commands(name, kind: package.kind.to_s)]
+                      ["#{package.kind}/#{name}", Executor::Recovery.commands(name, kind: package.kind.to_s)]
                     end }
       end
       errors.concat(current.errors)

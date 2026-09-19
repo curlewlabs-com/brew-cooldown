@@ -3,15 +3,15 @@
 require "open3"
 require "tmpdir"
 require_relative "../../lib/brew_cooldown/homebrew/installed_inventory"
-require_relative "../../prototype/execution"
+require_relative "../../lib/brew_cooldown/executor/execution"
 
 abort "Run only in an expendable VM with historical fixtures" unless ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] == "1"
-BrewCooldown::Prototype::Execution.check_homebrew!
+BrewCooldown::Executor::Execution.check_homebrew!
 baseline = { "pcre2" => "10.46", "ripgrep" => "15.0.0" }
 partial = ARGV.first == "partial"
 mixed = ARGV.first == "mixed"
 if mixed
-  cask = BrewCooldown::Prototype::CaskRetained.new("codex").cask
+  cask = BrewCooldown::Executor::CaskRetained.new("codex").cask
   raise "Mixed fixture cask is pinned" if cask.pinned?
   cask_version = cask.version.to_s
 end
@@ -41,7 +41,7 @@ Dir.mktmpdir("cooldown-upgrade-command-") do |directory|
   brewfile = Pathname(directory)/"Brewfile"
   brewfile.write(baseline.keys.map { |name| "brew #{name.dump}\n" }.join + (mixed ? "cask \"codex\"\n" : ""))
   with_env(XDG_STATE_HOME: state.to_s) do
-    before = BrewCooldown::Prototype::Inventory.capture
+    before = BrewCooldown::Executor::Inventory.capture
     # The interpreter's ca-certificates root precedes the PCRE component in
     # runtime scope. Hold its lock so success proves progress after failure.
     held_lock = FormulaLock.new("ruby@3.3") if partial
@@ -70,9 +70,9 @@ Dir.mktmpdir("cooldown-upgrade-command-") do |directory|
       else
         raise "#{name} did not advance" unless active.version > PkgVersion.parse(version)
       end
-      raise "Installed rebuild was invented" unless BrewCooldown::Prototype::Retained.new(active).rebuild.nil?
+      raise "Installed rebuild was invented" unless BrewCooldown::Executor::Retained.new(active).rebuild.nil?
     end
-    raise "No actual package changes" if BrewCooldown::Prototype::Inventory.capture == before
+    raise "No actual package changes" if BrewCooldown::Executor::Inventory.capture == before
     output, check = Open3.capture2((HOMEBREW_PREFIX/"opt/ripgrep/bin/rg").to_s, "--pcre2", "a(?=b)", stdin_data: "ab\n")
     raise "Upgraded runtime is broken" unless check.success? && output == "ab\n"
     if mixed

@@ -3,7 +3,7 @@
 require_relative "cask_map"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     # A native cask upgrade uses the installed predecessor's artifacts and
     # Homebrew's own failure restoration. Completion is read from native data.
     class CaskOperation

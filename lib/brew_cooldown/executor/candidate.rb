@@ -6,7 +6,7 @@ require "digest"
 require_relative "errors"
 
 module BrewCooldown
-  module Prototype
+  module Executor
     # An exact official bottle used by Homebrew's historical installer adapter.
     # Registry responses stay in Homebrew's cache, not in a project catalog.
     class Candidate

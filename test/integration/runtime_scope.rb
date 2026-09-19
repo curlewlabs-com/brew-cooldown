@@ -5,7 +5,7 @@ require "tmpdir"
 require_relative "../../lib/brew_cooldown/homebrew/installed_inventory"
 
 abort "Run only in an expendable VM with historical Codex and formula fixtures" unless ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] == "1"
-cask = BrewCooldown::Prototype::CaskRetained.new("codex").cask
+cask = BrewCooldown::Executor::CaskRetained.new("codex").cask
 raise "Expected historical cask with a ripgrep dependency" unless cask.version.to_s == "0.144.5"
 raise "Fixture cask is already pinned" if cask.pinned?
 baseline = { "pcre2" => "10.46", "ripgrep" => "15.0.0" }

@@ -4,10 +4,10 @@ require "open3"
 require "tmpdir"
 require "keg"
 require_relative "../../lib/brew_cooldown/state_directory"
-require_relative "../../prototype/journal"
+require_relative "../../lib/brew_cooldown/executor/journal"
 
 launcher = File.expand_path("../../bin/brew-cooldown", __dir__)
-before = BrewCooldown::Prototype::Inventory.capture
+before = BrewCooldown::Executor::Inventory.capture
 active = (HOMEBREW_PREFIX/"opt").children.find { |path| path.symlink? && path.exist? && (path/"INSTALL_RECEIPT.json").file? }
 raise "Needs an installed Homebrew formula" unless active
 keg = Keg.new(active.realpath)
@@ -24,7 +24,7 @@ end
 # state is isolated; the test neither substitutes Homebrew nor changes packages.
 Dir.mktmpdir("cooldown-recovery-state-") do |directory|
   with_env(XDG_STATE_HOME: directory) do
-    journal = BrewCooldown::Prototype::Journal.new(BrewCooldown::StateDirectory.path)
+    journal = BrewCooldown::Executor::Journal.new(BrewCooldown::StateDirectory.path)
     warn "Expected journal: #{journal.path}"
     result, code = command(launcher)
     raise "Empty state not reported" unless code.zero? && result["status"] == "idle"
@@ -62,7 +62,7 @@ Dir.mktmpdir("cooldown-recovery-state-") do |directory|
     report, = command(launcher)
     # Recovery must bind the complete unfinished set, not just the first file.
     earlier = report.fetch("accept_current").fetch("digest")
-    component = BrewCooldown::Prototype::Journal.new(BrewCooldown::StateDirectory.path/"components"/("a" * 64))
+    component = BrewCooldown::Executor::Journal.new(BrewCooldown::StateDirectory.path/"components"/("a" * 64))
     component.with_lock { component.start([operation.merge("status" => "pending")], before) }
     rejected, code = command(launcher, "--accept-current", earlier)
     raise "New component escaped acknowledgment identity" unless code == 1 && rejected["status"] == "error" && component.path.exist?
@@ -89,5 +89,5 @@ Dir.mktmpdir("cooldown-recovery-state-") do |directory|
     raise "Launcher lost configured XDG directory" unless status.exitstatus == 1 && result.fetch("error").include?("Unknown configuration keys")
   end
 end
-raise "Recovery changed packages or pins" unless BrewCooldown::Prototype::Inventory.capture == before
+raise "Recovery changed packages or pins" unless BrewCooldown::Executor::Inventory.capture == before
 puts "PASS: command recovery, unconfirmed work, stale acknowledgment, explicit acceptance and malformed journals"

@@ -6,7 +6,7 @@ require "time"
 require_relative "../../lib/brew_cooldown/homebrew/installed_inventory"
 
 abort "Run only in an expendable VM with historical Codex installed" unless ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] == "1"
-before_cask = BrewCooldown::Prototype::CaskRetained.new("codex").cask
+before_cask = BrewCooldown::Executor::CaskRetained.new("codex").cask
 raise "Fixture cask must be unpinned" if before_cask.pinned?
 before_cask.depends_on.formula.each do |name|
   raise "Cask-only fixture needs current formula dependency: #{name}" if Formulary.factory(name).outdated?
@@ -19,7 +19,7 @@ Dir.mktmpdir("cooldown-cask-upgrade-") do |directory|
   brewfile.write("cask \"codex\"\n")
   state = Pathname(directory)/"state"
   with_env(XDG_STATE_HOME: state.to_s) do
-    before = BrewCooldown::Prototype::Inventory.capture
+    before = BrewCooldown::Executor::Inventory.capture
     stdout, stderr, status = Open3.capture3(launcher, "upgrade", "--brewfile", brewfile.to_s, "--json")
     warn stderr
     result = JSON.parse(stdout)
@@ -44,8 +44,8 @@ Dir.mktmpdir("cooldown-cask-upgrade-") do |directory|
     output, check = Open3.capture2((HOMEBREW_PREFIX/"bin/codex").to_s, "--version")
     raise "Installed binary does not run" unless check.success? && output.include?(receipt.version)
     raise "Generated completions missing" unless (HOMEBREW_PREFIX/"share/zsh/site-functions/_codex").size.positive?
-    after = BrewCooldown::Prototype::Inventory.capture
-    changes = BrewCooldown::Prototype::Inventory.differences(before, after)
+    after = BrewCooldown::Executor::Inventory.capture
+    changes = BrewCooldown::Executor::Inventory.differences(before, after)
     raise "Cask upgrade changed formula inventory" unless changes.any? && changes.all? { |entry| entry.fetch("path").start_with?("#{before_cask.caskroom_path}/") }
     raise "Completed journal remained" unless state.glob("**/active.json").empty?
     report, diagnostics, check = Open3.capture3(launcher, "recover", "--json")

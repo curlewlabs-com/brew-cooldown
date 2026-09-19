@@ -6,8 +6,8 @@ require_relative "../../lib/brew_cooldown/homebrew/installed_inventory"
 
 abort "Run only in a disposable VM with Codex installed" unless ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] == "1"
 launcher = File.expand_path("../../bin/brew-cooldown", __dir__)
-before = BrewCooldown::Prototype::Inventory.capture
-version = BrewCooldown::Prototype::CaskRetained.new("codex").cask.version.to_s
+before = BrewCooldown::Executor::Inventory.capture
+version = BrewCooldown::Executor::CaskRetained.new("codex").cask.version.to_s
 
 Dir.mktmpdir("cooldown-explain-") do |directory|
   brewfile = Pathname(directory)/"Brewfile"
@@ -33,5 +33,5 @@ Dir.mktmpdir("cooldown-explain-") do |directory|
       (cache/"downloads").children.any?
   end
 end
-raise "Explanation changed packages or pins" unless BrewCooldown::Prototype::Inventory.capture == before
+raise "Explanation changed packages or pins" unless BrewCooldown::Executor::Inventory.capture == before
 puts "PASS: cold-cache native package explanation, full assessment and unchanged installed state"

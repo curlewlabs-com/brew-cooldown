@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module BrewCooldown
-  module Prototype
+  module Executor
     class Refused < StandardError; end
   end
 end
