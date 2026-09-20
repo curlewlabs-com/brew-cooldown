@@ -36,15 +36,19 @@ identity. An embedded recipe's default rebuild value cannot establish which
 bottle was poured: the recipe can have no bottle block, or carry older bottle
 metadata. Inventory therefore represents the installed rebuild as unknown.
 Rebuild-only candidates receive an explicit identity diagnostic with inspection
-and forward-repair commands. An already installed version and revision do not
-fail the run solely because its bottle rebuild is unknown. This follows native
-Homebrew's version-based upgrade boundary, without claiming identical installed
-artifact bytes. A known installed vulnerability without an actionable fix still
-fails assessment. Retaining a dependency at its recorded package version
-and revision follows Homebrew's installed-dependency contract, which does not
-require a bottle rebuild. This does not establish exact installed artifact
-identity. Replacing a dependency uses exact build evidence or an explicit
-compatibility identifier.
+and forward-repair commands. A prefix installed from Homebrew's API carries that
+condition on many packages at once, whose entries differ only in the package
+name, so the terminal report names them together in a single note and leaves
+the commands to `explain PACKAGE`; the JSON diagnostics stay one per package.
+An already installed version and revision do not fail the run solely because
+its bottle rebuild is unknown. This follows native Homebrew's version-based
+upgrade boundary, without claiming identical installed artifact bytes. A known
+installed vulnerability without an actionable fix still fails assessment.
+Retaining a dependency at its recorded package version and revision follows
+Homebrew's installed-dependency contract, which does not require a bottle
+rebuild. This does not establish exact installed artifact identity. Replacing
+a dependency uses exact build evidence or an explicit compatibility
+identifier.
 
 Installed identity relies exclusively on Homebrew's receipts and installed
 recipes. The tool does not save a supplemental installation receipt, including
