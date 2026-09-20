@@ -113,11 +113,30 @@ module BrewCooldown
       result.fetch(:installed_security).each do |assessment|
         output.puts("Security coverage for #{assessment.fetch(:package).fetch(:name)}: #{assessment.fetch(:coverage)}")
       end
-      Array(result[:diagnostics]).each do |entry|
+      diagnostics = Array(result[:diagnostics])
+      # Homebrew records no installed bottle rebuild, so every package sitting
+      # on a version it has since rebuilt reports this in the same assessment.
+      # The entries differ only in the package name, and printing each one with
+      # its repair commands left the rest of the report outnumbered. Name them
+      # together instead; `explain PACKAGE` narrows to a single entry and still
+      # renders it in full, and the JSON diagnostics stay one per package.
+      unknown_rebuild = diagnostics.select { |entry| entry[:status] == "unknown_installed_build" }
+      names = unknown_rebuild.filter_map { |entry| entry.dig(:package, :name) }.sort
+      # A summary that cannot name every package it stands for would say less
+      # than the entries it replaces, so that case keeps rendering them singly.
+      summarize = names.length > 1 && names.length == unknown_rebuild.length
+      diagnostics.each do |entry|
+        next if summarize && entry[:status] == "unknown_installed_build"
+
         output.puts("Note: #{entry.fetch(:reason)}")
         Array(entry[:recovery]).each do |choice|
           output.puts("  #{choice.fetch('purpose')}:\n    #{choice.fetch('command')}")
         end
+      end
+      if summarize
+        output.puts("Note: Homebrew does not record which bottle rebuild is installed, so no rebuild-only " \
+                    "replacement is selected for #{names.join(', ')}")
+        output.puts("  Inspect one package and its repair commands:\n    brew-cooldown explain #{names.first}")
       end
       result.fetch(:errors).each do |entry|
         output.puts("Error: #{entry[:error] || entry[:reason]}")
