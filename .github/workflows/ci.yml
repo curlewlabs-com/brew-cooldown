@@ -32,7 +32,8 @@ jobs:
           url="https://github.com/koalaman/shellcheck/releases/download/v${ver}/shellcheck-v${ver}.linux.x86_64.tar.xz"
           curl -fsSL "$url" | tar -xJ
           "shellcheck-v${ver}/shellcheck" --version
-          "shellcheck-v${ver}/shellcheck" bin/brew-cooldown script/unit-tests script/qualify script/propose-homebrew-release
+          "shellcheck-v${ver}/shellcheck" bin/brew-cooldown script/unit-tests script/qualify script/propose-homebrew-release \
+            script/merge-homebrew-release
 
   unit:
     # Apple Silicon Tahoe is the platform the executor supports, and the

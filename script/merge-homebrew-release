@@ -1,0 +1,118 @@
+#!/bin/sh
+set -eu
+
+# Merge a Homebrew release proposal once its qualification passes. A proposal
+# only moves VALIDATED_HOMEBREW_COMMIT to a release tag's commit, and the Qualify
+# run on its head is the evidence CONTRIBUTING.md asks for, so that exact change
+# needs no one to press the button. Anything else leaves the merge to a person:
+# a draft, a branch that changes more than the constant or names another commit,
+# or a qualification that did not pass. The Homebrew release workflow runs this
+# with its job token in GH_TOKEN, before it proposes a newer release.
+
+project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$project_directory"
+constant=lib/brew_cooldown/validated_homebrew.rb
+repository=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+work=$(mktemp -d)
+
+# Read the constant at a ref the way the executor does, by loading the file.
+qualified_at() {
+  gh api -H "Accept: application/vnd.github.raw" "repos/$repository/contents/$constant?ref=$1" \
+    >"$work/validated_homebrew.rb"
+  ruby -r "$work/validated_homebrew.rb" -e 'print BrewCooldown::VALIDATED_HOMEBREW_COMMIT'
+}
+
+# Events caused by the job token start no workflow runs, so a head nothing has
+# checked needs its runs started here.
+qualify() {
+  gh workflow run ci.yml --ref "$1"
+  gh workflow run qualify.yml --ref "$1"
+}
+
+# Proposals live on this repository's branches, which a fork's are not.
+gh pr list --state open --base main --json number,headRefName,headRefOid,isDraft,isCrossRepository \
+  --jq '.[] | select((.headRefName | startswith("homebrew/")) and (.isCrossRepository | not)) |
+    "\(.number) \(.headRefName) \(.headRefOid) \(.isDraft)"' \
+  >"$work/proposals"
+# The list arrives on its own descriptor so no command in the loop can read it.
+while read -r number branch head draft <&3; do
+  tag=${branch#homebrew/}
+  case $tag in
+  "" | *[!0-9.]*)
+    echo "#$number: $branch does not name a Homebrew release; leaving it"
+    continue
+    ;;
+  esac
+  if [ "$draft" = true ]; then
+    echo "#$number: draft; leaving it"
+    continue
+  fi
+  commit=$(gh api "repos/Homebrew/brew/commits/$tag" --jq .sha)
+
+  # Only the one-line move a proposal makes may merge unattended. A fix pushed
+  # onto the branch is a change someone has to review, and nothing below may
+  # close or delete it either.
+  shape=$(gh pr view "$number" --json files,additions,deletions \
+    --jq '"\([.files[].path] | join(" ")) \(.additions) \(.deletions)"')
+  if [ "$shape" != "$constant 1 1" ] || [ "$(qualified_at "$head")" != "$commit" ]; then
+    echo "#$number: changes more than the qualified commit, or names another; leaving it for review"
+    continue
+  fi
+  if [ "$(qualified_at main)" = "$commit" ]; then
+    gh pr close "$number" --delete-branch --comment "Homebrew $tag is already the qualified commit on main."
+    continue
+  fi
+
+  # The run qualified the adapter on this branch. If main has moved since, the
+  # merge would pair the new commit with an adapter nothing ran it against.
+  behind=$(gh api "repos/$repository/compare/main...$head" --jq .behind_by)
+  if [ "$behind" != 0 ]; then
+    if gh api --method PUT "repos/$repository/pulls/$number/update-branch" \
+      -f expected_head_sha="$head" >/dev/null; then
+      echo "#$number: behind main; updated it for a fresh qualification"
+    else
+      echo "#$number: behind main and could not be updated; leaving it for a person"
+    fi
+    continue
+  fi
+
+  gh api "repos/$repository/actions/workflows/qualify.yml/runs?head_sha=$head" >"$work/runs.json"
+  runs=$(jq .total_count "$work/runs.json")
+  running=$(jq '[.workflow_runs[] | select(.status != "completed")] | length' "$work/runs.json")
+  if [ "$running" != 0 ]; then
+    echo "#$number: qualification still running"
+    continue
+  fi
+  verdict=$(gh api "repos/$repository/commits/$head/check-runs?check_name=qualified" \
+    --jq '[.check_runs[] | select(.app.slug == "github-actions")] | sort_by(.started_at) | last |
+      if . == null then "none" elif .status != "completed" then "pending" else .conclusion end')
+  case $verdict in
+  none)
+    # A run that finished without a verdict is a failure to look at, not a
+    # reason to start another one every hour.
+    if [ "$runs" = 0 ]; then
+      echo "#$number: nothing has qualified $head; starting CI and Qualify"
+      qualify "$branch"
+    else
+      echo "#$number: Qualify ran on $head without a verdict; leaving it for a person"
+    fi
+    ;;
+  pending)
+    echo "#$number: qualification still running"
+    ;;
+  success)
+    # CLEAN also covers conflicts and the required checks; GitHub computes it
+    # lazily, so an UNKNOWN read resolves by the next run.
+    state=$(gh pr view "$number" --json mergeStateStatus --jq .mergeStateStatus)
+    if [ "$state" = CLEAN ]; then
+      gh pr merge "$number" --merge --match-head-commit "$head"
+      echo "#$number: merged; Homebrew $tag is qualified"
+    else
+      echo "#$number: qualified, but GitHub reports the pull request $state; trying again next run"
+    fi
+    ;;
+  *)
+    echo "#$number: qualification concluded $verdict on $head; leaving it for a person"
+    ;;
+  esac
+done 3<"$work/proposals"
