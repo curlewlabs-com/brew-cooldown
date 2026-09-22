@@ -38,7 +38,9 @@ or starting a component. Each component checks again before its first mutation.
 `plan`, `explain` and `recover` install nothing and stay available.
 
 Release qualification must run the native installation, dependency, hook and
-recovery experiments on each newly supported Homebrew runtime. Broader runtime
+recovery experiments on each newly supported Homebrew runtime. The Qualify
+workflow runs them on every pull request that moves the qualified commit; see
+[contributing](../CONTRIBUTING.md#supporting-a-newer-homebrew). Broader runtime
 compatibility needs evidence from that qualification; a version range alone
 does not establish it. The scheduler should surface compatibility errors until
 the installed runtime has passed adapter validation.
