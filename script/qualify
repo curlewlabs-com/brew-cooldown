@@ -1,0 +1,182 @@
+#!/bin/sh
+set -eu
+
+# Release qualification: the destructive experiments that must pass on a
+# Homebrew commit before VALIDATED_HOMEBREW_COMMIT may name it. They install,
+# pin, interrupt and repair real packages, and each track expects its own fresh
+# expendable Apple Silicon VM: Homebrew at /opt/homebrew, checked out at that
+# commit, with only its gh formula installed and a GitHub token for Homebrew's
+# attestation checks. See CONTRIBUTING.md.
+
+project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+brew=${HOMEBREW_BREW_FILE:-brew}
+tracks="probes historical hooks shared-consumer interpreter execution-recovery \
+interruption commands cask cask-interruption cask-failure runtime-scope brewfile"
+
+usage() {
+  echo "usage: script/qualify TRACK | --list" >&2
+  exit 2
+}
+
+[ "$#" -eq 1 ] || usage
+if [ "$1" = --list ]; then
+  for track in $tracks; do
+    echo "$track"
+  done
+  exit 0
+fi
+track=$1
+case " $tracks " in
+*" $track "*) ;;
+*) usage ;;
+esac
+
+if [ "${HOMEBREW_COOLDOWN_DISPOSABLE:-}" != 1 ]; then
+  echo "script/qualify changes real packages; set HOMEBREW_COOLDOWN_DISPOSABLE=1 only in an expendable VM" >&2
+  exit 2
+fi
+
+# The environment the first experiment recorded (docs/installer-proof.md); the
+# later ones reuse it. Auto-update would replace the checkout under test.
+export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_ANALYTICS=1 \
+  HOMEBREW_VERIFY_ATTESTATIONS=1
+work=$(mktemp -d "${TMPDIR:-/tmp}/brew-cooldown-qualify.XXXXXX")
+export HOMEBREW_COOLDOWN_TEST_STATE="$work/state"
+
+experiment() {
+  name=$1
+  shift
+  echo "==> test/integration/$name.rb $*"
+  "$brew" ruby -- "$project_directory/test/integration/$name.rb" "$@"
+}
+
+# Fixture packages the experiments expect already installed come from
+# ordinary Homebrew, as they would on a provisioned machine.
+provision() {
+  echo "==> brew $*"
+  "$brew" "$@"
+}
+
+# The cask installer experiments were recorded in developer mode
+# (docs/cask-execution.md); the subshell keeps it out of later steps.
+cask_install() {
+  (
+    export HOMEBREW_DEVELOPER=1
+    experiment cask_install "$1"
+  )
+}
+
+# REQUIRE_UPGRADE=1 refuses to count a successful no-op as an upgrade.
+brewfile_acceptance() {
+  (
+    export HOMEBREW_COOLDOWN_TEST_BREWFILE="$work/Brewfile" HOMEBREW_COOLDOWN_TEST_REQUIRE_UPGRADE="$1"
+    experiment brewfile_acceptance
+  )
+}
+
+# Each track is ordered: a step can depend on the packages, pins and journals
+# the previous step left behind.
+case $track in
+probes)
+  experiment command_help
+  experiment command_recovery
+  experiment installed_inventory
+  experiment registry
+  experiment current_formulae
+  experiment advisories
+  ;;
+historical)
+  experiment historical_install baseline
+  experiment historical_install upgrade
+  ;;
+hooks)
+  experiment hook_install
+  experiment hook_refusal
+  (
+    export HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1
+    experiment lock_boundary
+  )
+  ;;
+shared-consumer)
+  experiment shared_consumer baseline
+  experiment shared_consumer insufficient_evidence
+  experiment shared_consumer upgrade
+  ;;
+interpreter)
+  provision install --formula --only-dependencies ruby@3.3
+  experiment interpreter_upgrade baseline
+  experiment interpreter_upgrade upgrade
+  # The partial upgrade needs the formula baseline beside the interpreter and
+  # nothing else connecting them into one component (docs/command-planning.md).
+  experiment historical_install baseline
+  experiment command_upgrade partial
+  ;;
+execution-recovery)
+  experiment historical_install baseline
+  experiment execution_recovery identity
+  experiment execution_recovery drift
+  experiment execution_recovery crash_check interrupt_started
+  experiment execution_recovery unconfirmed
+  experiment execution_recovery accept
+  experiment execution_recovery complete
+  experiment execution_recovery restore_links
+  ;;
+interruption)
+  experiment historical_install baseline
+  experiment execution_recovery crash_check interrupt
+  experiment execution_recovery reconcile
+  experiment execution_recovery accept
+  experiment execution_recovery resume
+  ;;
+commands)
+  experiment historical_install baseline
+  experiment command_plan
+  experiment command_upgrade
+  ;;
+cask)
+  # The cask-only command upgrade requires its formula dependency current.
+  provision install --formula ripgrep
+  cask_install baseline
+  cask_install upgrade
+  experiment command_cask_plan
+  experiment command_explain
+  experiment command_cask_upgrade
+  ;;
+cask-interruption)
+  provision install --formula ripgrep
+  cask_install baseline
+  experiment cask_recovery drift
+  experiment cask_recovery crash_check started
+  experiment cask_recovery accept
+  experiment cask_recovery crash_check completed
+  experiment cask_recovery accept
+  ;;
+cask-failure)
+  provision install --formula ripgrep
+  cask_install baseline
+  experiment cask_recovery failure
+  experiment cask_recovery repair_forward
+  experiment cask_recovery accept
+  ;;
+runtime-scope)
+  experiment historical_install baseline
+  cask_install baseline
+  experiment runtime_scope
+  experiment command_upgrade mixed
+  ;;
+brewfile)
+  # A stand-in for a consumer's Brewfile: acceptance needs one formula and one
+  # cask. Consumers still qualify their own (docs/scheduled-adoption.md).
+  provision install --formula ripgrep
+  cask_install baseline
+  printf 'brew "ripgrep"\ncask "codex"\n' >"$work/Brewfile"
+  # First from the historical cask baseline, then again once up to date.
+  brewfile_acceptance 1
+  brewfile_acceptance 0
+  ;;
+*)
+  echo "script/qualify: $track is listed but has no steps" >&2
+  exit 70
+  ;;
+esac
+echo "PASS: qualification track $track"

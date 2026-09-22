@@ -19,7 +19,7 @@ short discussion up front saves rework.
 
 ```sh
 script/unit-tests
-shellcheck bin/brew-cooldown script/unit-tests
+shellcheck bin/brew-cooldown script/unit-tests script/qualify
 ```
 
 CI runs both on every pull request, the suite on Apple Silicon macOS with
@@ -44,7 +44,10 @@ that variable belongs only in an expendable Apple Silicon macOS VM. The
 [boundary experiments](docs/installer-boundaries.md),
 [execution and recovery](docs/execution-recovery.md) and
 [cask execution](docs/cask-execution.md) describe each fixture and the order to
-run them in. Never set that variable on a machine you care about.
+run them in, and `script/qualify` runs them in those orders, one track per VM.
+The [Qualify workflow](.github/workflows/qualify.yml) gives each track its own
+GitHub-hosted macOS job, which is such a VM: GitHub discards it when the job
+ends. Never set that variable on a machine you care about.
 
 ## Conventions
 
@@ -71,10 +74,15 @@ run them in. Never set that variable on a machine you care about.
 ## Supporting a newer Homebrew
 
 `upgrade` runs only on the Homebrew commit the installer adapter was qualified
-against. Supporting a newer commit means rerunning the VM experiments on it and
-then moving `VALIDATED_HOMEBREW_COMMIT` in
-`lib/brew_cooldown/validated_homebrew.rb` in the same pull request as the
-evidence. A version range is never a substitute for that run.
+against. Supporting a newer commit means moving `VALIDATED_HOMEBREW_COMMIT` in
+`lib/brew_cooldown/validated_homebrew.rb` in a pull request. That pull request
+runs the Qualify workflow, which reruns every VM experiment on the new commit.
+Its passing `qualified` check is the evidence, so merge only after it. A version
+range is never a substitute for that run.
+
+To rerun one track elsewhere, prepare a VM as `script/qualify` describes and run
+`HOMEBREW_COOLDOWN_DISPOSABLE=1 script/qualify TRACK`; `--list` names the
+tracks.
 
 ## Submitting
 

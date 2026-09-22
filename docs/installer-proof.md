@@ -6,7 +6,7 @@ followed are recorded in [installer boundaries](installer-boundaries.md),
 [execution and recovery](execution-recovery.md) and
 [cask execution](cask-execution.md). This is a destructive integration
 experiment for an expendable Apple Silicon macOS Tahoe VM, not a user-facing
-command. Do not run it on a workstation or a shared runner.
+command. Do not run it on a workstation or on a runner that outlives the job.
 
 ## Observed result
 
