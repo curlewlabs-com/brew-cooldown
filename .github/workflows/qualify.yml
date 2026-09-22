@@ -11,6 +11,7 @@ on:
       - script/qualify
       - test/integration/**
       - .github/workflows/qualify.yml
+  # Also how the Homebrew release workflow starts this on its pull requests.
   workflow_dispatch:
 
 permissions:

@@ -19,7 +19,8 @@ short discussion up front saves rework.
 
 ```sh
 script/unit-tests
-shellcheck bin/brew-cooldown script/unit-tests script/qualify
+shellcheck bin/brew-cooldown script/unit-tests script/qualify \
+  script/propose-homebrew-release
 ```
 
 CI runs both on every pull request, the suite on Apple Silicon macOS with
@@ -79,6 +80,10 @@ against. Supporting a newer commit means moving `VALIDATED_HOMEBREW_COMMIT` in
 runs the Qualify workflow, which reruns every VM experiment on the new commit.
 Its passing `qualified` check is the evidence, so merge only after it. A version
 range is never a substitute for that run.
+
+The [Homebrew release workflow](.github/workflows/homebrew-release.yml) opens
+that pull request itself when Homebrew tags a release, and starts CI and the
+Qualify workflow on it. If a track fails, the adapter fix goes on that branch.
 
 To rerun one track elsewhere, prepare a VM as `script/qualify` describes and run
 `HOMEBREW_COOLDOWN_DISPOSABLE=1 script/qualify TRACK`; `--list` names the

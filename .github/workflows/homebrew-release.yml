@@ -1,0 +1,30 @@
+name: Homebrew release
+
+# Propose each new Homebrew release for qualification: brew update moves a
+# stable installation to the newest release tag, and upgrade refuses there
+# until VALIDATED_HOMEBREW_COMMIT names it. See script/propose-homebrew-release.
+on:
+  schedule:
+    # Homebrew tags releases at any time of day. Checking several times a day
+    # keeps a new tag's proposal and its Qualify run within hours of the tag.
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+# Opening the pull request also needs the repository setting that allows
+# GitHub Actions to create pull requests.
+permissions:
+  contents: write # push the proposal branch
+  pull-requests: write # open it, close superseded proposals
+  actions: write # start CI and Qualify on it
+
+concurrency:
+  group: homebrew-release
+
+jobs:
+  propose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - run: script/propose-homebrew-release
+        env:
+          GH_TOKEN: ${{ github.token }}
