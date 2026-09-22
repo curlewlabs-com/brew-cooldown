@@ -1,0 +1,86 @@
+name: Qualify
+
+# Release qualification: every script/qualify track, run on the Homebrew commit
+# VALIDATED_HOMEBREW_COMMIT names. A pull request that moves the commit gets
+# this run as the evidence CONTRIBUTING.md asks for.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - lib/brew_cooldown/validated_homebrew.rb
+      - script/qualify
+      - test/integration/**
+      - .github/workflows/qualify.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qualify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tracks:
+    runs-on: ubuntu-24.04
+    outputs:
+      names: ${{ steps.list.outputs.names }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      # The script owns the track list, so a new track cannot be left out here.
+      - id: list
+        run: echo "names=$(script/qualify --list | jq -Rsc 'split("\n") | map(select(length > 0))')" >>"$GITHUB_OUTPUT"
+
+  track:
+    needs: tracks
+    name: ${{ matrix.track }}
+    # Every job gets a new VM that GitHub discards afterward, which makes it
+    # the expendable Apple Silicon Tahoe machine the experiments require.
+    runs-on: macos-26
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        track: ${{ fromJSON(needs.tracks.outputs.names) }}
+    env:
+      # Auto-update would move Homebrew off the commit under test.
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_ANALYTICS: 1
+      HOMEBREW_NO_ENV_HINTS: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+    steps:
+      - uses: actions/checkout@v7.0.1
+      # The image's Homebrew has many packages installed, and some would join
+      # the fixtures into one dependency component. Pinning its checkout, as
+      # ci.yml does, is therefore not enough: start from an empty prefix at
+      # the commit instead. The value comes from the file the executor
+      # enforces, read before the image's Ruby moves aside with its prefix.
+      - name: fresh Homebrew at the qualified commit
+        run: |
+          commit=$(ruby -r ./lib/brew_cooldown/validated_homebrew -e 'print BrewCooldown::VALIDATED_HOMEBREW_COMMIT')
+          sudo mv /opt/homebrew "$RUNNER_TEMP/image-homebrew"
+          sudo install -d -o "$(id -un)" -g admin /opt/homebrew
+          git clone --quiet --filter=blob:none --no-checkout https://github.com/Homebrew/brew /opt/homebrew
+          git -C /opt/homebrew checkout --quiet --detach "$commit"
+          test "$(git -C /opt/homebrew rev-parse HEAD)" = "$commit"
+          sw_vers
+          brew --version
+          brew install --formula gh
+      - name: script/qualify ${{ matrix.track }}
+        run: script/qualify "$TRACK"
+        env:
+          TRACK: ${{ matrix.track }}
+          HOMEBREW_COOLDOWN_DISPOSABLE: 1
+          # Attestation checks and source-history reads need a GitHub token.
+          # The job's own is read-only here and expires with the job.
+          HOMEBREW_GITHUB_API_TOKEN: ${{ github.token }}
+
+  # One result for the whole matrix, so the evidence is a single check.
+  qualified:
+    needs: track
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - run: test "$RESULT" = success
+        env:
+          RESULT: ${{ needs.track.result }}

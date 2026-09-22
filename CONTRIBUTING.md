@@ -19,7 +19,7 @@ short discussion up front saves rework.
 
 ```sh
 script/unit-tests
-shellcheck bin/brew-cooldown script/unit-tests
+shellcheck bin/brew-cooldown script/unit-tests script/qualify
 ```
 
 CI runs both on every pull request, the suite on Apple Silicon macOS with
