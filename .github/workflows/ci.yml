@@ -8,6 +8,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # The Homebrew release workflow starts CI on the pull requests it opens:
+  # events caused by its job token start no runs of their own.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -29,7 +32,7 @@ jobs:
           url="https://github.com/koalaman/shellcheck/releases/download/v${ver}/shellcheck-v${ver}.linux.x86_64.tar.xz"
           curl -fsSL "$url" | tar -xJ
           "shellcheck-v${ver}/shellcheck" --version
-          "shellcheck-v${ver}/shellcheck" bin/brew-cooldown script/unit-tests script/qualify
+          "shellcheck-v${ver}/shellcheck" bin/brew-cooldown script/unit-tests script/qualify script/propose-homebrew-release
 
   unit:
     # Apple Silicon Tahoe is the platform the executor supports, and the

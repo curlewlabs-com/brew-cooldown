@@ -1,0 +1,78 @@
+#!/bin/sh
+set -eu
+
+# Propose the newest Homebrew release for qualification. On a stable
+# installation `brew update` moves Homebrew to that tag, and `upgrade` refuses
+# there until VALIDATED_HOMEBREW_COMMIT names it, so the pull request should
+# exist before anyone's scheduled run meets the refusal. The Homebrew release
+# workflow runs this with its job token in GH_TOKEN; see CONTRIBUTING.md.
+
+project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$project_directory"
+constant=lib/brew_cooldown/validated_homebrew.rb
+upstream=https://github.com/Homebrew/brew
+
+# The same choice Homebrew's update.sh makes: the highest version-sorted tag
+# shaped like a release. sed -n 1p reads to the end, so nothing upstream of
+# it in the pipeline dies of SIGPIPE.
+tag=$(git ls-remote --tags --refs --sort=-version:refname "$upstream" |
+  sed -n 's|^[0-9a-f]*[[:space:]]refs/tags/\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$|\1|p' |
+  sed -n 1p)
+if [ -z "$tag" ]; then
+  echo "No Homebrew release tag found at $upstream" >&2
+  exit 1
+fi
+commit=$(gh api "repos/Homebrew/brew/commits/$tag" --jq .sha)
+current=$(ruby -r "./$constant" -e 'print BrewCooldown::VALIDATED_HOMEBREW_COMMIT')
+if [ "$commit" = "$current" ]; then
+  echo "Homebrew $tag ($commit) is already the qualified commit"
+  exit 0
+fi
+
+# A qualified commit ahead of the newest release (a development commit, say)
+# must not be walked back to it.
+relation=$(gh api "repos/Homebrew/brew/compare/$current...$commit" --jq .status)
+if [ "$relation" != ahead ]; then
+  echo "Homebrew $tag ($commit) is $relation of the qualified commit $current; nothing to propose"
+  exit 0
+fi
+
+# One proposal per release. An existing branch means this release was already
+# proposed; if its qualification failed, the fix belongs on that branch.
+branch=homebrew/$tag
+if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
+  echo "Homebrew $tag was already proposed on $branch"
+  exit 0
+fi
+
+echo "Proposing Homebrew $tag ($commit), replacing $current"
+git switch --quiet --create "$branch"
+sed "s/$current/$commit/" "$constant" >"$constant.new"
+mv "$constant.new" "$constant"
+git -c user.name='github-actions[bot]' \
+  -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+  commit --quiet --message "Qualify Homebrew $tag" -- "$constant"
+git push --quiet origin "$branch"
+
+url=$(gh pr create --base main --head "$branch" --title "Qualify Homebrew $tag" --body "\
+Homebrew tagged [$tag](https://github.com/Homebrew/brew/releases/tag/$tag) at \`$commit\`. \`brew update\` moves a stable installation there, and \`upgrade\` refuses on it until \`VALIDATED_HOMEBREW_COMMIT\` names it.
+
+This moves the constant. Merge only after the Qualify workflow's \`qualified\` check passes: that run is the evidence that the installer adapter still holds on this commit. If a track fails, the fix belongs on this branch.
+
+Homebrew changes since the qualified commit: https://github.com/Homebrew/brew/compare/$current...$commit")
+echo "Opened $url"
+
+# Events caused by the job token start no workflow runs, so without these the
+# pull request would wait forever for its checks.
+gh workflow run ci.yml --ref "$branch"
+gh workflow run qualify.yml --ref "$branch"
+
+# A newer release supersedes an older open proposal: `brew update` skips past
+# the older tag, so qualifying it would fix nothing.
+gh pr list --state open --json number,headRefName --jq '.[] | "\(.number) \(.headRefName)"' |
+  while read -r number head; do
+    case $head in
+    "$branch") ;;
+    homebrew/*) gh pr close "$number" --delete-branch --comment "Superseded by $url." ;;
+    esac
+  done
