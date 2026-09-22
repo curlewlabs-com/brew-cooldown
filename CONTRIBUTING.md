@@ -20,7 +20,7 @@ short discussion up front saves rework.
 ```sh
 script/unit-tests
 shellcheck bin/brew-cooldown script/unit-tests script/qualify \
-  script/propose-homebrew-release
+  script/propose-homebrew-release script/merge-homebrew-release
 ```
 
 CI runs both on every pull request, the suite on Apple Silicon macOS with
@@ -82,8 +82,11 @@ Its passing `qualified` check is the evidence, so merge only after it. A version
 range is never a substitute for that run.
 
 The [Homebrew release workflow](.github/workflows/homebrew-release.yml) opens
-that pull request itself when Homebrew tags a release, and starts CI and the
-Qualify workflow on it. If a track fails, the adapter fix goes on that branch.
+that pull request itself when Homebrew tags a release, starts CI and the Qualify
+workflow on it, and merges it on a later run once `qualified` passes. It merges
+only a branch that still moves nothing but the constant, to the tag's commit, and
+is up to date with `main`. A draft, or any other change pushed to the branch,
+such as the adapter fix a failing track needs, leaves the merge to a person.
 
 To rerun one track elsewhere, prepare a VM as `script/qualify` describes and run
 `HOMEBREW_COOLDOWN_DISPOSABLE=1 script/qualify TRACK`; `--list` names the

@@ -57,7 +57,7 @@ git push --quiet origin "$branch"
 url=$(gh pr create --base main --head "$branch" --title "Qualify Homebrew $tag" --body "\
 Homebrew tagged [$tag](https://github.com/Homebrew/brew/releases/tag/$tag) at \`$commit\`. \`brew update\` moves a stable installation there, and \`upgrade\` refuses on it until \`VALIDATED_HOMEBREW_COMMIT\` names it.
 
-This moves the constant. Merge only after the Qualify workflow's \`qualified\` check passes: that run is the evidence that the installer adapter still holds on this commit. If a track fails, the fix belongs on this branch.
+This moves the constant. The Homebrew release workflow merges it once the Qualify workflow's \`qualified\` check passes on its head: that run is the evidence that the installer adapter still holds on this commit. Marking this a draft, or pushing anything else to the branch, leaves the merge to a person. If a track fails, the fix belongs on this branch.
 
 Homebrew changes since the qualified commit: https://github.com/Homebrew/brew/compare/$current...$commit")
 echo "Opened $url"

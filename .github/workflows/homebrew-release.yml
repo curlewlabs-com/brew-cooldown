@@ -1,30 +1,48 @@
 name: Homebrew release
 
-# Propose each new Homebrew release for qualification: brew update moves a
-# stable installation to the newest release tag, and upgrade refuses there
-# until VALIDATED_HOMEBREW_COMMIT names it. See script/propose-homebrew-release.
+# Keep the qualified commit on Homebrew's newest release: brew update moves a
+# stable installation to that tag, and upgrade refuses there until
+# VALIDATED_HOMEBREW_COMMIT names it. Each run first merges a proposal whose
+# qualification passed (script/merge-homebrew-release), then proposes the newest
+# release if it is not yet qualified (script/propose-homebrew-release).
 on:
   schedule:
-    # Homebrew tags releases at any time of day. Checking several times a day
-    # keeps a new tag's proposal and its Qualify run within hours of the tag.
-    - cron: "17 */6 * * *"
+    # Homebrew tags releases at any time of day, and a merged proposal reaches
+    # scheduled upgrades only on their next run. Checking hourly keeps both
+    # steps close behind the tag and its qualification.
+    - cron: "17 * * * *"
   workflow_dispatch:
 
-# Opening the pull request also needs the repository setting that allows
-# GitHub Actions to create pull requests.
+# Opening a pull request also needs the repository setting that allows GitHub
+# Actions to create pull requests.
 permissions:
-  contents: write # push the proposal branch
-  pull-requests: write # open it, close superseded proposals
-  actions: write # start CI and Qualify on it
+  contents: write # push proposal branches, merge qualified ones
+  pull-requests: write # open, update and close proposals
+  actions: write # start CI and Qualify on them
 
 concurrency:
   group: homebrew-release
 
 jobs:
-  propose:
+  merge:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7.0.1
+      - run: script/merge-homebrew-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  propose:
+    needs: merge
+    # A failed merge pass must not keep a newer release from being proposed.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    steps:
+      # main as it is now, not the commit this run started on: the merge job
+      # may have moved it.
+      - uses: actions/checkout@v7.0.1
+        with:
+          ref: main
       - run: script/propose-homebrew-release
         env:
           GH_TOKEN: ${{ github.token }}
