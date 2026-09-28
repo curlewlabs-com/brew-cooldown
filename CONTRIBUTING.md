@@ -82,11 +82,19 @@ Its passing `qualified` check is the evidence, so merge only after it. A version
 range is never a substitute for that run.
 
 The [Homebrew release workflow](.github/workflows/homebrew-release.yml) opens
-that pull request itself when Homebrew tags a release, starts CI and the Qualify
-workflow on it, and merges it on a later run once `qualified` passes. It merges
-only a branch that still moves nothing but the constant, to the tag's commit, and
-is up to date with `main`. A draft, or any other change pushed to the branch,
-such as the adapter fix a failing track needs, leaves the merge to a person.
+that pull request itself when Homebrew tags a release, and merges it on a later
+run once `qualified` passes. It merges only a branch that still moves nothing but
+the constant, to the tag's commit, and is up to date with `main`. A draft, or any
+other change pushed to the branch, such as the adapter fix a failing track needs,
+leaves the merge to a person.
+
+The workflow opens that pull request, and brings it up to date with `main`, with
+a fine-grained personal access token in the `HOMEBREW_RELEASE_PR_TOKEN` secret;
+the workflow says why its own token cannot. Limit the token to this repository
+and grant only Pull requests: Read and write; GitHub adds read-only metadata
+access itself. It cannot push or merge, and the workflow's own token does both.
+Without the secret, or once the token expires, the workflow fails instead of
+opening a proposal.
 
 To rerun one track elsewhere, prepare a VM as `script/qualify` describes and run
 `HOMEBREW_COOLDOWN_DISPOSABLE=1 script/qualify TRACK`; `--list` names the
