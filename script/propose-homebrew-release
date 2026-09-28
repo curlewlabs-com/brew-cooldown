@@ -5,7 +5,8 @@ set -eu
 # installation `brew update` moves Homebrew to that tag, and `upgrade` refuses
 # there until VALIDATED_HOMEBREW_COMMIT names it, so the pull request should
 # exist before anyone's scheduled run meets the refusal. The Homebrew release
-# workflow runs this with its job token in GH_TOKEN; see CONTRIBUTING.md.
+# workflow runs this with its job token in GH_TOKEN and the proposal token in
+# PROPOSAL_TOKEN; see CONTRIBUTING.md.
 
 project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$project_directory"
@@ -45,6 +46,14 @@ if git ls-remote --exit-code --heads origin "$branch" >/dev/null; then
   exit 0
 fi
 
+# Checked before anything is pushed: a branch left without its pull request
+# would read as already proposed to every later run.
+if [ -z "${PROPOSAL_TOKEN:-}" ]; then
+  echo "PROPOSAL_TOKEN is not set, so Homebrew $tag cannot be proposed; see CONTRIBUTING.md" >&2
+  exit 1
+fi
+repository=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+
 echo "Proposing Homebrew $tag ($commit), replacing $current"
 git switch --quiet --create "$branch"
 sed "s/$current/$commit/" "$constant" >"$constant.new"
@@ -54,18 +63,22 @@ git -c user.name='github-actions[bot]' \
   commit --quiet --message "Qualify Homebrew $tag" -- "$constant"
 git push --quiet origin "$branch"
 
-url=$(gh pr create --base main --head "$branch" --title "Qualify Homebrew $tag" --body "\
+body="\
 Homebrew tagged [$tag](https://github.com/Homebrew/brew/releases/tag/$tag) at \`$commit\`. \`brew update\` moves a stable installation there, and \`upgrade\` refuses on it until \`VALIDATED_HOMEBREW_COMMIT\` names it.
 
 This moves the constant. The Homebrew release workflow merges it once the Qualify workflow's \`qualified\` check passes on its head: that run is the evidence that the installer adapter still holds on this commit. Marking this a draft, or pushing anything else to the branch, leaves the merge to a person. If a track fails, the fix belongs on this branch.
 
-Homebrew changes since the qualified commit: https://github.com/Homebrew/brew/compare/$current...$commit")
+Homebrew changes since the qualified commit: https://github.com/Homebrew/brew/compare/$current...$commit"
+# The proposal token opens it so that its CI and Qualify runs start; see the
+# Homebrew release workflow. A token that has expired or lost its access fails
+# here, after the push, so the branch goes too and the next run retries.
+if ! url=$(GH_TOKEN=$PROPOSAL_TOKEN gh api --method POST "repos/$repository/pulls" \
+  -f base=main -f head="$branch" -f title="Qualify Homebrew $tag" -f body="$body" --jq .html_url); then
+  git push --quiet --delete origin "$branch"
+  echo "Could not open a pull request for $branch with PROPOSAL_TOKEN; deleted the branch so the next run retries" >&2
+  exit 1
+fi
 echo "Opened $url"
-
-# Events caused by the job token start no workflow runs, so without these the
-# pull request would wait forever for its checks.
-gh workflow run ci.yml --ref "$branch"
-gh workflow run qualify.yml --ref "$branch"
 
 # A newer release supersedes an older open proposal: `brew update` skips past
 # the older tag, so qualifying it would fix nothing.

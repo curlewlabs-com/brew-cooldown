@@ -13,12 +13,17 @@ on:
     - cron: "17 * * * *"
   workflow_dispatch:
 
-# Opening a pull request also needs the repository setting that allows GitHub
-# Actions to create pull requests.
+# GitHub does not run a pull request's workflows unattended when the job token
+# opened it or moved its head: the runs wait for approval by someone with write
+# access, or never start. So the two calls that must start a proposal's CI and
+# Qualify runs - opening it and bringing it up to date with main - use
+# PROPOSAL_TOKEN, a fine-grained token limited to this repository's pull
+# requests (CONTRIBUTING.md). It can neither push nor merge; the job token does
+# both.
 permissions:
   contents: write # push proposal branches, merge qualified ones
-  pull-requests: write # open, update and close proposals
-  actions: write # start CI and Qualify on them
+  pull-requests: write # merge and close proposals
+  actions: read # find the Qualify runs on a proposal's head
 
 concurrency:
   group: homebrew-release
@@ -31,6 +36,7 @@ jobs:
       - run: script/merge-homebrew-release
         env:
           GH_TOKEN: ${{ github.token }}
+          PROPOSAL_TOKEN: ${{ secrets.HOMEBREW_RELEASE_PR_TOKEN }}
 
   propose:
     needs: merge
@@ -46,3 +52,4 @@ jobs:
       - run: script/propose-homebrew-release
         env:
           GH_TOKEN: ${{ github.token }}
+          PROPOSAL_TOKEN: ${{ secrets.HOMEBREW_RELEASE_PR_TOKEN }}
