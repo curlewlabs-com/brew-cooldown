@@ -35,10 +35,13 @@ adapter.verify_candidate!(current, build, log:)
 adapter.verify_candidate!(current, build.with(version: "10.47"), log:)
 adapter.verify_candidate!(current.merge("version_scheme" => 1), build.with(version: "99.0"), log:)
 raise "An accepted candidate emitted a rejection" unless events.empty?
-[build.with(version: "10.49"), build.with(revision: 1), build.with(rebuild: 1), build.with(scheme: 1)].each do |candidate|
+[build.with(version: "10.49"), build.with(revision: 1), build.with(rebuild: 1), build.with(scheme: 1),
+ build.with(version: "1.0", scheme: 1)].each do |candidate|
   begin
     adapter.verify_candidate!(current, candidate, log:)
   rescue BrewCooldown::HomebrewAdapter::RegistryError => error
+    raise "A conclusive comparison was not distinguished from missing evidence" unless
+      error.is_a?(BrewCooldown::HomebrewAdapter::CurrentFormula::AheadOfCurrent)
     # A later API query can disagree with the failed run. Preserve the actual
     # comparison so identical version strings still expose revision or scheme
     # differences, and the terminal error remains useful without the full log.
@@ -62,6 +65,7 @@ missing_bottle = current.reject { |key, _| key == "bottle" }.merge("tap_git_head
 begin
   adapter.verify_candidate!(missing_bottle, build, log:)
 rescue BrewCooldown::HomebrewAdapter::RegistryError => error
+  raise "Missing evidence became an expected exclusion" if error.is_a?(BrewCooldown::HomebrewAdapter::CurrentFormula::AheadOfCurrent)
   event = JSON.parse(JSON.generate(events.pop))
   raise "Missing rebuild was presented as known" unless event.fetch("current").fetch("rebuild").nil?
   raise "Formula source commit lost" unless event.fetch("tap_git_head") == "6e7a287063de930a0519930d1bf8c1d3ef161e20"
@@ -69,6 +73,17 @@ rescue BrewCooldown::HomebrewAdapter::RegistryError => error
   missing_rebuild_rejected = true
 end
 raise "Missing rebuild evidence was accepted" unless missing_rebuild_rejected
+# Invalid rebuild metadata cannot provide an authoritative upper bound.
+[-1, "0"].each do |rebuild|
+  begin
+    adapter.verify_candidate!(current.merge("bottle" => { "stable" => { "rebuild" => rebuild } }), build, log:)
+  rescue BrewCooldown::HomebrewAdapter::CurrentFormula::AheadOfCurrent
+    raise "Malformed evidence became an expected exclusion"
+  rescue BrewCooldown::HomebrewAdapter::RegistryError
+    next
+  end
+  raise "Malformed rebuild evidence was accepted"
+end
 # With Homebrew's current version and revision installed, nothing in the
 # registry can advance the package. Anything less than equality must still be
 # examined: a revision, a scheme change or a newer release is an upgrade.

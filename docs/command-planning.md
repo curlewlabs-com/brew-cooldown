@@ -122,6 +122,15 @@ Candidates ahead of Homebrew's currently published version, revision or rebuild
 are rejected too: a rollback can leave the withdrawn artifact in the registry.
 Version-scheme ordering still takes precedence over ordinary version strings.
 
+During formula discovery, a verified build conclusively above that bound is
+reported as an exclusion, not an assessment error. Discovery continues through
+older candidates; an excluded bottle alone cannot fail an otherwise complete
+assessment. This applies to both publication lag and rollbacks without guessing
+which occurred. Unavailable or malformed evidence, including a missing rebuild
+needed to compare otherwise equal builds, still fails assessment. Before
+installation, a selected build that no longer satisfies the refreshed bound
+still stops its component.
+
 A current-build rejection reports the compared build identities and the API
 source in the error, with the available source commit in a structured
 diagnostic. This evidence belongs to the response used for that decision;
