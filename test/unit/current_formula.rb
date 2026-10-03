@@ -29,17 +29,46 @@ end
 # A registry can retain the artifacts of a version Homebrew has rolled back.
 # Its age and availability must not authorize a build ahead of current source.
 build = BrewCooldown::Build.new(version: "10.48", revision: 0, rebuild: 0, scheme: 0)
-adapter.verify_candidate!(current, build)
-adapter.verify_candidate!(current, build.with(version: "10.47"))
-adapter.verify_candidate!(current.merge("version_scheme" => 1), build.with(version: "99.0"))
+events = []
+log = ->(**event) { events << event }
+adapter.verify_candidate!(current, build, log:)
+adapter.verify_candidate!(current, build.with(version: "10.47"), log:)
+adapter.verify_candidate!(current.merge("version_scheme" => 1), build.with(version: "99.0"), log:)
+raise "An accepted candidate emitted a rejection" unless events.empty?
 [build.with(version: "10.49"), build.with(revision: 1), build.with(rebuild: 1), build.with(scheme: 1)].each do |candidate|
   begin
-    adapter.verify_candidate!(current, candidate)
-  rescue BrewCooldown::HomebrewAdapter::RegistryError
+    adapter.verify_candidate!(current, candidate, log:)
+  rescue BrewCooldown::HomebrewAdapter::RegistryError => error
+    # A later API query can disagree with the failed run. Preserve the actual
+    # comparison so identical version strings still expose revision or scheme
+    # differences, and the terminal error remains useful without the full log.
+    event = events.pop
+    raise "Rejected build identity lost" unless event.fetch(:candidate) == candidate.to_h
+    raise "Published build identity lost" unless event.fetch(:current) ==
+      { version: "10.48", revision: 0, rebuild: 0, scheme: 0 }
+    raise "Rejected package or source lost" unless event.fetch(:package) == "pcre2" &&
+      event.fetch(:url) == "https://formulae.brew.sh/api/formula/pcre2.json"
+    raise "Terminal error omitted comparison evidence" unless
+      ["candidate=", "current=", candidate.version, "10.48", "revision", "rebuild", "scheme", event.fetch(:url)].all? do |value|
+        error.message.include?(value)
+      end
     next
   end
   raise "Candidate ahead of current Homebrew source was accepted"
 end
+# Missing rebuild evidence is different from a confirmed initial bottle. The
+# diagnostic must not manufacture a zero and make this refusal look arbitrary.
+missing_bottle = current.reject { |key, _| key == "bottle" }.merge("tap_git_head" => "6e7a287063de930a0519930d1bf8c1d3ef161e20")
+begin
+  adapter.verify_candidate!(missing_bottle, build, log:)
+rescue BrewCooldown::HomebrewAdapter::RegistryError => error
+  event = JSON.parse(JSON.generate(events.pop))
+  raise "Missing rebuild was presented as known" unless event.fetch("current").fetch("rebuild").nil?
+  raise "Formula source commit lost" unless event.fetch("tap_git_head") == "6e7a287063de930a0519930d1bf8c1d3ef161e20"
+  raise "Terminal error concealed missing evidence" unless error.message.include?('"rebuild":null')
+  missing_rebuild_rejected = true
+end
+raise "Missing rebuild evidence was accepted" unless missing_rebuild_rejected
 # With Homebrew's current version and revision installed, nothing in the
 # registry can advance the package. Anything less than equality must still be
 # examined: a revision, a scheme change or a newer release is an upgrade.
