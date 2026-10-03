@@ -91,6 +91,11 @@ module BrewCooldown
               end
             rescue UnknownInstalledBuild => error
               note_unknown_build(package, tag:, reason: error.message)
+            rescue CurrentFormula::AheadOfCurrent => error
+              details = { operation: "exclude_candidate", status: "ahead_of_current", package: package.to_h,
+                          tag:, reason: error.message }
+              @diagnostics << details
+              @log.call(**details)
             rescue StandardError => error
               record_error(package, "prepare_candidate", error, tag:)
             end

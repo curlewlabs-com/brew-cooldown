@@ -10,6 +10,10 @@ require "pkg_version"
 module BrewCooldown
   module HomebrewAdapter
     module CurrentFormula
+      # Discovery can exclude a conclusively newer build. Execution must still
+      # refuse it if a refreshed bound no longer authorizes the selected build.
+      class AheadOfCurrent < RegistryError; end
+
       API = "https://formulae.brew.sh/api/formula"
       NAME = /\A[a-z0-9][a-z0-9+@._-]*\z/
 
@@ -119,8 +123,12 @@ module BrewCooldown
         reason = "candidate is not authorized by current formula metadata; possible publication lag, rollback or unavailable bottle evidence"
         log.call(operation: "reject_current_formula_candidate", package: current.fetch("name"), reason:,
                  candidate: build.to_h, current: published, url:, tap_git_head: current["tap_git_head"])
-        raise RegistryError, "#{current.fetch('name')}: #{reason}; candidate=#{JSON.generate(build.to_h)}; " \
-                             "current=#{JSON.generate(published)}; source=#{url}"
+        ahead = scheme_order.positive? || (scheme_order.zero? && comparison.positive?) ||
+                (scheme_order.zero? && comparison.zero? && current_rebuild.is_a?(Integer) &&
+                 current_rebuild >= 0 && build.rebuild > current_rebuild)
+        error_class = ahead ? AheadOfCurrent : RegistryError
+        raise error_class, "#{current.fetch('name')}: #{reason}; candidate=#{JSON.generate(build.to_h)}; " \
+                           "current=#{JSON.generate(published)}; source=#{url}"
       end
     end
   end

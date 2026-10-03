@@ -107,11 +107,13 @@ There is no saved-plan execution command initially: JSON plans are review
 artifacts, not scripts or authorization tokens.
 
 Exit status is `0` for a completed assessment or execution with only expected
-waits, intentional pins, and successful changes; `1` for invalid input,
-incomplete assessment, unsupported selected packages, operational blockers, or
-execution failure. JSON distinguishes those conditions. Pending cooldowns do
-not make routine scheduled runs fail. A known vulnerable installation without
-an actionable fix is an operational blocker, including when pinned.
+waits, intentional pins, conclusive formula candidate exclusions described in
+[command planning](command-planning.md), and successful changes; `1` for invalid
+input, incomplete assessment, unsupported selected packages, operational
+blockers, or execution failure. JSON distinguishes those conditions. Pending
+cooldowns do not make routine scheduled runs fail. A known vulnerable
+installation without an actionable fix is an operational blocker, including
+when pinned.
 
 ## Configuration
 
