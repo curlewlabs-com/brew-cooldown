@@ -102,7 +102,7 @@ module BrewCooldown
         value.is_a?(Integer) && value.positive? ? value : 0
       end
 
-      def self.verify_candidate!(current, build)
+      def self.verify_candidate!(current, build, log:)
         scheme_order = build.scheme <=> current.fetch("version_scheme")
         return if scheme_order.negative?
 
@@ -113,7 +113,14 @@ module BrewCooldown
         current_rebuild = current.dig("bottle", "stable", "rebuild")
         return if scheme_order.zero? && comparison.zero? && current_rebuild.is_a?(Integer) && build.rebuild <= current_rebuild
 
-        raise RegistryError, "#{current.fetch('name')}: candidate exceeds the currently published build; possible rollback or unavailable bottle evidence"
+        published = { version: current.fetch("versions").fetch("stable"), revision: current.fetch("revision"),
+                      rebuild: current_rebuild, scheme: current.fetch("version_scheme") }
+        url = "#{API}/#{URI.encode_www_form_component(current.fetch('name'))}.json"
+        reason = "candidate is not authorized by current formula metadata; possible publication lag, rollback or unavailable bottle evidence"
+        log.call(operation: "reject_current_formula_candidate", package: current.fetch("name"), reason:,
+                 candidate: build.to_h, current: published, url:, tap_git_head: current["tap_git_head"])
+        raise RegistryError, "#{current.fetch('name')}: #{reason}; candidate=#{JSON.generate(build.to_h)}; " \
+                             "current=#{JSON.generate(published)}; source=#{url}"
       end
     end
   end

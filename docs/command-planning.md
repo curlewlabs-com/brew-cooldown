@@ -122,6 +122,14 @@ Candidates ahead of Homebrew's currently published version, revision or rebuild
 are rejected too: a rollback can leave the withdrawn artifact in the registry.
 Version-scheme ordering still takes precedence over ordinary version strings.
 
+A current-build rejection reports the compared build identities and the API
+source in the error, with the available source commit in a structured
+diagnostic. This evidence belongs to the response used for that decision;
+querying the API afterward may return a different release. Publication lag and
+a rollback can both leave the registry ahead of the API, so the diagnostic
+does not claim which caused the disagreement. Missing bottle rebuild evidence
+remains missing rather than being displayed as a confirmed rebuild.
+
 Cask discovery uses fresh official metadata to anchor the source history to a
 Homebrew commit. Each historical recipe is bound to its Git blob, loaded through
 the native cask evaluator and paired with its verified vendor download. The

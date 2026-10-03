@@ -61,7 +61,7 @@ module BrewCooldown
         tag += "-#{candidate.rebuild}" if candidate.rebuild.positive?
         metadata = registry.resolve(package.name, tag, platform: candidate.tag)
         release = CandidateEvidence.release(package, candidate, metadata)
-        CurrentFormula.verify_candidate!(current, release.build)
+        CurrentFormula.verify_candidate!(current, release.build, log: @log)
         # Reverify the cached payload before native pouring. A mutable tag or
         # a cache replacement cannot inherit the plan's artifact authority.
         if verify_payload

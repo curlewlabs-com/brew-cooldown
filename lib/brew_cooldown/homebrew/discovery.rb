@@ -230,7 +230,7 @@ module BrewCooldown
       def evaluate(package, candidate, metadata, baseline, current)
         formula = candidate.formula
         release = CandidateEvidence.release(package, candidate, metadata)
-        CurrentFormula.verify_candidate!(current, release.build)
+        CurrentFormula.verify_candidate!(current, release.build, log: @log)
         first_seen = @observations.first_seen(release, now: @now) unless metadata.published_at
         installed_formula = @inventory.records[package]&.retained&.formula
         assessment = @advisories.assess(release:, installed: baseline,
