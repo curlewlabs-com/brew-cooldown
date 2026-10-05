@@ -84,7 +84,10 @@ range is never a substitute for that run.
 The [Homebrew release workflow](.github/workflows/homebrew-release.yml) opens
 that pull request itself when Homebrew tags a release, and merges it once
 `qualified` passes: it runs again when the proposal's CI or Qualify run
-finishes, with its schedule as the backstop. It merges only a branch that still
+finishes, with its hourly schedule as the backstop. A
+[github-cron-trigger](https://github.com/curlewlabs-com/github-cron-trigger)
+clock delivers that schedule on time, and GitHub's own schedule still runs it,
+later, when the clock is down. The workflow merges only a branch that still
 moves nothing but the constant, to the tag's commit, and is up to date with
 `main`. A draft, or any other change pushed to the branch, such as the adapter
 fix a failing track needs, leaves the merge to a person.

@@ -7,11 +7,20 @@ name: Homebrew release
 # release if it is not yet qualified (script/propose-homebrew-release).
 on:
   schedule:
-    # Homebrew tags releases at any time of day. GitHub starts a scheduled run
-    # only when its queue allows, which has left this hourly line running hours
-    # apart, so it is what finds a new release but too slow to wait on for the
-    # merge.
+    # Homebrew tags releases at any time of day, and this hourly line is what
+    # finds a new one. GitHub starts a scheduled run only when its queue
+    # allows, which has left this line running hours apart, so the slots arrive
+    # on time through the repository_dispatch below instead, and this schedule
+    # stays as the backstop for when that clock is down. It is still too slow to
+    # wait on for the merge.
     - cron: "17 * * * *"
+  # Each slot of the line above, sent on time by a github-cron-trigger clock
+  # (https://github.com/curlewlabs-com/github-cron-trigger). Both passes read
+  # the current state and a repeated run changes nothing, so a slot delivered
+  # by the clock and again by the schedule needs no deduplication, and the
+  # project's slot action and ledger are not used.
+  repository_dispatch:
+    types: [github-cron-trigger/homebrew-release.yml]
   # A proposal can merge as soon as the last of its gating runs finishes:
   # Qualify for the verdict, CI for the required checks. Until it does, every
   # scheduled upgrade that brew update moved to the release refuses. The branch
