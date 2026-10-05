@@ -7,10 +7,21 @@ name: Homebrew release
 # release if it is not yet qualified (script/propose-homebrew-release).
 on:
   schedule:
-    # Homebrew tags releases at any time of day, and a merged proposal reaches
-    # scheduled upgrades only on their next run. Checking hourly keeps both
-    # steps close behind the tag and its qualification.
+    # Homebrew tags releases at any time of day. GitHub starts a scheduled run
+    # only when its queue allows, which has left this hourly line running hours
+    # apart, so it is what finds a new release but too slow to wait on for the
+    # merge.
     - cron: "17 * * * *"
+  # A proposal can merge as soon as the last of its gating runs finishes:
+  # Qualify for the verdict, CI for the required checks. Until it does, every
+  # scheduled upgrade that brew update moved to the release refuses. The branch
+  # filter matches a fork's branch of the same name too; that is harmless,
+  # because the pass checks out main, reads each proposal's state itself rather
+  # than the run that started it, and skips a fork's pull request.
+  workflow_run:
+    workflows: [Qualify, CI]
+    types: [completed]
+    branches: ["homebrew/**"]
   workflow_dispatch:
 
 # GitHub does not run a pull request's workflows unattended when the job token

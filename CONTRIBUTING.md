@@ -82,11 +82,12 @@ Its passing `qualified` check is the evidence, so merge only after it. A version
 range is never a substitute for that run.
 
 The [Homebrew release workflow](.github/workflows/homebrew-release.yml) opens
-that pull request itself when Homebrew tags a release, and merges it on a later
-run once `qualified` passes. It merges only a branch that still moves nothing but
-the constant, to the tag's commit, and is up to date with `main`. A draft, or any
-other change pushed to the branch, such as the adapter fix a failing track needs,
-leaves the merge to a person.
+that pull request itself when Homebrew tags a release, and merges it once
+`qualified` passes: it runs again when the proposal's CI or Qualify run
+finishes, with its schedule as the backstop. It merges only a branch that still
+moves nothing but the constant, to the tag's commit, and is up to date with
+`main`. A draft, or any other change pushed to the branch, such as the adapter
+fix a failing track needs, leaves the merge to a person.
 
 The workflow opens that pull request, and brings it up to date with `main`, with
 a fine-grained personal access token in the `HOMEBREW_RELEASE_PR_TOKEN` secret;
