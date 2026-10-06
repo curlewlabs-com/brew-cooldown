@@ -57,7 +57,7 @@ module BrewCooldown
           choices.each { |choice| output.puts("#{choice.fetch('purpose')}:\n  #{choice.fetch('command')}") }
         end
       end
-      Array(result[:errors]).each { |error| output.puts("Error: #{error[:error] || error[:reason]}") } unless result[:scope]
+      Array(result[:errors]).each { |error| output.puts(error_line(error)) } unless result[:scope]
       if Array(result[:execution]).any? { |component| component["status"] != "completed" } || result[:status] == "needs_reconciliation"
         output.puts("Inspect unfinished work with brew-cooldown recover.")
       end
@@ -139,7 +139,7 @@ module BrewCooldown
         output.puts("  Inspect one package and its repair commands:\n    brew-cooldown explain #{names.first}")
       end
       result.fetch(:errors).each do |entry|
-        output.puts("Error: #{entry[:error] || entry[:reason]}")
+        output.puts(error_line(entry))
         recoveries = entry[:recovery]
         recoveries = recoveries.values.flatten if recoveries.is_a?(Hash)
         Array(recoveries).each do |recovery|
@@ -148,6 +148,22 @@ module BrewCooldown
           output.puts("  #{recovery.fetch('purpose')}:\n    #{recovery.fetch('command')}")
         end
       end
+    end
+
+    # Errors print after every per-package line, so they are what the end of a
+    # report or a captured log tail shows. Each must name the package it is
+    # about, or that tail cannot be acted on without the full report. A scope
+    # entry is named as its scope line names it; a candidate error also carries
+    # the tag that failed, since several releases of one package can fail the
+    # same way.
+    def self.error_line(entry)
+      package = entry[:package]
+      name = entry[:requested] || case package
+                                  when String then package
+                                  when Hash, Data then package.to_h[:name]
+                                  end
+      message = entry[:error] || entry[:reason]
+      name ? "Error: #{[name, entry[:tag]].compact.join(' ')}: #{message}" : "Error: #{message}"
     end
 
     def self.json_value(value)
