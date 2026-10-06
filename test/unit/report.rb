@@ -122,6 +122,30 @@ raise "Unnameable entry was collapsed into a summary" if output.string.include?(
 raise "Unnameable entry lost its own note" unless output.string.include?("Note: an entry without package identity") &&
   output.string.include?("reinstall --formula taplo")
 
+# Error lines come after every per-package line, so a log tail captured from a
+# scheduled run often holds only them. A missing Brewfile root reported as
+# "Error: Root package is not installed" sent the operator back to the full log
+# to learn which entry it meant. Each error shape planning records must name
+# its package there; an error about no package keeps its plain form.
+missing_root = { requested: "yq", status: :missing, reason: "Root package is not installed",
+                 package: BrewCooldown::PackageId.new(kind: :formula, tap: "homebrew/core", name: "yq") }
+candidate = { operation: "prepare_candidate", package: { kind: :formula, tap: "homebrew/core", name: "git" },
+              error: "missing credentials", tag: "2.56.0" }
+unreadable = { operation: "read_installed_formula", package: "broken", error: "Formula unavailable" }
+unpackaged = { operation: "resolve", error: "No compatible solution" }
+output = StringIO.new
+BrewCooldown::Report.print_human(plain.merge(errors: [missing_root, candidate, unreadable, unpackaged]), output)
+raise "Missing root not named in its error" unless output.string.include?("Error: yq: Root package is not installed")
+raise "Candidate release not named in its error" unless output.string.include?("Error: git 2.56.0: missing credentials")
+raise "Unreadable package not named in its error" unless output.string.include?("Error: broken: Formula unavailable")
+raise "Error without a package changed form" unless output.string.include?("Error: No compatible solution")
+
+# A refused upgrade reports without a scope; its runtime error stays unchanged.
+output = StringIO.new
+BrewCooldown::Report.print_upgrade({ status: "unsupported_runtime", errors: [{ operation: "check_runtime",
+  error: "Homebrew checkout is not the qualified commit" }] }, output)
+raise "Runtime refusal changed form" unless output.string.include?("Error: Homebrew checkout is not the qualified commit")
+
 package = BrewCooldown::PackageId.new(kind: :formula, tap: "homebrew/core", name: "pcre2")
 instant = Time.iso8601("2026-09-18T23:45:00-07:00")
 value = BrewCooldown::Report.json_value({ errors: [{ package:, boundary: instant }] })
