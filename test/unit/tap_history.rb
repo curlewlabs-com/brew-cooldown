@@ -153,7 +153,14 @@ end
 original_history = HomebrewAdapter::TapHistory.method(:new)
 recorded_history = PlanningTapHistory.method(:new)
 begin
-  HomebrewAdapter::TapHistory.define_singleton_method(:new) { |**options| recorded_history.call(**options) }
+  # Unavailable superseded recipes below the installed baseline cannot affect
+  # an upgrade assessment. Keep the baseline boundary and advancing evidence.
+  bounded_fixture = Marshal.load(Marshal.dump(FIXTURE))
+  { "tart" => 3, "softnet" => 2 }.each do |name, baseline_index|
+    rows = bounded_fixture.fetch("packages").fetch(name)
+    rows.fetch("commits").drop(baseline_index + 1).each { |entry| rows.fetch("contents").delete(entry.fetch("sha")) }
+  end
+  HomebrewAdapter::TapHistory.define_singleton_method(:new) { |**options| recorded_history.call(**options, fixture: bounded_fixture) }
   Dir.mktmpdir("cooldown-tap-discovery-") do |directory|
     softnet_baseline = Installed.new(package: softnet, build: softnet_history.candidate(softnet_history.entries.to_a.fetch(2)).build.with(rebuild: nil), pinned: false)
     softnet_record = record.with(installed: softnet_baseline, identity: "softnet-installed")

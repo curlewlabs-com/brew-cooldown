@@ -214,7 +214,9 @@ module BrewCooldown
         history.entries.each do |entry|
           begin
             candidate = history.candidate(entry)
-            next if installed_build && BuildOrder.call(candidate.build, installed_build) <= 0
+            # Earlier superseded recipes cannot justify advancing this retained
+            # build, and their availability cannot invalidate its assessment.
+            break if installed_build && BuildOrder.call(candidate.build, installed_build) <= 0
 
             history.verify_candidate!(candidate)
             candidate.prepare

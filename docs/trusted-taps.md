@@ -35,6 +35,8 @@ An available vendor digest must match the recipe checksum. Missing reliable
 publication dates use the existing verified observation ledger; mismatched
 identity and future evidence never become an old release. Historical candidates
 remain separate even when a newer release is cooling.
+As with cask discovery, the history walk stops when it reaches the retained
+build; earlier superseded recipes do not supply upgrade authority.
 
 Release binaries may depend on other packages at runtime, but do not establish
 bottle ABI cohorts. Archive inspection rejects Homebrew library linkage. Native
