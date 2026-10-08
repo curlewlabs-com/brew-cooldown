@@ -71,7 +71,9 @@ module BrewCooldown
           end
           raise Refused, "#{name}: installed receipt lost selected source provenance" unless tab.source["tap_git_head"] == candidate.record.fetch("commit")
         end
-        Retained.new(Keg.new(expected)).check_linkage!
+        # Source receipts ask native linkage checks to expand declared runtime
+        # edges. That traversal must use the already authorized formula object.
+        Retained.new(Keg.new(expected)).check_linkage!(formula:)
       ensure
         Executor.executing_name = nil
       end

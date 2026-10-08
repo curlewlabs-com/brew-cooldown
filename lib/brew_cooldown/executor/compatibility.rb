@@ -129,7 +129,7 @@ module BrewCooldown
         false
       end
 
-      def check_linkage!
+      def check_linkage!(formula: self.formula)
         CacheStoreDatabase.use(:linkage) do |database|
           checker = LinkageChecker.new(keg, formula, cache_db: database, rebuild_cache: true)
           raise Refused, "#{formula.name}: broken installed library linkage" if checker.broken_library_linkage?
