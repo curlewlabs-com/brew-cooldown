@@ -33,7 +33,13 @@ module BrewCooldown
 
     def initialize(data, directory:, source_path: nil)
       @source_path = source_path
-      object!(data, %w[cooldown packages scope solver], "configuration")
+      object!(data, %w[cooldown packages scope solver trusted_taps], "configuration")
+      @trusted_taps = data.fetch("trusted_taps", [])
+      unless @trusted_taps.is_a?(Array) && @trusted_taps.all? { |tap| tap.is_a?(String) && tap.match?(/\A[a-z0-9_-]+\/[a-z0-9_-]+\z/) } &&
+             @trusted_taps.uniq == @trusted_taps && (@trusted_taps & %w[homebrew/core homebrew/cask]).empty?
+        raise ConfigurationError, "trusted_taps must be unique canonical third-party tap names"
+      end
+      @trusted_taps = @trusted_taps.dup.freeze
       @global = cooldown(data.fetch("cooldown", {}))
       packages = data.fetch("packages", {})
       raise ConfigurationError, "packages must be an object" unless packages.is_a?(Hash)
@@ -51,6 +57,10 @@ module BrewCooldown
         max_assignments.is_a?(Integer) && max_assignments.positive?
 
       @digest = Digest::SHA256.hexdigest(JSON.generate(data))
+    end
+
+    def trusted_tap?(tap)
+      @trusted_taps.include?(tap)
     end
 
     def delays(package)

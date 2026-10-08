@@ -12,6 +12,9 @@ module BrewCooldown
       attr_reader :candidates
 
       def initialize(candidates)
+        names = candidates.map { |candidate| candidate.formula.name }
+        raise Refused, "selected taps collide in Homebrew's shared formula rack" unless names.uniq == names
+
         @candidates = candidates.to_h { |candidate| [candidate.formula.full_name, candidate] }.freeze
       end
 
@@ -26,6 +29,8 @@ module BrewCooldown
         candidate = candidates[formula.full_name]
         raise Refused, "formula substitution: #{formula.full_name}" unless candidate&.formula.equal?(formula)
         return unless candidate.install?
+
+        return candidate.verify_shape! if candidate.respond_to?(:release_archive?) && candidate.release_archive?
 
         raise Refused, "local bottle fallback" if formula.local_bottle_path
         raise Refused, "bottle substitution: #{formula.full_name}" unless formula.bottle.equal?(candidate.bottle)
@@ -110,6 +115,10 @@ module BrewCooldown
       end
 
       def build
+        validate_candidate
+        candidate = Executor.active_map.candidates.fetch(formula.full_name)
+        return super if candidate.respond_to?(:release_archive?) && candidate.release_archive?
+
         raise Refused, "source build requested: #{formula.full_name}"
       end
 
@@ -147,7 +156,13 @@ module BrewCooldown
 
       def validate_candidate
         Executor.active_map.validate(formula)
-        raise Refused, "source fallback requested: #{formula.full_name}" unless pour_bottle?
+        candidate = Executor.active_map.candidates.fetch(formula.full_name)
+        release_archive = candidate.respond_to?(:release_archive?) && candidate.release_archive?
+        if release_archive
+          raise Refused, "release archive replaced by bottle: #{formula.full_name}" if pour_bottle?
+        else
+          raise Refused, "source fallback requested: #{formula.full_name}" unless pour_bottle?
+        end
         raise Refused, "dependency checks disabled" if ignore_deps?
         raise Refused, "forced bottle compatibility" if force_bottle?
       end

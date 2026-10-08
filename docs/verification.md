@@ -99,7 +99,9 @@ on the exact Homebrew versions and platform combinations advertised as
 supported. New Homebrew releases require that validation before execution is
 enabled for them.
 
-Casks and third-party taps are subsequent adapters with the same acceptance
-bar. Unsupported scope remains visible until they pass. Publishing, Homebrew
+Casks and [trusted tap release archives](trusted-taps.md) meet the same
+acceptance bar through their disposable-VM qualification tracks. Unsupported
+scope remains visible; a new adapter's installation claims require a successful
+qualification run. Publishing, Homebrew
 distribution, and any claim of unattended production readiness follow working
 evidence; none is implied by these design documents.

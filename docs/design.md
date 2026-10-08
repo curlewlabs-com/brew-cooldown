@@ -14,8 +14,9 @@ not enforce exclusive ownership of the prefix.
 
 ## Implementation status
 
-The commands implement this design for bottled `homebrew/core` formulae and the
-cask artifacts in [cask execution](cask-execution.md), on the platform and
+The commands implement this design for bottled `homebrew/core` formulae,
+[trusted tap release archives](trusted-taps.md), and the cask artifacts in
+[cask execution](cask-execution.md), on the platform and
 Homebrew commit described in
 [scheduled adoption](scheduled-adoption.md#homebrew-runtime-changes). The code
 is narrower than the text below in these places:
@@ -66,10 +67,11 @@ Homebrew Ruby environment and forwards arguments. There is no service,
 privileged helper, hosted database, telemetry, or private infrastructure.
 
 The installation adapters target bottled `homebrew/core` formulae and the
-official binary casks described in [cask execution](cask-execution.md), on
-Apple Silicon macOS at `/opt/homebrew`. Discovery and planning explicitly report
-unsupported cask artifacts, third-party taps, source-only packages, and other
-platforms. They are not silently omitted or advertised as executable support.
+official binary casks described in [cask execution](cask-execution.md), and
+[trusted tap release archives](trusted-taps.md), on Apple Silicon macOS at
+`/opt/homebrew`. Discovery and planning explicitly report unsupported cask
+artifacts, untrusted taps, source-only packages, and other platforms. They are
+not silently omitted or advertised as executable support.
 Additional adapters must meet the same contracts before enabling upgrade paths.
 This narrows initial execution, not the requirement to select historical
 eligible versions.

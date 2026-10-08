@@ -103,13 +103,16 @@ module BrewCooldown
         raise ArgumentError, "#{name}: receipt has no tap identity" unless tap
 
         identity = package("#{tap}/#{name}")
-        retained = Executor::Retained.new(keg) if tap == "homebrew/core"
+        retained = Executor::Retained.new(keg)
         # The embedded source recipe can omit its bottle block, or describe an
         # earlier bottle. Its default rebuild zero is not installed identity.
         build = Build.new(version: keg.version.version.to_s, revision: keg.version.revision,
                           rebuild: nil, scheme: keg.version_scheme)
         installed = Installed.new(package: identity, build:, pinned: (HOMEBREW_PINNED_KEGS/name).symlink?)
-        InstalledRecord.new(installed:, dependencies: requirements(tab.runtime_dependencies),
+        dependencies = retained.runtime_dependencies.map do |row|
+          row["runtime_only"] == true ? RuntimeRequirement.new(package: package(row.fetch("full_name"))) : requirements([row]).first
+        end
+        InstalledRecord.new(installed:, dependencies:,
                             compatibility_version: retained&.compatibility_version, retained:, receipt: receipt.to_s,
                             identity: Digest::SHA256.hexdigest([receipt.read, retained&.worker_record&.fetch("recipe_sha256")].join("\n")))
       end

@@ -22,6 +22,14 @@ Dir.mktmpdir("cooldown-journal-") do |directory|
     report = BrewCooldown::Executor::Journal.new(directory).report(observed: {})
     raise "Formula progress changed cask state" unless report.fetch("operations").map { |entry| entry.fetch("status") } == %w[completed unconfirmed]
 
+    # Repair must resolve the tap from the selected operation, rather than
+    # let Homebrew choose a same-named package from a different publisher.
+    bytes = JSON.parse(journal.path.read)
+    bytes.fetch("operations").first["full_name"] = "openai/tools/shared-token"
+    journal.path.write(JSON.generate(bytes))
+    choices = BrewCooldown::Executor::Journal.new(directory).report(observed: {}).fetch("operations").first.fetch("recovery")
+    raise "Recovery lost selected tap identity" unless choices.all? { |entry| Shellwords.split(entry.fetch("command")).include?("openai/tools/shared-token") }
+
     bytes = JSON.parse(journal.path.read)
     bytes.fetch("operations") << base.dup
     journal.path.write(JSON.generate(bytes))

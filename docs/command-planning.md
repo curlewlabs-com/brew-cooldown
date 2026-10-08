@@ -74,7 +74,10 @@ executes independently resolved formula and cask components.
 `--security-only` selects components containing an evidenced
 installed-vulnerability fix; dependencies still need normal eligibility. Casks
 use the native adapter described in [cask execution](cask-execution.md).
-Third-party taps remain explicit unsupported scope. The result includes
+[Trusted tap formulae](trusted-taps.md) use exact historical release archives;
+untrusted taps and unsupported release installers remain explicit errors.
+Native pins retain unsupported packages without requiring historical discovery.
+The result includes
 proposed selections and actual execution outcomes separately.
 
 Run the current read-only command from a checkout:

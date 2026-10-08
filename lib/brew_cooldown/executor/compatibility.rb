@@ -8,6 +8,8 @@ module BrewCooldown
   module Executor
     module Compatibility
       def self.validate!(dependency, selected)
+        return if dependency["runtime_only"] == true
+
         version_matches = dependency.fetch("pkg_version") == selected.formula.pkg_version.to_s
         # Homebrew can satisfy an installed dependency from its package version
         # and revision even when its bottle rebuild was not recorded.
@@ -36,13 +38,23 @@ module BrewCooldown
         name = keg.name
         path = keg/".brew/#{name}.rb"
         @contents = path.read
-        @formula = Formulary.from_contents(name, path, @contents, tap: CoreTap.instance, from_metadata: true)
         tab = Tab.for_keg(keg)
-        raise Refused, "#{name}: installed recipe differs from keg" unless formula.pkg_version == keg.version
-        raise Refused, "#{name}: installed recipe is not from homebrew/core" unless tab.tap == "homebrew/core"
+        tap = tab.tap
+        raise Refused, "#{name}: installed recipe has no tap identity" unless tap
 
-        @runtime_dependencies = tab.runtime_dependencies
+        @formula = Formulary.from_contents(name, path, @contents, tap:, from_metadata: true)
+        raise Refused, "#{name}: installed recipe differs from keg" unless formula.pkg_version == keg.version
+
+        @runtime_dependencies = tab.runtime_dependencies&.map(&:dup)
         raise Refused, "#{name}: missing installed dependency metadata" unless runtime_dependencies.is_a?(Array)
+
+        # A release archive's receipt records package availability, not a
+        # bottle build cohort. Actual library consumers retain exact evidence.
+        if tap.name != "homebrew/core" && !tab.built_as_bottle
+          runtime_dependencies.each do |dependency|
+            dependency["runtime_only"] = true unless linked_to?(dependency.fetch("full_name"))
+          end
+        end
 
         # Embedded recipes can omit or predate bottle metadata. Their default
         # rebuild is not evidence of the installed artifact's rebuild.
@@ -63,7 +75,7 @@ module BrewCooldown
 
       def worker_record
         {
-          "name" => formula.name, "version" => formula.pkg_version.to_s, "path" => formula.path.to_s,
+          "name" => formula.full_name, "tap" => formula.tap.name, "version" => formula.pkg_version.to_s, "path" => formula.path.to_s,
           "recipe" => @contents, "recipe_sha256" => Digest::SHA256.hexdigest(@contents)
         }
       end
@@ -73,6 +85,8 @@ module BrewCooldown
         return unless dependency
 
         Compatibility.validate!(dependency, selected)
+        return if dependency["runtime_only"] == true
+
         required_paths = []
         keg.find do |path|
           next unless path.file? && !path.symlink?
@@ -98,6 +112,21 @@ module BrewCooldown
             raise Refused, "#{formula.name} needs missing candidate library #{path}" unless files.include?(expected)
           end
         end
+      end
+
+      def linked_to?(full_name)
+        name = full_name.split("/").last
+        keg.find do |path|
+          next unless path.file? && !path.symlink?
+
+          binary = BinaryPathname.wrap(path)
+          next unless binary.dylib? || binary.binary_executable? || binary.mach_o_bundle?
+
+          return true if binary.dynamically_linked_libraries.any? do |library|
+            library.start_with?("#{HOMEBREW_PREFIX}/opt/#{name}/", "#{HOMEBREW_CELLAR}/#{name}/")
+          end
+        end
+        false
       end
 
       def check_linkage!

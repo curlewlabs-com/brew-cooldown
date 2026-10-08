@@ -14,7 +14,35 @@ module BrewCooldown
 
         Dir.mktmpdir("brew-cooldown-worker-") do |directory|
           stage = Pathname(directory).realpath
-          contents = JSON.generate(map.candidates.values.map(&:worker_record))
+          originals = []
+          records = map.candidates.values.map do |candidate|
+            record = candidate.worker_record
+            if candidate.respond_to?(:release_archive?) && candidate.release_archive?
+              path = stage/"#{candidate.formula.name}.rb"
+              path.write(record.fetch("recipe"))
+              formula = candidate.formula
+              %i[path specified_path].each do |method|
+                originals << [formula, method, formula.method(method)]
+                formula.define_singleton_method(method) { path }
+              end
+              resource = formula.resource
+              archive = stage/"#{formula.name}-#{Pathname(URI(resource.url).path).basename}"
+              FileUtils.copy_file(resource.cached_download, archive)
+              resource.verify_download_integrity(archive)
+              downloader = resource.downloader
+              %i[cached_location fetch].each { |method| originals << [downloader, method, downloader.method(method)] }
+              downloader.define_singleton_method(:cached_location) { archive }
+              downloader.define_singleton_method(:fetch) { |timeout: nil| resource.verify_download_integrity(archive) }
+              record = record.merge("path" => path.to_s, "archive_path" => archive.to_s,
+                                    "archive_sha256" => resource.checksum.hexdigest)
+            end
+            record
+          end
+          # Native source installation copies formula.path into the receipt.
+          # The sandbox-protected snapshot binds that copy to the evaluated
+          # recipe even if a shared download cache changes during execution.
+          # Release archives use the same private, verified download snapshot.
+          contents = JSON.generate(records)
           (stage/"recipes.json").write(contents)
           FileUtils.copy_file(File.join(__dir__, "worker.rb"), stage/"worker.rb")
           Executor.worker_plan = stage
@@ -23,6 +51,9 @@ module BrewCooldown
             yield
           end
         ensure
+          originals&.each do |formula, method, original|
+            formula.define_singleton_method(method, original)
+          end
           Executor.worker_plan = nil
         end
       end
@@ -30,16 +61,18 @@ module BrewCooldown
 
     module PostinstallSandbox
       def run_or_fork(*args, step:, **options, &configure)
-        return super unless step == "running post-install"
+        return super unless ["running post-install", "building"].include?(step)
 
         stage = Executor.worker_plan
-        expected = (HOMEBREW_LIBRARY_PATH/"postinstall.rb").to_s
-        unless stage && args[-2].to_s == expected && args[-3] == "--"
-          raise Refused, "unexpected post-install subprocess"
+        script = step == "building" ? "build.rb" : "postinstall.rb"
+        expected = (HOMEBREW_LIBRARY_PATH/script).to_s
+        separator = args.index("--")
+        unless stage && separator && args[separator + 1].to_s == expected
+          raise Refused, "unexpected #{step} subprocess"
         end
-        raise Refused, "post-install requires the native sandbox" unless use_for?(step)
+        raise Refused, "#{step} requires the native sandbox" unless use_for?(step)
 
-        worker_args = args.dup.insert(-4, "-r", (stage/"worker.rb").to_s)
+        worker_args = args.dup.insert(separator, "-r", (stage/"worker.rb").to_s)
         super(*worker_args, step:, **options) do |sandbox|
           configure.call(sandbox)
           sandbox.deny_write_path(stage)

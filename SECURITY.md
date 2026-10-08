@@ -4,14 +4,18 @@
 installs them through Homebrew. "Can it be made to install something the policy
 did not select" is therefore its security surface, not a footnote to it.
 
-The design answers that at each boundary. Candidates come only from Homebrew's
-official sources: the core bottle registry, the formula and cask API, and the
-`Homebrew/homebrew-cask` history. A bottle's registry documents are bound by
+The design answers that at each boundary. Official candidates come from the
+core bottle registry, the formula and cask API, and `Homebrew/homebrew-cask`
+history. Explicitly trusted third-party taps supply historical recipes bound to
+Git blobs and exact release archives bound to recipe checksums; available vendor
+digests are checked too. See [trusted taps](docs/trusted-taps.md). A bottle's
+registry documents are bound by
 immutable digest and its Homebrew attestation is verified before the embedded
 recipe is evaluated. A historical cask recipe is bound to its Git blob and its
 download to the recipe's checksum. During installation, Homebrew's formula and
 cask resolution is bound to the selected candidates, so a substituted recipe, a
-source build, a forced bottle or an implicit dependency installation is refused
+Core source fallback, a forced bottle or an implicit dependency installation is
+refused
 before it changes a package. A cooldown is bypassed only when advisory evidence
 refreshed during the same run proves that the installed version is affected and
 that the exact candidate fixes it.
@@ -26,8 +30,10 @@ tool does not defend against a compromised Homebrew installation, and a delay
 does not certify a release as safe. A Brewfile is trusted Ruby that Homebrew's
 own reader evaluates, and official recipes are trusted Ruby as well. The
 post-install worker constrains official hooks; it is not a sandbox for hostile
-recipes. Third-party taps are reported as unsupported instead of being
-installed.
+recipes. Configuring `trusted_taps` extends trust to those publishers and their
+historical install and post-install code. The native sandbox runs the selected
+recipe; it does not make hostile Ruby trustworthy. Untrusted taps remain
+unsupported, while native pins may intentionally retain installed packages.
 
 ## Supported versions
 

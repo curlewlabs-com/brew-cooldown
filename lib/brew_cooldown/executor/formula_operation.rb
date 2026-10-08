@@ -29,7 +29,7 @@ module BrewCooldown
             raise Refused, "#{name}: selected version does not advance the active installation"
           end
         end
-        { "kind" => kind, "name" => name, "version" => formula.pkg_version.to_s, "previous_keg" => previous,
+        { "kind" => kind, "name" => name, "full_name" => formula.full_name, "version" => formula.pkg_version.to_s, "previous_keg" => previous,
           "candidate" => candidate.identity, "keg_only" => formula.keg_only?, "status" => "pending" }
       end
 
@@ -47,7 +47,11 @@ module BrewCooldown
             existing = formula.opt_prefix.exist?
             requested = existing && Tab.for_keg(Keg.new(formula.opt_prefix.realpath)).installed_on_request
             linked = existing ? formula.linked? : !formula.keg_only?
-            installer = FormulaInstaller.new(formula, installed_on_request: requested, link_keg: linked)
+            options = { installed_on_request: requested, link_keg: linked }
+            if candidate.respond_to?(:release_archive?) && candidate.release_archive?
+              options[:build_from_source_formulae] = [formula.full_name]
+            end
+            installer = FormulaInstaller.new(formula, **options)
             installer.prelude
             installer.fetch
             Homebrew::Install.install_formula(installer, upgrade: formula.opt_prefix.exist?)
@@ -58,6 +62,15 @@ module BrewCooldown
         raise Refused, "#{name}: selected keg is not active" unless formula.opt_prefix.realpath == expected
         raise Refused, "#{name}: installation receipt missing" unless (expected/"INSTALL_RECEIPT.json").file?
 
+        tab = Tab.for_keg(Keg.new(expected))
+        raise Refused, "#{name}: installed receipt has a different tap identity" unless tab.tap == formula.tap.name
+        if candidate.respond_to?(:release_archive?) && candidate.release_archive?
+          recipe = expected/".brew/#{name}.rb"
+          unless recipe.file? && Digest::SHA256.file(recipe).hexdigest == candidate.record.fetch("source_sha256")
+            raise Refused, "#{name}: installed historical recipe differs from the selected source"
+          end
+          raise Refused, "#{name}: installed receipt lost selected source provenance" unless tab.source["tap_git_head"] == candidate.record.fetch("commit")
+        end
         Retained.new(Keg.new(expected)).check_linkage!
       ensure
         Executor.executing_name = nil

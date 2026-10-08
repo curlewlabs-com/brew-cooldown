@@ -217,8 +217,10 @@ version-aware advisory source is supported.
 
 The planner evaluates official casks using reachable recipe history and native
 download verification. Their command executor uses the
-[validated cask adapter](cask-execution.md). Third-party taps remain
-`unsupported_executor`. Cask execution must retain exact recipe and download
+[validated cask adapter](cask-execution.md). Third-party formulae use the
+[trusted tap release archive adapter](trusted-taps.md) when explicitly configured;
+untrusted taps remain `unsupported_executor` unless intentionally pinned. Cask
+execution must retain exact recipe and download
 digests, honor platform requirements and pins, and constrain uninstall/install
 hooks. `version :latest`, mutable
 downloads without verified digests, application self-updaters, and privileged
