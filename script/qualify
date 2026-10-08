@@ -178,6 +178,9 @@ gcloud-cli|tailscale-app|gcloud-cli-interruption|tailscale-app-interruption)
     provision install --formula python@3.14
   fi
   experiment native_casks "$name" baseline
+  # Native resolver guards and Tab caches belong to the installer process.
+  # Read the resulting payload and receipt from a fresh Homebrew process.
+  experiment native_casks "$name" verify
   experiment native_casks "$name" assessment
   experiment native_casks "$name" drift
   if [ "$track" != "$name" ]; then
@@ -188,6 +191,7 @@ gcloud-cli|tailscale-app|gcloud-cli-interruption|tailscale-app-interruption)
     experiment native_casks "$name" crash_check started
     experiment native_casks "$name" accept
     experiment native_casks "$name" upgrade
+    experiment native_casks "$name" verify
   fi
   ;;
 brewfile)

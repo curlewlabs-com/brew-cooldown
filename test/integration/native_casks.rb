@@ -84,6 +84,7 @@ when "baseline"
       raise "Optional SDK component installation failed" unless status.success?
     end
   end
+when "verify"
   verify_payload
 when "assessment"
   before = BrewCooldown::Executor::Inventory.capture
@@ -110,9 +111,11 @@ when "upgrade"
   result = BrewCooldown::Upgrade.new(config: CONFIG, scope: { installed: true }, state_directory: STATE, log: LOG, clock: -> { NOW }).call
   puts JSON.pretty_generate(BrewCooldown::Report.json_value(result))
   raise "All-installed upgrade failed" unless result.fetch(:status) == "completed"
-  retained = verify_payload
-  raise "Installed version differs from historical selection" unless retained.cask.version.to_s == selected.cask.version.to_s
-  raise "Historical recipe provenance lost" unless retained.cask.tab.source.fetch("tap_git_head") == selected.record.fetch("commit")
+  path = selected.cask.metadata_main_container_path/"INSTALL_RECEIPT.json"
+  receipt = Cask::Tab.from_file_content(path.read, path)
+  raise "Installed version differs from historical selection" unless receipt.version == selected.cask.version.to_s
+  raise "Historical recipe provenance lost" unless receipt.source.fetch("tap_git_head") == selected.record.fetch("commit")
+  BrewCooldown::Executor::NativeCaskContract.verify_installed!(selected.cask)
   changes = BrewCooldown::Executor::Inventory.differences(before, BrewCooldown::Executor::Inventory.capture)
   raise "Native cask mutated unplanned inventory" unless changes.any? && changes.all? { |row| operation.owns_path?(row.fetch("path")) }
   raise "Completed journal retained" unless BrewCooldown::Journals.new(STATE).pending.empty?
