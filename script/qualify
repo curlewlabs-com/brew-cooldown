@@ -173,25 +173,25 @@ trusted-taps)
   experiment trusted_taps upgrade
   ;;
 gcloud-cli|tailscale-app|gcloud-cli-interruption|tailscale-app-interruption)
-  name=${track%-interruption}
-  if [ "$name" = gcloud-cli ]; then
+  native_cask_token=${track%-interruption}
+  if [ "$native_cask_token" = gcloud-cli ]; then
     provision install --formula python@3.14
   fi
-  experiment native_casks "$name" baseline
+  experiment native_casks "$native_cask_token" baseline
   # Native resolver guards and Tab caches belong to the installer process.
   # Read the resulting payload and receipt from a fresh Homebrew process.
-  experiment native_casks "$name" verify
-  experiment native_casks "$name" assessment
-  experiment native_casks "$name" drift
-  if [ "$track" != "$name" ]; then
-    experiment native_casks "$name" crash_check native
-    experiment native_casks "$name" repair_forward
-    experiment native_casks "$name" accept
+  experiment native_casks "$native_cask_token" verify
+  experiment native_casks "$native_cask_token" assessment
+  experiment native_casks "$native_cask_token" drift
+  if [ "$track" != "$native_cask_token" ]; then
+    experiment native_casks "$native_cask_token" crash_check native
+    experiment native_casks "$native_cask_token" repair_forward
+    experiment native_casks "$native_cask_token" accept
   else
-    experiment native_casks "$name" crash_check started
-    experiment native_casks "$name" accept
-    experiment native_casks "$name" upgrade
-    experiment native_casks "$name" verify
+    experiment native_casks "$native_cask_token" crash_check started
+    experiment native_casks "$native_cask_token" accept
+    experiment native_casks "$native_cask_token" upgrade
+    experiment native_casks "$native_cask_token" verify
   fi
   ;;
 brewfile)
