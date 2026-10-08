@@ -208,3 +208,45 @@ impossible = Marshal.load(Marshal.dump(FIXTURE))
 impossible.fetch("packages").fetch("tart").fetch("releases").fetch("2.37.0")["published_at"] = "2026-02-31T00:00:00Z"
 raise "Impossible publication date became trusted age" unless RecordedTapHistory.new(package: PACKAGE, fixture: impossible, log: ->(**_event) {}, now: NOW).publication(eligible, entries.fetch(2)).nil?
 puts "PASS: unsupported native release shapes and invalid calendar evidence fail closed"
+
+# Homebrew's DSL derives disabled? from the machine's local date. The adapter
+# must instead respect its injected UTC assessment date, including scheduled
+# withdrawals not active on the machine yet.
+future_date = "2099-01-01"
+withdrawn = changed_recipe(eligible, bytes.sub('  license ', "  disable! date: \"#{future_date}\", because: \"withdrawn\"\n  license "))
+withdrawal_history = history.dup
+withdrawal_history.instance_variable_set(:@current, withdrawn)
+withdrawal_history.instance_variable_set(:@now, Time.iso8601("2099-01-01T06:30:00Z"))
+refuses("currently disables") { withdrawal_history.verify_candidate!(eligible) }
+withdrawal_history.instance_variable_set(:@now, Time.iso8601("2098-12-31T23:59:59Z"))
+withdrawal_history.verify_candidate!(eligible)
+puts "PASS: scheduled tap withdrawal uses the injected UTC date"
+
+require_relative "../../lib/brew_cooldown/homebrew/revalidation"
+original_history = HomebrewAdapter::TapHistory.method(:new)
+recorded_history = PlanningTapHistory.method(:new)
+begin
+  HomebrewAdapter::TapHistory.define_singleton_method(:new) { |**options| recorded_history.call(**options) }
+  Dir.mktmpdir("cooldown-tap-revalidation-") do |directory|
+    revalidation = HomebrewAdapter::Revalidation.new(config: trusted, inventory:, prepared: { old_release.identity => eligible },
+      state_directory: directory, log: ->(**_event) {}, clock: -> { NOW })
+    refreshed = revalidation.send(:tap_release, PACKAGE, eligible, verify_payload: false)
+    raise "Revalidation changed the exact selected identity" unless refreshed.identity == old_release.identity
+    untrusted = HomebrewAdapter::Revalidation.new(config:, inventory:, prepared: {},
+      state_directory: directory, log: ->(**_event) {}, clock: -> { NOW })
+    refuses("no longer explicitly trusted") { untrusted.send(:tap_release, PACKAGE, eligible, verify_payload: false) }
+
+    # A force-pushed tap history cannot retain execution authority merely
+    # because a selected commit is still fetchable by its Git object ID.
+    HomebrewAdapter::TapHistory.define_singleton_method(:new) do |**options|
+      loaded = recorded_history.call(**options)
+      entries_method = loaded.method(:entries)
+      loaded.define_singleton_method(:entries) { entries_method.call.reject { |entry| entry.commit == eligible.record.fetch("commit") } }
+      loaded
+    end
+    refuses("no longer reachable") { revalidation.send(:tap_release, PACKAGE, eligible, verify_payload: false) }
+  end
+ensure
+  HomebrewAdapter::TapHistory.define_singleton_method(:new, original_history)
+end
+puts "PASS: trusted release revalidation preserves exact identity and refuses revoked trust or unreachable history"

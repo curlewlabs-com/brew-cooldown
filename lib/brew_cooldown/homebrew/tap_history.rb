@@ -126,8 +126,10 @@ module BrewCooldown
 
       def verify_current!
         formula = current.formula
-        if formula.disabled? && (!formula.disable_date || formula.disable_date <= @now.utc.to_date)
-          raise RegistryError, "#{package.name}: trusted tap currently disables this formula: #{formula.disable_reason}"
+        disabled = formula.disable_date ? formula.disable_date <= @now.utc.to_date : formula.disabled?
+        if disabled
+          reason = formula.disable_reason || formula.deprecation_reason
+          raise RegistryError, "#{package.name}: trusted tap currently disables this formula: #{reason}"
         end
       end
 
