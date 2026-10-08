@@ -79,7 +79,9 @@ end
 if phase == "assessment"
   # Native pins and trust affect actual command assessment, not just planner
   # fixtures. Scope still traverses Tart's installed runtime dependency.
-  output, status = Open3.capture2e(HOMEBREW_BREW_FILE.to_s, "pin", "openai/tools/tart")
+  # The isolated prefix has no live tap checkout. Native short-name resolution
+  # reads the installed keg recipe instead of requiring today's tap formula.
+  output, status = Open3.capture2e(HOMEBREW_BREW_FILE.to_s, "pin", "--formula", "tart")
   raise "Cannot pin Tart: #{output}" unless status.success?
   begin
     pinned = BrewCooldown::Planning.new(config:, scope:, now: NOW, log: LOG, state_directory: STATE).call
@@ -91,7 +93,7 @@ if phase == "assessment"
       untrusted_plan.fetch(:scope).any? { |entry| entry[:package] == softnet.to_h && entry[:status] == :unsupported_executor }
     raise "Unsupported pinned root required an executor" unless untrusted_plan.fetch(:scope).any? { |entry| entry[:package] == PACKAGE.to_h && entry[:status] == :pinned }
   ensure
-    output, status = Open3.capture2e(HOMEBREW_BREW_FILE.to_s, "unpin", "openai/tools/tart")
+    output, status = Open3.capture2e(HOMEBREW_BREW_FILE.to_s, "unpin", "--formula", "tart")
     raise "Cannot unpin fixture: #{output}" unless status.success?
   end
   puts "PASS: live historical candidate ages, runtime dependency cooldowns, trust refusal and native pins"
