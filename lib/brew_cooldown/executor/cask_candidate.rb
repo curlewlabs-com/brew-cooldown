@@ -5,6 +5,7 @@ require "cask/cask_loader"
 require "cask/download"
 require "digest"
 require_relative "errors"
+require_relative "native_cask_contract"
 
 module BrewCooldown
   module Executor
@@ -40,10 +41,13 @@ module BrewCooldown
       def prepare
         load_recipe unless @cask
         raise Refused, "cask needs a concrete version and checksum" if cask.version.latest? || !cask.sha256.is_a?(Checksum)
-        raise Refused, "self-updating cask needs a separate execution contract" if cask.auto_updates
-        allowed = [Cask::Artifact::Binary, Cask::Artifact::GeneratedCompletion, Cask::Artifact::Zap]
-        unsupported = cask.artifacts.reject { |artifact| allowed.include?(artifact.class) }
-        raise Refused, "unvalidated cask artifacts: #{unsupported.map { |artifact| artifact.class.name }.join(', ')}" unless unsupported.empty?
+        if cask.auto_updates || NativeCaskContract.supported?(cask)
+          NativeCaskContract.validate!(cask)
+        else
+          allowed = [Cask::Artifact::Binary, Cask::Artifact::GeneratedCompletion, Cask::Artifact::Zap]
+          unsupported = cask.artifacts.reject { |artifact| allowed.include?(artifact.class) }
+          raise Refused, "unvalidated cask artifacts: #{unsupported.map { |artifact| artifact.class.name }.join(', ')}" unless unsupported.empty?
+        end
 
         @download = Cask::Download.new(cask, require_sha: true)
         cask.download = download.fetch
@@ -52,6 +56,7 @@ module BrewCooldown
       end
 
       def verify!
+        NativeCaskContract.validate!(cask) if cask.auto_updates || NativeCaskContract.supported?(cask)
         raise Refused, "#{cask.token}: evaluated cask changed after preparation" unless installation_contract == @contract
 
         download.verify_download_integrity(cask.download)
@@ -65,7 +70,7 @@ module BrewCooldown
       def installation_contract
         JSON.generate(token: cask.full_name, version: cask.version.to_s, url: cask.url.to_s,
                       sha256: cask.sha256.to_s, formula_dependencies: cask.depends_on.formula,
-                      cask_dependencies: cask.depends_on.cask, artifacts: cask.artifacts_list)
+                      cask_dependencies: cask.depends_on.cask, auto_updates: cask.auto_updates, artifacts: cask.artifacts_list)
       end
 
       class SourceLoader < Cask::CaskLoader::FromPathLoader

@@ -117,7 +117,7 @@ module BrewCooldown
       resolution.selected.values.reject(&:retained).any? do |option|
         if option.release.package.kind == :cask
           cask = prepared.fetch(option.release.identity).cask
-          next path.start_with?("#{cask.caskroom_path}/")
+          next path.start_with?("#{cask.caskroom_path}/") || Executor::NativeCaskContract.owns_path?(cask, path)
         end
         formula = prepared.fetch(option.release.identity).formula
         names = [formula.name, *formula.aliases, *formula.oldnames]

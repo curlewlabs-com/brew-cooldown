@@ -2,6 +2,7 @@
 
 require "cask/cask_loader"
 require_relative "errors"
+require_relative "native_cask_contract"
 
 module BrewCooldown
   module Executor
@@ -16,6 +17,7 @@ module BrewCooldown
         unless cask.token == name && cask.tab.version == cask.version.to_s
           raise Refused, "#{name}: installed cask identity differs from its receipt"
         end
+        NativeCaskContract.verify_installed!(cask)
       end
 
       def install? = false

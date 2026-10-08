@@ -1,0 +1,307 @@
+{
+  "source": {
+    "tap": "homebrew/cask",
+    "tap_git_head": "f40dc7011bce5c93434579706436e3a57b357d20",
+    "version": "581.0.0"
+  },
+  "uninstall_artifacts": [
+    {
+      "preflight_steps": [
+        {
+          "steps": [
+            {
+              "source": {
+                "base": "staged_path",
+                "path": "google-cloud-sdk/."
+              },
+              "target": {
+                "base": "homebrew_prefix",
+                "path": "share/google-cloud-sdk"
+              },
+              "recursive": true,
+              "type": "copy"
+            },
+            {
+              "paths": [
+                {
+                  "base": "staged_path",
+                  "path": "google-cloud-sdk"
+                }
+              ],
+              "recursive": true,
+              "type": "remove"
+            },
+            {
+              "source": {
+                "path": "{{HOMEBREW_PREFIX}}/share/google-cloud-sdk"
+              },
+              "target": {
+                "base": "staged_path",
+                "path": "google-cloud-sdk"
+              },
+              "type": "symlink"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uninstall": [
+        {
+          "trash": "/opt/homebrew/Caskroom/gcloud-cli/latest"
+        }
+      ]
+    },
+    {
+      "binary": [
+        "google-cloud-sdk/bin/bq"
+      ]
+    },
+    {
+      "binary": [
+        "google-cloud-sdk/bin/gcloud"
+      ]
+    },
+    {
+      "binary": [
+        "google-cloud-sdk/bin/docker-credential-gcloud"
+      ]
+    },
+    {
+      "binary": [
+        "google-cloud-sdk/bin/git-credential-gcloud.sh",
+        {
+          "target": "git-credential-gcloud"
+        }
+      ]
+    },
+    {
+      "binary": [
+        "google-cloud-sdk/bin/gsutil"
+      ]
+    },
+    {
+      "bash_completion": [
+        "google-cloud-sdk/completion.bash.inc",
+        {
+          "target": "google-cloud-sdk"
+        }
+      ]
+    },
+    {
+      "zsh_completion": [
+        "google-cloud-sdk/completion.zsh.inc",
+        {
+          "target": "_google_cloud_sdk"
+        }
+      ]
+    },
+    {
+      "postflight_steps": [
+        {
+          "steps": [
+            {
+              "source": {
+                "path": "{{staged_path}}"
+              },
+              "target": {
+                "path": "{{caskroom_path}}/latest"
+              },
+              "force": true,
+              "guards": [
+                {
+                  "path": "{{caskroom_path}}/latest",
+                  "condition": "unless_exists",
+                  "id": "1"
+                }
+              ],
+              "type": "symlink"
+            },
+            {
+              "command": {
+                "base": "homebrew_prefix",
+                "path": "share/google-cloud-sdk/bin/gcloud"
+              },
+              "guards": [
+                {
+                  "condition": "on",
+                  "value": "macos",
+                  "id": "2"
+                },
+                {
+                  "path": "~/.config/gcloud/virtenv",
+                  "condition": "if_exists",
+                  "id": "3"
+                }
+              ],
+              "type": "run",
+              "args": [
+                "config",
+                "virtualenv",
+                "delete",
+                "-q"
+              ],
+              "env": {
+                "CLOUDSDK_PYTHON": "{{HOMEBREW_PREFIX}}/opt/python@3.14/libexec/bin/python"
+              }
+            },
+            {
+              "command": {
+                "base": "homebrew_prefix",
+                "path": "share/google-cloud-sdk/bin/gcloud"
+              },
+              "network_access": true,
+              "guards": [
+                {
+                  "condition": "on",
+                  "value": "macos",
+                  "id": "2"
+                }
+              ],
+              "type": "run",
+              "args": [
+                "config",
+                "virtualenv",
+                "create",
+                "--python-to-use",
+                "{{HOMEBREW_PREFIX}}/opt/python@3.14/libexec/bin/python"
+              ],
+              "env": {
+                "CLOUDSDK_PYTHON": "{{HOMEBREW_PREFIX}}/opt/python@3.14/libexec/bin/python"
+              }
+            },
+            {
+              "command": {
+                "base": "homebrew_prefix",
+                "path": "share/google-cloud-sdk/bin/gcloud"
+              },
+              "guards": [
+                {
+                  "condition": "on",
+                  "value": "macos",
+                  "id": "2"
+                }
+              ],
+              "type": "run",
+              "args": [
+                "config",
+                "virtualenv",
+                "enable"
+              ],
+              "env": {
+                "CLOUDSDK_PYTHON": "{{HOMEBREW_PREFIX}}/opt/python@3.14/libexec/bin/python"
+              }
+            },
+            {
+              "command": {
+                "base": "homebrew_prefix",
+                "path": "share/google-cloud-sdk/bin/gcloud"
+              },
+              "guards": [
+                {
+                  "condition": "on",
+                  "value": "macos",
+                  "id": "2"
+                }
+              ],
+              "type": "run",
+              "args": [
+                "version"
+              ],
+              "env": {
+                "CLOUDSDK_PYTHON": "{{HOMEBREW_PREFIX}}/opt/python@3.14/libexec/bin/python"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "/opt/homebrew/share/google-cloud-sdk.staging",
+            "/opt/homebrew/share/google-cloud-sdk"
+          ]
+        }
+      ]
+    }
+  ],
+  "uninstall_flight_blocks": false,
+  "runtime_dependencies": {
+    "formula": [
+      {
+        "full_name": "python@3.14",
+        "version": "3.14.7",
+        "revision": 0,
+        "bottle_rebuild": 0,
+        "pkg_version": "3.14.7",
+        "declared_directly": true
+      },
+      {
+        "full_name": "mpdecimal",
+        "version": "4.0.1",
+        "revision": 0,
+        "bottle_rebuild": 0,
+        "pkg_version": "4.0.1",
+        "declared_directly": false
+      },
+      {
+        "full_name": "openssl@3",
+        "version": "3.6.3",
+        "revision": 0,
+        "bottle_rebuild": 1,
+        "pkg_version": "3.6.3",
+        "declared_directly": false
+      },
+      {
+        "full_name": "sqlite",
+        "version": "3.53.4",
+        "revision": 0,
+        "bottle_rebuild": 0,
+        "pkg_version": "3.53.4",
+        "declared_directly": false
+      },
+      {
+        "full_name": "xz",
+        "version": "5.8.3",
+        "revision": 0,
+        "bottle_rebuild": 0,
+        "pkg_version": "5.8.3",
+        "declared_directly": false
+      },
+      {
+        "full_name": "zstd",
+        "version": "1.5.7",
+        "revision": 1,
+        "bottle_rebuild": 0,
+        "pkg_version": "1.5.7_1",
+        "declared_directly": false
+      },
+      {
+        "full_name": "ca-certificates",
+        "version": "2026-08-13",
+        "revision": 0,
+        "bottle_rebuild": 0,
+        "pkg_version": "2026-08-13",
+        "declared_directly": false
+      },
+      {
+        "full_name": "readline",
+        "version": "8.3.3",
+        "revision": 0,
+        "bottle_rebuild": 0,
+        "pkg_version": "8.3.3",
+        "declared_directly": false
+      },
+      {
+        "full_name": "lz4",
+        "version": "1.10.0",
+        "revision": 0,
+        "bottle_rebuild": 1,
+        "pkg_version": "1.10.0",
+        "declared_directly": false
+      }
+    ]
+  }
+}

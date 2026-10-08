@@ -67,7 +67,7 @@ Homebrew Ruby environment and forwards arguments. There is no service,
 privileged helper, hosted database, telemetry, or private infrastructure.
 
 The installation adapters target bottled `homebrew/core` formulae and the
-official binary casks described in [cask execution](cask-execution.md), and
+official cask contracts described in [cask execution](cask-execution.md), and
 [trusted tap release archives](trusted-taps.md), on Apple Silicon macOS at
 `/opt/homebrew`. Discovery and planning explicitly report unsupported cask
 artifacts, untrusted taps, source-only packages, and other platforms. They are

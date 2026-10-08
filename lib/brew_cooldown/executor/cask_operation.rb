@@ -33,7 +33,13 @@ module BrewCooldown
           "keg_only" => false, "status" => "pending" }
       end
 
-      def verify_before! = candidate.verify!
+      def verify_before!
+        candidate.verify!
+        if @predecessor && NativeCaskContract.supported?(cask)
+          NativeCaskContract.validate!(@predecessor, predecessor: true)
+          NativeCaskContract.verify_installed!(@predecessor)
+        end
+      end
 
       def install
         if @predecessor
@@ -56,8 +62,8 @@ module BrewCooldown
         end
         cask.artifacts.each do |artifact|
           paths = case artifact
-          when Cask::Artifact::Binary
-            raise Refused, "#{name}: installed binary does not point to the selected cask: #{artifact.target}" unless artifact.target_links_to_source?
+          when Cask::Artifact::Binary, Cask::Artifact::ShellCompletion
+            raise Refused, "#{name}: installed link does not point to the selected cask: #{artifact.target}" unless artifact.target_links_to_source?
 
             [artifact.target]
           when Cask::Artifact::GeneratedCompletion
@@ -70,9 +76,12 @@ module BrewCooldown
             raise Refused, "#{name}: installed artifact is missing: #{path}" unless path.file? && path.size.positive?
           end
         end
+        NativeCaskContract.verify_installed!(cask)
       end
 
-      def owns_path?(path) = path.start_with?("#{cask.caskroom_path}/")
+      def owns_path?(path)
+        path.start_with?("#{cask.caskroom_path}/") || NativeCaskContract.owns_path?(cask, path)
+      end
     end
   end
 end

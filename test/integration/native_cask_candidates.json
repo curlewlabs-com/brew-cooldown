@@ -1,0 +1,30 @@
+{
+  "gcloud-cli": {
+    "baseline": {
+      "name": "gcloud-cli",
+      "commit": "6aab1760e257306391d313a5a59e87f849088416",
+      "source_path": "Casks/g/gcloud-cli.rb",
+      "source_sha256": "a621c53ea3ddfbd633e64d7daa5fbd3ad6be4f1940aa4f41adb5ab5874e9cc38"
+    },
+    "upgrade": {
+      "name": "gcloud-cli",
+      "commit": "b5b283a47cf3dc7a2cdbfc082626c0de5d95171f",
+      "source_path": "Casks/g/gcloud-cli.rb",
+      "source_sha256": "8b35fa177d69d7712bc7dfe57f4ffa61f35a2647eeb6f95106f8e92689bc4fbf"
+    }
+  },
+  "tailscale-app": {
+    "baseline": {
+      "name": "tailscale-app",
+      "commit": "2af9a5dfee14ca5c81db5e5a726a787148da6595",
+      "source_path": "Casks/t/tailscale-app.rb",
+      "source_sha256": "9636b273ef58c4e7fae73766997f49cac5a4c366aecea273bfb59137ff3dd436"
+    },
+    "upgrade": {
+      "name": "tailscale-app",
+      "commit": "c1dbe907023b45610c07529dfef6d677af45c32d",
+      "source_path": "Casks/t/tailscale-app.rb",
+      "source_sha256": "c8cdd1e7644389783983219bd4638b4e8cc3326893e2dcffeaf23e56eb6538ce"
+    }
+  }
+}

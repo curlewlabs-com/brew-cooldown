@@ -3,6 +3,7 @@
 require "digest"
 require "shellwords"
 require "cask/caskroom"
+require_relative "native_cask_contract"
 
 module BrewCooldown
   module Executor
@@ -17,6 +18,11 @@ module BrewCooldown
         end
         Cask::Caskroom.path.glob("*/.metadata/**/{INSTALL_RECEIPT.json,*.rb,*.json}").sort.each do |path|
           state[path.to_s] = Digest::SHA256.file(path).hexdigest if path.file?
+        end
+        Cask::Caskroom.tokens.each do |name|
+          NativeCaskContract.files(name).each do |path|
+            state[path.to_s] = path.file? ? Digest::SHA256.file(path).hexdigest : "missing"
+          end
         end
         state.sort.to_h
       end

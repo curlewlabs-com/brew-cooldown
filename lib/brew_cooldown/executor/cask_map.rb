@@ -106,6 +106,17 @@ module BrewCooldown
         Executor.cask_map.installation_candidate(cask).verify!
         super
       end
+
+      def install_artifacts(**options)
+        Executor.cask_map.validate(cask)
+        if NativeCaskContract.supported?(cask)
+          selected = Executor.cask_map.installation_candidate(cask).cask
+          NativeCaskContract.validate!(cask, predecessor: !cask.equal?(selected))
+        end
+        # Native failure restoration installs the predecessor's artifacts.
+        # Its SDK components must use that predecessor's version too.
+        NativeCaskContract.with_installer_environment(cask) { super }
+      end
     end
   end
 end

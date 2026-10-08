@@ -11,7 +11,8 @@ set -eu
 project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 brew=${HOMEBREW_BREW_FILE:-brew}
 tracks="probes historical hooks shared-consumer interpreter execution-recovery \
-interruption commands cask cask-interruption cask-failure runtime-scope brewfile trusted-taps"
+interruption commands cask cask-interruption cask-failure runtime-scope brewfile trusted-taps \
+gcloud-cli gcloud-cli-interruption tailscale-app tailscale-app-interruption"
 
 usage() {
   echo "usage: script/qualify TRACK | --list" >&2
@@ -170,6 +171,24 @@ trusted-taps)
   experiment trusted_taps crash_check
   experiment trusted_taps recover
   experiment trusted_taps upgrade
+  ;;
+gcloud-cli|tailscale-app|gcloud-cli-interruption|tailscale-app-interruption)
+  name=${track%-interruption}
+  if [ "$name" = gcloud-cli ]; then
+    provision install --formula python@3.14
+  fi
+  experiment native_casks "$name" baseline
+  experiment native_casks "$name" assessment
+  experiment native_casks "$name" drift
+  if [ "$track" != "$name" ]; then
+    experiment native_casks "$name" crash_check native
+    experiment native_casks "$name" repair_forward
+    experiment native_casks "$name" accept
+  else
+    experiment native_casks "$name" crash_check started
+    experiment native_casks "$name" accept
+    experiment native_casks "$name" upgrade
+  fi
   ;;
 brewfile)
   # A stand-in for a consumer's Brewfile: acceptance needs one formula and one

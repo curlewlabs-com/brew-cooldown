@@ -2,7 +2,9 @@
 
 Status: historical discovery, policy selection, component execution and recovery
 are connected to the commands. The native cask adapter supports the binary and
-generated-completion artifacts used by Codex on the validated Homebrew runtime.
+generated-completion artifacts used by Codex, plus the bounded native contracts
+below, on the validated Homebrew runtime. Native support is qualified by the
+pull request's `qualified` check, not by passing workstation unit tests.
 
 ## Source, artifact and age
 
@@ -89,6 +91,108 @@ identify cask commands and distinguish native forward repair from any retained
 artifact restoration actually available.
 
 ## Qualification
+
+### Native SDK and package contracts
+
+`gcloud-cli` and `tailscale-app` are official self-updating casks with executable
+installation behavior. Their support is deliberately narrower than accepting
+every `auto_updates` cask or every script or PKG artifact.
+
+[NativeCaskContract](../lib/brew_cooldown/executor/native_cask_contract.rb) binds
+the evaluated artifact classes, arguments, destinations, structured hook steps,
+uninstall actions and package dependencies to qualified behavior signatures.
+Installed API metadata keeps only uninstall artifacts and may have no tap on
+the loaded object. Predecessor validation uses the native receipt's official
+tap and a separate uninstall-behavior signature; it never reconstructs the
+predecessor from today's recipe or requires discarded installation metadata.
+Only the Tailscale PKG filename's concrete version is replaced by a placeholder;
+the full recipe and download digests still identify each historical release.
+Hash keys and top-level artifact entries are sorted for stable comparison;
+ordering inside hooks, arguments and uninstall lists is preserved. Opaque Ruby
+flight blocks remain refused because Homebrew's serialization does not bind
+their executable contents. New native behavior requires updated evidence and
+qualification before changing a signature. Signatures describe behavior, not a
+production release catalog.
+
+For gcloud, Homebrew runs the original structured preflight steps, vendor
+installer, binary and shell-completion linking, postflight steps and native
+uninstall. The SDK lives under `share/google-cloud-sdk`, outside its Caskroom,
+and the hooks recreate its Python environment. The selected Python dependency
+must already satisfy the shared plan. The vendor installer preserves optional
+components and may download them; its process-scoped fixed-SDK-version setting
+keeps them on the selected release. Native predecessor restoration receives
+the predecessor's setting. The Python-environment hook's external wheel download
+remains vendor-managed hook behavior, not a Homebrew package operation or a
+separately cooldown-assessed artifact. Zap is never run.
+
+For Tailscale, Homebrew runs the checksum-verified historical PKG with macOS's
+privileged installer and the predecessor's native uninstall actions. PKG
+installation may request sudo authorization and affect application, helper and
+system-extension state outside Homebrew. The app remains in `/Applications`;
+custom artifact destinations do not inherit this qualification. Homebrew's
+native uninstall controls quit, login-item preservation during upgrade, package
+receipt removal and the recipe's explicit deletion paths. No broader uninstall
+script or forced overwrite is authorized by the profile.
+
+Manual `gcloud components update` and Tailscale's Sparkle updater still operate
+outside this tool's policy. The adapter changes no persistent updater settings.
+Operators requiring all adoption to pass through cooldowns must manage these
+update mechanisms separately. See Google's
+[component management](https://docs.cloud.google.com/sdk/docs/components) and
+Tailscale's [update policies](https://tailscale.com/docs/features/tailscale-system-policies).
+Inventory reads require the live SDK version and component snapshots, or the
+Tailscale bundle and macOS package versions, to agree with the Homebrew receipt.
+A self-update that leaves that receipt stale is an explicit inventory error;
+it cannot supply a downgrade target or silently remove the cask from scope.
+
+The shared drift fingerprint includes native SDK version/component metadata,
+the Tailscale bundle plist and macOS package receipts. Both component execution
+and the outer coordinator recognize only the relevant native metadata changes
+as owned by that cask. Completion verifies those live versions as well as the
+selected Homebrew receipt and source commit; gcloud's binary and completion
+links must resolve to the selected source. Fingerprints do not claim to detect
+arbitrary payload edits or exclude a racing external updater.
+
+The native tracks in `script/qualify` use disposable Apple Silicon macOS VMs.
+The recorded upstream recipes in `test/fixtures/native_casks` were retrieved
+on 2026-10-08; their immutable source references and checksums live in
+`test/integration/native_cask_candidates.json`. They exercise historical native
+installation. The adjacent installed JSON fixtures contain receipt excerpts
+from native API-managed installations on that date, with the machine's cache
+path omitted, and exercise predecessor validation. The VM tracks exercise
+historical native
+installation, preservation of an optional SDK component, all-installed
+assessment and command upgrades with an injected UTC timestamp, cooling
+successors, native pins and payload drift. Interruption tracks kill the worker
+after gcloud's preflight has copied the SDK or after Tailscale's PKG installer
+has returned, before Homebrew writes the selected receipt. Fresh-process
+inspection must keep those operations unconfirmed and leave packages unchanged.
+The printed native forward-repair command is exercised before explicit journal
+acknowledgment. Restoration of hooks, extensions or user configuration is not
+certified by accepting a journal.
+
+| Boundary | Native cask path |
+| --- | --- |
+| Official identity | Verified historical source; installed receipt supplies predecessor tap |
+| Historical authority | Existing immutable recipe/download digests and current withdrawal checks |
+| Policy | Existing cooldowns, native pins and independently assessed dependency graph |
+| Recipe behavior | Full candidate signature and separate native predecessor uninstall signature |
+| Mutation | Existing isolated worker, exact maps, native installer guards and journal |
+| SDK component updates | Process-scoped selected SDK version; predecessor version during restoration |
+| PKG privileges | Native macOS installer and recipe uninstall actions; no forced or untrusted options |
+| External updater | Live payload/receipt agreement and additional inventory drift evidence |
+| Completion | Persisted source receipt, live SDK/app/package versions and native link checks |
+| Recovery | Existing read-only inspection, exact-evidence acknowledgment and text-only repair |
+
+Homebrew evaluates the original Ruby and normalizes structured steps; no Ruby
+text parser is introduced. The behavior signature is separate from release
+identity: no age or provenance is inferred from its equality. Native external
+metadata has explicit ownership at both inventory consumers. The tool lock and
+unchanged journal persistence govern the operation; no additional persistent
+claim or payload cleanup primitive is introduced. External writers still can
+race those checks, and interrupted hooks remain an operator reconciliation.
+
+### Binary cask contract
 
 In a disposable Apple Silicon VM, install the historical baseline, upgrade to
 a specified historical recipe while a newer release exists, and run the
