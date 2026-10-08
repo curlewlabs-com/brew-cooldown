@@ -79,6 +79,11 @@ module BrewCooldown
           # The native launcher must not start a separate, unconstrained resolver.
           sandbox.deny_read(path: HOMEBREW_BREW_FILE)
         end
+      rescue StandardError => e
+        # Homebrew suppresses hook exceptions outside developer mode. Keep the
+        # worker's refusal visible before its caller sets a generic failure flag.
+        warn JSON.generate(operation: "sandbox_worker", step:, error: "#{e.class}: #{e.message}", backtrace: e.backtrace)
+        raise
       end
     end
   end
