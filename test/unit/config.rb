@@ -22,6 +22,11 @@ Dir.mktmpdir("cooldown-config-") do |directory|
   raise "Configured relative path uses wrong base" unless config.selected_scope.fetch(:brewfile) == root/"toolchain/Brewfile"
   raise "CLI relative path uses wrong base" unless config.selected_scope(brewfile: "Brewfile", directory: root/"elsewhere").fetch(:brewfile) == root/"elsewhere/Brewfile"
   raise "Explicit installed scope did not override config" unless config.selected_scope(installed: true) == { installed: true }
+  trusted = BrewCooldown::Config.new({ "trusted_taps" => ["openai/tools"] }, directory: root)
+  raise "Trust did not bind the canonical tap" unless trusted.trusted_tap?("openai/tools") && !trusted.trusted_tap?("elsewhere/tools")
+  [nil, "openai/tools", ["OpenAI/tools"], ["openai/tools", "openai/tools"], ["homebrew/core"], ["openai/../tools"]].each do |value|
+    invalid("trusted_taps") { BrewCooldown::Config.new({ "trusted_taps" => value }, directory: root) }
+  end
   invalid("Choose") { config.selected_scope(brewfile: "Brewfile", installed: true) }
   invalid("Specify") { BrewCooldown::Config.new({}, directory: root).selected_scope }
   invalid("Unknown configuration") { BrewCooldown::Config.new({ "silent_typo" => 1 }, directory: root) }

@@ -41,7 +41,7 @@ module BrewCooldown
           locks = []
           owns_installer_locks = false
           begin
-            map.candidates.keys.sort.each do |name|
+            map.candidates.values.map { |candidate| candidate.formula.name }.sort.each do |name|
               lock = FormulaLock.new(name)
               lock.lock
               locks << lock

@@ -1,0 +1,453 @@
+{
+  "retrieved_at": "2026-10-08",
+  "repository": {
+    "full_name": "openai/homebrew-tools",
+    "default_branch": "main"
+  },
+  "head": "a32b3a99c1fc162d56d800cceebb041ffa434c3c",
+  "tree": {
+    "truncated": false,
+    "tree": [
+      {
+        "path": "Formula/softnet.rb",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "1e9d3f930d40264f145ca274a75b20af503f9b8e",
+        "size": 634,
+        "url": "https://api.github.com/repos/openai/homebrew-tools/git/blobs/1e9d3f930d40264f145ca274a75b20af503f9b8e"
+      },
+      {
+        "path": "Formula/tart.rb",
+        "mode": "100644",
+        "type": "blob",
+        "sha": "92a1583c10f3e50d4084597151050898d49b0f7d",
+        "size": 1250,
+        "url": "https://api.github.com/repos/openai/homebrew-tools/git/blobs/92a1583c10f3e50d4084597151050898d49b0f7d"
+      }
+    ]
+  },
+  "packages": {
+    "tart": {
+      "commits": [
+        {
+          "sha": "ce12e9824319be20f25a6ef1e8107bf28212665a",
+          "commit": {
+            "committer": {
+              "date": "2026-10-01T16:20:55Z"
+            }
+          }
+        },
+        {
+          "sha": "314356e3b6ebb2343a1c937308daf07331f1c171",
+          "commit": {
+            "committer": {
+              "date": "2026-09-25T04:08:16Z"
+            }
+          }
+        },
+        {
+          "sha": "941e28814d2cc52bb493fe7f084913e17074cf2c",
+          "commit": {
+            "committer": {
+              "date": "2026-09-09T22:22:43Z"
+            }
+          }
+        },
+        {
+          "sha": "2b0b3deb1c45b6a829e358fa5d1ae28f4036d141",
+          "commit": {
+            "committer": {
+              "date": "2026-08-25T05:41:01Z"
+            }
+          }
+        },
+        {
+          "sha": "b68953eecd00f02a6de3e6b1041a2fa8179ed1f4",
+          "commit": {
+            "committer": {
+              "date": "2026-08-04T18:46:46Z"
+            }
+          }
+        },
+        {
+          "sha": "7b09f7c57af7e164e935723f8b01fd3f0f5144a9",
+          "commit": {
+            "committer": {
+              "date": "2026-07-21T21:37:18Z"
+            }
+          }
+        },
+        {
+          "sha": "e07ac12d3dac268144e1c3405d5fb465ee873410",
+          "commit": {
+            "committer": {
+              "date": "2026-07-21T14:25:29Z"
+            }
+          }
+        },
+        {
+          "sha": "065bc95028be59a1744ad7c66f61f5a0ab7e5bb1",
+          "commit": {
+            "committer": {
+              "date": "2026-07-17T18:58:41Z"
+            }
+          }
+        }
+      ],
+      "contents": {
+        "a32b3a99c1fc162d56d800cceebb041ffa434c3c": {
+          "type": "file",
+          "path": "Formula/tart.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFRhcnQgPCBGb3JtdWxhCiAgZGVzYyAiUnVuIG1h\nY09TIGFuZCBMaW51eCBWTXMgb24gQXBwbGUgSGFyZHdhcmUiCiAgaG9tZXBh\nZ2UgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydCIKICB2ZXJzaW9u\nICIyLjQwLjEiCiAgbGljZW5zZSAiRlNMLTEuMS1BTHYyIgoKICBkZXBlbmRz\nX29uICJvcGVuYWkvdG9vbHMvc29mdG5ldCIKICBkZXBlbmRzX29uIDptYWNv\ncwoKICB1cmwgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydC9yZWxl\nYXNlcy9kb3dubG9hZC8yLjQwLjEvdGFydC50YXIuZ3oiCiAgc2hhMjU2ICIz\nNjNlMjcwMTE1NGE4MTU1Y2JjMWJiNmQ4NDU0MzBjOWI0MjY5N2QyYTE4NmJj\nNDk1NzQ0NzFjYTI4NzdkYjQ2IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxs\nKSBkbwogICAgbGliZXhlYy5pbnN0YWxsIERpclsiKiJdCiAgICBiaW4ud3Jp\ndGVfZXhlY19zY3JpcHQgIiN7bGliZXhlY30vdGFydC5hcHAvQ29udGVudHMv\nTWFjT1MvdGFydCIKICBlbmQKCiAgb25fbWFjb3MgZG8KICAgIGRlcGVuZHNf\nb24gOm1hY29zID0+IDp2ZW50dXJhCiAgZW5kCiAgZGVmIHBvc3RfaW5zdGFs\nbAogICAgZ2VuZXJhdGVfY29tcGxldGlvbnNfZnJvbV9leGVjdXRhYmxlKGxp\nYmV4ZWMvInRhcnQuYXBwL0NvbnRlbnRzL01hY09TL3RhcnQiLCAiLS1nZW5l\ncmF0ZS1jb21wbGV0aW9uLXNjcmlwdCIpCiAgZW5kCgogIGRlZiBjYXZlYXRz\nCiAgICA8PH5FT1MKICAgICAgVGFydCBoYXMgYmVlbiBpbnN0YWxsZWQuIFlv\ndSBtaWdodCB3YW50IHRvIHJlZHVjZSB0aGUgZGVmYXVsdCBESENQIGxlYXNl\nIHRpbWUKICAgICAgZnJvbSA4Niw0MDAgdG8gNjAwIHNlY29uZHMgdG8gYXZv\naWQgREhDUCBzaG9ydGFnZSB3aGVuIHJ1bm5pbmcgbG90cyBvZiBWTXMgZGFp\nbHk6CgogICAgICAgIHN1ZG8gZGVmYXVsdHMgd3JpdGUgL0xpYnJhcnkvUHJl\nZmVyZW5jZXMvU3lzdGVtQ29uZmlndXJhdGlvbi9jb20uYXBwbGUuSW50ZXJu\nZXRTaGFyaW5nLmRlZmF1bHQucGxpc3QgYm9vdHBkIC1kaWN0IERIQ1BMZWFz\nZVRpbWVTZWNzIC1pbnQgNjAwCgogICAgICBTZWUgaHR0cHM6Ly90YXJ0LnJ1\nbi9mYXEvI2NoYW5naW5nLXRoZS1kZWZhdWx0LWRoY3AtbGVhc2UtdGltZSBm\nb3IgbW9yZSBkZXRhaWxzLgogICAgRU9TCiAgZW5kCmVuZAo=\n",
+          "sha": "92a1583c10f3e50d4084597151050898d49b0f7d"
+        },
+        "ce12e9824319be20f25a6ef1e8107bf28212665a": {
+          "type": "file",
+          "path": "Formula/tart.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFRhcnQgPCBGb3JtdWxhCiAgZGVzYyAiUnVuIG1h\nY09TIGFuZCBMaW51eCBWTXMgb24gQXBwbGUgSGFyZHdhcmUiCiAgaG9tZXBh\nZ2UgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydCIKICB2ZXJzaW9u\nICIyLjQwLjEiCiAgbGljZW5zZSAiRlNMLTEuMS1BTHYyIgoKICBkZXBlbmRz\nX29uICJvcGVuYWkvdG9vbHMvc29mdG5ldCIKICBkZXBlbmRzX29uIDptYWNv\ncwoKICB1cmwgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydC9yZWxl\nYXNlcy9kb3dubG9hZC8yLjQwLjEvdGFydC50YXIuZ3oiCiAgc2hhMjU2ICIz\nNjNlMjcwMTE1NGE4MTU1Y2JjMWJiNmQ4NDU0MzBjOWI0MjY5N2QyYTE4NmJj\nNDk1NzQ0NzFjYTI4NzdkYjQ2IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxs\nKSBkbwogICAgbGliZXhlYy5pbnN0YWxsIERpclsiKiJdCiAgICBiaW4ud3Jp\ndGVfZXhlY19zY3JpcHQgIiN7bGliZXhlY30vdGFydC5hcHAvQ29udGVudHMv\nTWFjT1MvdGFydCIKICBlbmQKCiAgb25fbWFjb3MgZG8KICAgIGRlcGVuZHNf\nb24gOm1hY29zID0+IDp2ZW50dXJhCiAgZW5kCiAgZGVmIHBvc3RfaW5zdGFs\nbAogICAgZ2VuZXJhdGVfY29tcGxldGlvbnNfZnJvbV9leGVjdXRhYmxlKGxp\nYmV4ZWMvInRhcnQuYXBwL0NvbnRlbnRzL01hY09TL3RhcnQiLCAiLS1nZW5l\ncmF0ZS1jb21wbGV0aW9uLXNjcmlwdCIpCiAgZW5kCgogIGRlZiBjYXZlYXRz\nCiAgICA8PH5FT1MKICAgICAgVGFydCBoYXMgYmVlbiBpbnN0YWxsZWQuIFlv\ndSBtaWdodCB3YW50IHRvIHJlZHVjZSB0aGUgZGVmYXVsdCBESENQIGxlYXNl\nIHRpbWUKICAgICAgZnJvbSA4Niw0MDAgdG8gNjAwIHNlY29uZHMgdG8gYXZv\naWQgREhDUCBzaG9ydGFnZSB3aGVuIHJ1bm5pbmcgbG90cyBvZiBWTXMgZGFp\nbHk6CgogICAgICAgIHN1ZG8gZGVmYXVsdHMgd3JpdGUgL0xpYnJhcnkvUHJl\nZmVyZW5jZXMvU3lzdGVtQ29uZmlndXJhdGlvbi9jb20uYXBwbGUuSW50ZXJu\nZXRTaGFyaW5nLmRlZmF1bHQucGxpc3QgYm9vdHBkIC1kaWN0IERIQ1BMZWFz\nZVRpbWVTZWNzIC1pbnQgNjAwCgogICAgICBTZWUgaHR0cHM6Ly90YXJ0LnJ1\nbi9mYXEvI2NoYW5naW5nLXRoZS1kZWZhdWx0LWRoY3AtbGVhc2UtdGltZSBm\nb3IgbW9yZSBkZXRhaWxzLgogICAgRU9TCiAgZW5kCmVuZAo=\n",
+          "sha": "92a1583c10f3e50d4084597151050898d49b0f7d"
+        },
+        "314356e3b6ebb2343a1c937308daf07331f1c171": {
+          "type": "file",
+          "path": "Formula/tart.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFRhcnQgPCBGb3JtdWxhCiAgZGVzYyAiUnVuIG1h\nY09TIGFuZCBMaW51eCBWTXMgb24gQXBwbGUgSGFyZHdhcmUiCiAgaG9tZXBh\nZ2UgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydCIKICB2ZXJzaW9u\nICIyLjM4LjAiCiAgbGljZW5zZSAiRlNMLTEuMS1BTHYyIgoKICBkZXBlbmRz\nX29uICJvcGVuYWkvdG9vbHMvc29mdG5ldCIKICBkZXBlbmRzX29uIDptYWNv\ncwoKICB1cmwgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydC9yZWxl\nYXNlcy9kb3dubG9hZC8yLjM4LjAvdGFydC50YXIuZ3oiCiAgc2hhMjU2ICIx\nNzEyYmU4MmI2ODdjYzI3NzkyZDVhMmJhZTNmMzZmY2I1ZTVkZWE0ZDU3NzIy\nMzFmNTUwOGRlYTU2Nzk5OWUyIgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxs\nKSBkbwogICAgbGliZXhlYy5pbnN0YWxsIERpclsiKiJdCiAgICBiaW4ud3Jp\ndGVfZXhlY19zY3JpcHQgIiN7bGliZXhlY30vdGFydC5hcHAvQ29udGVudHMv\nTWFjT1MvdGFydCIKICBlbmQKCiAgb25fbWFjb3MgZG8KICAgIGRlcGVuZHNf\nb24gOm1hY29zID0+IDp2ZW50dXJhCiAgZW5kCiAgZGVmIHBvc3RfaW5zdGFs\nbAogICAgZ2VuZXJhdGVfY29tcGxldGlvbnNfZnJvbV9leGVjdXRhYmxlKGxp\nYmV4ZWMvInRhcnQuYXBwL0NvbnRlbnRzL01hY09TL3RhcnQiLCAiLS1nZW5l\ncmF0ZS1jb21wbGV0aW9uLXNjcmlwdCIpCiAgZW5kCgogIGRlZiBjYXZlYXRz\nCiAgICA8PH5FT1MKICAgICAgVGFydCBoYXMgYmVlbiBpbnN0YWxsZWQuIFlv\ndSBtaWdodCB3YW50IHRvIHJlZHVjZSB0aGUgZGVmYXVsdCBESENQIGxlYXNl\nIHRpbWUKICAgICAgZnJvbSA4Niw0MDAgdG8gNjAwIHNlY29uZHMgdG8gYXZv\naWQgREhDUCBzaG9ydGFnZSB3aGVuIHJ1bm5pbmcgbG90cyBvZiBWTXMgZGFp\nbHk6CgogICAgICAgIHN1ZG8gZGVmYXVsdHMgd3JpdGUgL0xpYnJhcnkvUHJl\nZmVyZW5jZXMvU3lzdGVtQ29uZmlndXJhdGlvbi9jb20uYXBwbGUuSW50ZXJu\nZXRTaGFyaW5nLmRlZmF1bHQucGxpc3QgYm9vdHBkIC1kaWN0IERIQ1BMZWFz\nZVRpbWVTZWNzIC1pbnQgNjAwCgogICAgICBTZWUgaHR0cHM6Ly90YXJ0LnJ1\nbi9mYXEvI2NoYW5naW5nLXRoZS1kZWZhdWx0LWRoY3AtbGVhc2UtdGltZSBm\nb3IgbW9yZSBkZXRhaWxzLgogICAgRU9TCiAgZW5kCmVuZAo=\n",
+          "sha": "e1e63e86686d0e5c5ca8e580d6a12c057b38fc31"
+        },
+        "941e28814d2cc52bb493fe7f084913e17074cf2c": {
+          "type": "file",
+          "path": "Formula/tart.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFRhcnQgPCBGb3JtdWxhCiAgZGVzYyAiUnVuIG1h\nY09TIGFuZCBMaW51eCBWTXMgb24gQXBwbGUgSGFyZHdhcmUiCiAgaG9tZXBh\nZ2UgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydCIKICB2ZXJzaW9u\nICIyLjM3LjAiCiAgbGljZW5zZSAiRlNMLTEuMS1BTHYyIgoKICBkZXBlbmRz\nX29uICJvcGVuYWkvdG9vbHMvc29mdG5ldCIKICBkZXBlbmRzX29uIDptYWNv\ncwoKICB1cmwgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydC9yZWxl\nYXNlcy9kb3dubG9hZC8yLjM3LjAvdGFydC50YXIuZ3oiCiAgc2hhMjU2ICJk\nNTMxNzUyYzRkYWQ1ZDQyMTRhYzdmZjU0MGNlZmMyNjQ3ZGYxZmNhMjMzOGQ0\nMTNkM2MwMTc1NGY1NGIzNTZiIgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxs\nKSBkbwogICAgbGliZXhlYy5pbnN0YWxsIERpclsiKiJdCiAgICBiaW4ud3Jp\ndGVfZXhlY19zY3JpcHQgIiN7bGliZXhlY30vdGFydC5hcHAvQ29udGVudHMv\nTWFjT1MvdGFydCIKICBlbmQKCiAgb25fbWFjb3MgZG8KICAgIGRlcGVuZHNf\nb24gOm1hY29zID0+IDp2ZW50dXJhCiAgZW5kCiAgZGVmIHBvc3RfaW5zdGFs\nbAogICAgZ2VuZXJhdGVfY29tcGxldGlvbnNfZnJvbV9leGVjdXRhYmxlKGxp\nYmV4ZWMvInRhcnQuYXBwL0NvbnRlbnRzL01hY09TL3RhcnQiLCAiLS1nZW5l\ncmF0ZS1jb21wbGV0aW9uLXNjcmlwdCIpCiAgZW5kCgogIGRlZiBjYXZlYXRz\nCiAgICA8PH5FT1MKICAgICAgVGFydCBoYXMgYmVlbiBpbnN0YWxsZWQuIFlv\ndSBtaWdodCB3YW50IHRvIHJlZHVjZSB0aGUgZGVmYXVsdCBESENQIGxlYXNl\nIHRpbWUKICAgICAgZnJvbSA4Niw0MDAgdG8gNjAwIHNlY29uZHMgdG8gYXZv\naWQgREhDUCBzaG9ydGFnZSB3aGVuIHJ1bm5pbmcgbG90cyBvZiBWTXMgZGFp\nbHk6CgogICAgICAgIHN1ZG8gZGVmYXVsdHMgd3JpdGUgL0xpYnJhcnkvUHJl\nZmVyZW5jZXMvU3lzdGVtQ29uZmlndXJhdGlvbi9jb20uYXBwbGUuSW50ZXJu\nZXRTaGFyaW5nLmRlZmF1bHQucGxpc3QgYm9vdHBkIC1kaWN0IERIQ1BMZWFz\nZVRpbWVTZWNzIC1pbnQgNjAwCgogICAgICBTZWUgaHR0cHM6Ly90YXJ0LnJ1\nbi9mYXEvI2NoYW5naW5nLXRoZS1kZWZhdWx0LWRoY3AtbGVhc2UtdGltZSBm\nb3IgbW9yZSBkZXRhaWxzLgogICAgRU9TCiAgZW5kCmVuZAo=\n",
+          "sha": "e8fc646bb256a827bca2c0de9969db8199297392"
+        },
+        "2b0b3deb1c45b6a829e358fa5d1ae28f4036d141": {
+          "type": "file",
+          "path": "Formula/tart.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFRhcnQgPCBGb3JtdWxhCiAgZGVzYyAiUnVuIG1h\nY09TIGFuZCBMaW51eCBWTXMgb24gQXBwbGUgSGFyZHdhcmUiCiAgaG9tZXBh\nZ2UgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydCIKICB2ZXJzaW9u\nICIyLjM2LjAiCiAgbGljZW5zZSAiRlNMLTEuMS1BTHYyIgoKICBkZXBlbmRz\nX29uICJvcGVuYWkvdG9vbHMvc29mdG5ldCIKICBkZXBlbmRzX29uIDptYWNv\ncwoKICB1cmwgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydC9yZWxl\nYXNlcy9kb3dubG9hZC8yLjM2LjAvdGFydC50YXIuZ3oiCiAgc2hhMjU2ICJj\nNzJhOGFiOGQ3OGE2NDk4YTFlNDI2ODhiMWExZWM2YzUxMmNlNDZjYTM1YTNh\nM2JlMTMwYzNkZTE0NDBjN2U4IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxs\nKSBkbwogICAgbGliZXhlYy5pbnN0YWxsIERpclsiKiJdCiAgICBiaW4ud3Jp\ndGVfZXhlY19zY3JpcHQgIiN7bGliZXhlY30vdGFydC5hcHAvQ29udGVudHMv\nTWFjT1MvdGFydCIKICBlbmQKCiAgb25fbWFjb3MgZG8KICAgIGRlcGVuZHNf\nb24gOm1hY29zID0+IDp2ZW50dXJhCiAgZW5kCiAgZGVmIHBvc3RfaW5zdGFs\nbAogICAgZ2VuZXJhdGVfY29tcGxldGlvbnNfZnJvbV9leGVjdXRhYmxlKGxp\nYmV4ZWMvInRhcnQuYXBwL0NvbnRlbnRzL01hY09TL3RhcnQiLCAiLS1nZW5l\ncmF0ZS1jb21wbGV0aW9uLXNjcmlwdCIpCiAgZW5kCgogIGRlZiBjYXZlYXRz\nCiAgICA8PH5FT1MKICAgICAgVGFydCBoYXMgYmVlbiBpbnN0YWxsZWQuIFlv\ndSBtaWdodCB3YW50IHRvIHJlZHVjZSB0aGUgZGVmYXVsdCBESENQIGxlYXNl\nIHRpbWUKICAgICAgZnJvbSA4Niw0MDAgdG8gNjAwIHNlY29uZHMgdG8gYXZv\naWQgREhDUCBzaG9ydGFnZSB3aGVuIHJ1bm5pbmcgbG90cyBvZiBWTXMgZGFp\nbHk6CgogICAgICAgIHN1ZG8gZGVmYXVsdHMgd3JpdGUgL0xpYnJhcnkvUHJl\nZmVyZW5jZXMvU3lzdGVtQ29uZmlndXJhdGlvbi9jb20uYXBwbGUuSW50ZXJu\nZXRTaGFyaW5nLmRlZmF1bHQucGxpc3QgYm9vdHBkIC1kaWN0IERIQ1BMZWFz\nZVRpbWVTZWNzIC1pbnQgNjAwCgogICAgICBTZWUgaHR0cHM6Ly90YXJ0LnJ1\nbi9mYXEvI2NoYW5naW5nLXRoZS1kZWZhdWx0LWRoY3AtbGVhc2UtdGltZSBm\nb3IgbW9yZSBkZXRhaWxzLgogICAgRU9TCiAgZW5kCmVuZAo=\n",
+          "sha": "6e25e136c4d604e84964435a6ddbc9a31f5bd7a0"
+        },
+        "b68953eecd00f02a6de3e6b1041a2fa8179ed1f4": {
+          "type": "file",
+          "path": "Formula/tart.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFRhcnQgPCBGb3JtdWxhCiAgZGVzYyAiUnVuIG1h\nY09TIGFuZCBMaW51eCBWTXMgb24gQXBwbGUgSGFyZHdhcmUiCiAgaG9tZXBh\nZ2UgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydCIKICB2ZXJzaW9u\nICIyLjM1LjAiCiAgbGljZW5zZSAiRlNMLTEuMS1BTHYyIgoKICBkZXBlbmRz\nX29uICJvcGVuYWkvdG9vbHMvc29mdG5ldCIKICBkZXBlbmRzX29uIDptYWNv\ncwoKICB1cmwgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydC9yZWxl\nYXNlcy9kb3dubG9hZC8yLjM1LjAvdGFydC50YXIuZ3oiCiAgc2hhMjU2ICI2\nMGM0ZGYzMzBjODNmNjhmMzlmYTBhYjRkNThkMDdjM2QwNzI4NTQ2ZjI2Mjgw\nZDYwNzA0MWNiNWEwZmVhN2RmIgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxs\nKSBkbwogICAgbGliZXhlYy5pbnN0YWxsIERpclsiKiJdCiAgICBiaW4ud3Jp\ndGVfZXhlY19zY3JpcHQgIiN7bGliZXhlY30vdGFydC5hcHAvQ29udGVudHMv\nTWFjT1MvdGFydCIKICBlbmQKCiAgb25fbWFjb3MgZG8KICAgIGRlcGVuZHNf\nb24gOm1hY29zID0+IDp2ZW50dXJhCiAgZW5kCiAgZGVmIHBvc3RfaW5zdGFs\nbAogICAgZ2VuZXJhdGVfY29tcGxldGlvbnNfZnJvbV9leGVjdXRhYmxlKGxp\nYmV4ZWMvInRhcnQuYXBwL0NvbnRlbnRzL01hY09TL3RhcnQiLCAiLS1nZW5l\ncmF0ZS1jb21wbGV0aW9uLXNjcmlwdCIpCiAgZW5kCgogIGRlZiBjYXZlYXRz\nCiAgICA8PH5FT1MKICAgICAgVGFydCBoYXMgYmVlbiBpbnN0YWxsZWQuIFlv\ndSBtaWdodCB3YW50IHRvIHJlZHVjZSB0aGUgZGVmYXVsdCBESENQIGxlYXNl\nIHRpbWUKICAgICAgZnJvbSA4Niw0MDAgdG8gNjAwIHNlY29uZHMgdG8gYXZv\naWQgREhDUCBzaG9ydGFnZSB3aGVuIHJ1bm5pbmcgbG90cyBvZiBWTXMgZGFp\nbHk6CgogICAgICAgIHN1ZG8gZGVmYXVsdHMgd3JpdGUgL0xpYnJhcnkvUHJl\nZmVyZW5jZXMvU3lzdGVtQ29uZmlndXJhdGlvbi9jb20uYXBwbGUuSW50ZXJu\nZXRTaGFyaW5nLmRlZmF1bHQucGxpc3QgYm9vdHBkIC1kaWN0IERIQ1BMZWFz\nZVRpbWVTZWNzIC1pbnQgNjAwCgogICAgICBTZWUgaHR0cHM6Ly90YXJ0LnJ1\nbi9mYXEvI2NoYW5naW5nLXRoZS1kZWZhdWx0LWRoY3AtbGVhc2UtdGltZSBm\nb3IgbW9yZSBkZXRhaWxzLgogICAgRU9TCiAgZW5kCmVuZAo=\n",
+          "sha": "54191507a3617b011baa6d8e890da71500567c99"
+        },
+        "7b09f7c57af7e164e935723f8b01fd3f0f5144a9": {
+          "type": "file",
+          "path": "Formula/tart.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFRhcnQgPCBGb3JtdWxhCiAgZGVzYyAiUnVuIG1h\nY09TIGFuZCBMaW51eCBWTXMgb24gQXBwbGUgSGFyZHdhcmUiCiAgaG9tZXBh\nZ2UgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydCIKICB2ZXJzaW9u\nICIyLjM0LjAiCiAgbGljZW5zZSAiRlNMLTEuMS1BTHYyIgoKICBkZXBlbmRz\nX29uICJvcGVuYWkvdG9vbHMvc29mdG5ldCIKICBkZXBlbmRzX29uIDptYWNv\ncwoKICB1cmwgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydC9yZWxl\nYXNlcy9kb3dubG9hZC8yLjM0LjAvdGFydC50YXIuZ3oiCiAgc2hhMjU2ICJj\nOWYxNjA5ZjQ5NDUyNThlZjBlZTI3N2RkNDRkYzk3MDBkNmYwNjk3ODlhMTFl\nNDNiZTdmMzViMGE2NGIzMTM1IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxs\nKSBkbwogICAgbGliZXhlYy5pbnN0YWxsIERpclsiKiJdCiAgICBiaW4ud3Jp\ndGVfZXhlY19zY3JpcHQgIiN7bGliZXhlY30vdGFydC5hcHAvQ29udGVudHMv\nTWFjT1MvdGFydCIKICBlbmQKCiAgb25fbWFjb3MgZG8KICAgIGRlcGVuZHNf\nb24gOm1hY29zID0+IDp2ZW50dXJhCiAgZW5kCiAgZGVmIHBvc3RfaW5zdGFs\nbAogICAgZ2VuZXJhdGVfY29tcGxldGlvbnNfZnJvbV9leGVjdXRhYmxlKGxp\nYmV4ZWMvInRhcnQuYXBwL0NvbnRlbnRzL01hY09TL3RhcnQiLCAiLS1nZW5l\ncmF0ZS1jb21wbGV0aW9uLXNjcmlwdCIpCiAgZW5kCgogIGRlZiBjYXZlYXRz\nCiAgICA8PH5FT1MKICAgICAgVGFydCBoYXMgYmVlbiBpbnN0YWxsZWQuIFlv\ndSBtaWdodCB3YW50IHRvIHJlZHVjZSB0aGUgZGVmYXVsdCBESENQIGxlYXNl\nIHRpbWUKICAgICAgZnJvbSA4Niw0MDAgdG8gNjAwIHNlY29uZHMgdG8gYXZv\naWQgREhDUCBzaG9ydGFnZSB3aGVuIHJ1bm5pbmcgbG90cyBvZiBWTXMgZGFp\nbHk6CgogICAgICAgIHN1ZG8gZGVmYXVsdHMgd3JpdGUgL0xpYnJhcnkvUHJl\nZmVyZW5jZXMvU3lzdGVtQ29uZmlndXJhdGlvbi9jb20uYXBwbGUuSW50ZXJu\nZXRTaGFyaW5nLmRlZmF1bHQucGxpc3QgYm9vdHBkIC1kaWN0IERIQ1BMZWFz\nZVRpbWVTZWNzIC1pbnQgNjAwCgogICAgICBTZWUgaHR0cHM6Ly90YXJ0LnJ1\nbi9mYXEvI2NoYW5naW5nLXRoZS1kZWZhdWx0LWRoY3AtbGVhc2UtdGltZSBm\nb3IgbW9yZSBkZXRhaWxzLgogICAgRU9TCiAgZW5kCmVuZAo=\n",
+          "sha": "215f8f8d97d2bf0e8cef304a4582e0a54d5d3916"
+        },
+        "e07ac12d3dac268144e1c3405d5fb465ee873410": {
+          "type": "file",
+          "path": "Formula/tart.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFRhcnQgPCBGb3JtdWxhCiAgZGVzYyAiUnVuIG1h\nY09TIGFuZCBMaW51eCBWTXMgb24gQXBwbGUgSGFyZHdhcmUiCiAgaG9tZXBh\nZ2UgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydCIKICB2ZXJzaW9u\nICIyLjMzLjEiCiAgbGljZW5zZSAiRlNMLTEuMS1BTHYyIgoKICBkZXBlbmRz\nX29uICJvcGVuYWkvdG9vbHMvc29mdG5ldCIKICBkZXBlbmRzX29uIDptYWNv\ncwoKICB1cmwgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydC9yZWxl\nYXNlcy9kb3dubG9hZC8yLjMzLjEvdGFydC50YXIuZ3oiCiAgc2hhMjU2ICJh\nZDdjM2IzNDBkNjA1YTMzMmI0YzdkYzM3ZWQ2ZTRkYjQ5NWJmN2E2ZjZmNzA4\nYjA5MjRmNTFjOGUyZWNiZTMzIgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxs\nKSBkbwogICAgbGliZXhlYy5pbnN0YWxsIERpclsiKiJdCiAgICBiaW4ud3Jp\ndGVfZXhlY19zY3JpcHQgIiN7bGliZXhlY30vdGFydC5hcHAvQ29udGVudHMv\nTWFjT1MvdGFydCIKICBlbmQKCiAgb25fbWFjb3MgZG8KICAgIGRlcGVuZHNf\nb24gOm1hY29zID0+IDp2ZW50dXJhCiAgZW5kCiAgZGVmIHBvc3RfaW5zdGFs\nbAogICAgZ2VuZXJhdGVfY29tcGxldGlvbnNfZnJvbV9leGVjdXRhYmxlKGxp\nYmV4ZWMvInRhcnQuYXBwL0NvbnRlbnRzL01hY09TL3RhcnQiLCAiLS1nZW5l\ncmF0ZS1jb21wbGV0aW9uLXNjcmlwdCIpCiAgZW5kCgogIGRlZiBjYXZlYXRz\nCiAgICA8PH5FT1MKICAgICAgVGFydCBoYXMgYmVlbiBpbnN0YWxsZWQuIFlv\ndSBtaWdodCB3YW50IHRvIHJlZHVjZSB0aGUgZGVmYXVsdCBESENQIGxlYXNl\nIHRpbWUKICAgICAgZnJvbSA4Niw0MDAgdG8gNjAwIHNlY29uZHMgdG8gYXZv\naWQgREhDUCBzaG9ydGFnZSB3aGVuIHJ1bm5pbmcgbG90cyBvZiBWTXMgZGFp\nbHk6CgogICAgICAgIHN1ZG8gZGVmYXVsdHMgd3JpdGUgL0xpYnJhcnkvUHJl\nZmVyZW5jZXMvU3lzdGVtQ29uZmlndXJhdGlvbi9jb20uYXBwbGUuSW50ZXJu\nZXRTaGFyaW5nLmRlZmF1bHQucGxpc3QgYm9vdHBkIC1kaWN0IERIQ1BMZWFz\nZVRpbWVTZWNzIC1pbnQgNjAwCgogICAgICBTZWUgaHR0cHM6Ly90YXJ0LnJ1\nbi9mYXEvI2NoYW5naW5nLXRoZS1kZWZhdWx0LWRoY3AtbGVhc2UtdGltZSBm\nb3IgbW9yZSBkZXRhaWxzLgogICAgRU9TCiAgZW5kCmVuZAo=\n",
+          "sha": "4d8717f7e97b033747dd69e7e38678a5e3379939"
+        },
+        "065bc95028be59a1744ad7c66f61f5a0ab7e5bb1": {
+          "type": "file",
+          "path": "Formula/tart.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFRhcnQgPCBGb3JtdWxhCiAgZGVzYyAiUnVuIG1h\nY09TIGFuZCBMaW51eCBWTXMgb24gQXBwbGUgSGFyZHdhcmUiCiAgaG9tZXBh\nZ2UgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydCIKICB2ZXJzaW9u\nICIyLjMzLjAiCiAgbGljZW5zZSAiRlNMLTEuMS1BTHYyIgoKICBkZXBlbmRz\nX29uICJvcGVuYWkvdG9vbHMvc29mdG5ldCIKICBkZXBlbmRzX29uIDptYWNv\ncwoKICB1cmwgImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvdGFydC9yZWxl\nYXNlcy9kb3dubG9hZC8yLjMzLjAvdGFydC50YXIuZ3oiCiAgc2hhMjU2ICI4\nOTQ2YWE0YmI0NTlhYjU1YTlmNWI1YmNlMzc2YjEwNmM0MTdhODIyOGQzYjg5\nMTI1ZGViZWQzYWZjNmFlM2E3IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxs\nKSBkbwogICAgbGliZXhlYy5pbnN0YWxsIERpclsiKiJdCiAgICBiaW4ud3Jp\ndGVfZXhlY19zY3JpcHQgIiN7bGliZXhlY30vdGFydC5hcHAvQ29udGVudHMv\nTWFjT1MvdGFydCIKICBlbmQKCiAgb25fbWFjb3MgZG8KICAgIGRlcGVuZHNf\nb24gOm1hY29zID0+IDp2ZW50dXJhCiAgZW5kCiAgZGVmIHBvc3RfaW5zdGFs\nbAogICAgZ2VuZXJhdGVfY29tcGxldGlvbnNfZnJvbV9leGVjdXRhYmxlKGxp\nYmV4ZWMvInRhcnQuYXBwL0NvbnRlbnRzL01hY09TL3RhcnQiLCAiLS1nZW5l\ncmF0ZS1jb21wbGV0aW9uLXNjcmlwdCIpCiAgZW5kCgogIGRlZiBjYXZlYXRz\nCiAgICA8PH5FT1MKICAgICAgVGFydCBoYXMgYmVlbiBpbnN0YWxsZWQuIFlv\ndSBtaWdodCB3YW50IHRvIHJlZHVjZSB0aGUgZGVmYXVsdCBESENQIGxlYXNl\nIHRpbWUKICAgICAgZnJvbSA4Niw0MDAgdG8gNjAwIHNlY29uZHMgdG8gYXZv\naWQgREhDUCBzaG9ydGFnZSB3aGVuIHJ1bm5pbmcgbG90cyBvZiBWTXMgZGFp\nbHk6CgogICAgICAgIHN1ZG8gZGVmYXVsdHMgd3JpdGUgL0xpYnJhcnkvUHJl\nZmVyZW5jZXMvU3lzdGVtQ29uZmlndXJhdGlvbi9jb20uYXBwbGUuSW50ZXJu\nZXRTaGFyaW5nLmRlZmF1bHQucGxpc3QgYm9vdHBkIC1kaWN0IERIQ1BMZWFz\nZVRpbWVTZWNzIC1pbnQgNjAwCgogICAgICBTZWUgaHR0cHM6Ly90YXJ0LnJ1\nbi9mYXEvI2NoYW5naW5nLXRoZS1kZWZhdWx0LWRoY3AtbGVhc2UtdGltZSBm\nb3IgbW9yZSBkZXRhaWxzLgogICAgRU9TCiAgZW5kCmVuZAo=\n",
+          "sha": "ebf922ce1916f697855a7fa3728f940281ce83b8"
+        }
+      },
+      "releases": {
+        "2.40.1": {
+          "tag_name": "2.40.1",
+          "draft": false,
+          "published_at": "2026-09-30T11:39:29Z",
+          "assets": [
+            {
+              "browser_download_url": "https://github.com/openai/tart/releases/download/2.40.1/tart.tar.gz",
+              "digest": "sha256:363e2701154a8155cbc1bb6d845430c9b42697d2a186bc49574471ca2877db46",
+              "created_at": "2026-09-30T11:47:47Z",
+              "updated_at": "2026-09-30T11:47:48Z"
+            },
+            {
+              "browser_download_url": "https://github.com/openai/tart/releases/download/2.40.1/tart_2.40.1_checksums.txt",
+              "digest": "sha256:7de40281232af99bf62808efe4a199d45a67c9e7222be30b9aebe7cc13dd53c5",
+              "created_at": "2026-09-30T11:47:47Z",
+              "updated_at": "2026-09-30T11:47:47Z"
+            }
+          ]
+        },
+        "2.38.0": {
+          "tag_name": "2.38.0",
+          "draft": false,
+          "published_at": "2026-09-24T20:47:50Z",
+          "assets": [
+            {
+              "browser_download_url": "https://github.com/openai/tart/releases/download/2.38.0/tart.tar.gz",
+              "digest": "sha256:1712be82b687cc27792d5a2bae3f36fcb5e5dea4d5772231f5508dea567999e2",
+              "created_at": "2026-09-24T20:57:44Z",
+              "updated_at": "2026-09-24T20:57:46Z"
+            },
+            {
+              "browser_download_url": "https://github.com/openai/tart/releases/download/2.38.0/tart_2.38.0_checksums.txt",
+              "digest": "sha256:37c71349eea386e26628aa9cab9f10d24cdc99ffda4252263abce94e0506851b",
+              "created_at": "2026-09-24T20:57:44Z",
+              "updated_at": "2026-09-24T20:57:45Z"
+            }
+          ]
+        },
+        "2.37.0": {
+          "tag_name": "2.37.0",
+          "draft": false,
+          "published_at": "2026-09-09T22:21:49Z",
+          "assets": [
+            {
+              "browser_download_url": "https://github.com/openai/tart/releases/download/2.37.0/tart.tar.gz",
+              "digest": "sha256:d531752c4dad5d4214ac7ff540cefc2647df1fca2338d413d3c01754f54b356b",
+              "created_at": "2026-09-09T22:21:47Z",
+              "updated_at": "2026-09-09T22:21:48Z"
+            },
+            {
+              "browser_download_url": "https://github.com/openai/tart/releases/download/2.37.0/tart_2.37.0_checksums.txt",
+              "digest": "sha256:04689e9e574abf2570cd5a57148e3395334bbdd4f1e10902c750b4c81fd1dfde",
+              "created_at": "2026-09-09T22:21:47Z",
+              "updated_at": "2026-09-09T22:21:47Z"
+            }
+          ]
+        },
+        "2.36.0": {
+          "tag_name": "2.36.0",
+          "draft": false,
+          "published_at": "2026-08-25T05:40:15Z",
+          "assets": [
+            {
+              "browser_download_url": "https://github.com/openai/tart/releases/download/2.36.0/tart.tar.gz",
+              "digest": "sha256:c72a8ab8d78a6498a1e42688b1a1ec6c512ce46ca35a3a3be130c3de1440c7e8",
+              "created_at": "2026-08-25T05:40:13Z",
+              "updated_at": "2026-08-25T05:40:14Z"
+            },
+            {
+              "browser_download_url": "https://github.com/openai/tart/releases/download/2.36.0/tart_2.36.0_checksums.txt",
+              "digest": "sha256:0939b5383d68511d00d4efbd348fce927201d3e5b602c9836eeae9cca916bd72",
+              "created_at": "2026-08-25T05:40:13Z",
+              "updated_at": "2026-08-25T05:40:13Z"
+            }
+          ]
+        }
+      }
+    },
+    "softnet": {
+      "commits": [
+        {
+          "sha": "0df4960f844a47a541253a6159cf1685682b9d83",
+          "commit": {
+            "committer": {
+              "date": "2026-10-01T16:21:22Z"
+            }
+          }
+        },
+        {
+          "sha": "f4851503f6335547539bed64b3920eba13bb75fc",
+          "commit": {
+            "committer": {
+              "date": "2026-08-18T11:58:39Z"
+            }
+          }
+        },
+        {
+          "sha": "b9d22f7eef6cea4d9ad4c84459527447363e8014",
+          "commit": {
+            "committer": {
+              "date": "2026-08-14T12:47:54Z"
+            }
+          }
+        },
+        {
+          "sha": "ec435c94daf7cefded5154ae0a90e70820d898e6",
+          "commit": {
+            "committer": {
+              "date": "2026-08-11T02:15:20Z"
+            }
+          }
+        },
+        {
+          "sha": "9fbd3a07a2ab9d94637344690969f5bbf5496b8b",
+          "commit": {
+            "committer": {
+              "date": "2026-08-07T23:16:34Z"
+            }
+          }
+        },
+        {
+          "sha": "9ecce0c3325c738fc3879039762191b3e8b03946",
+          "commit": {
+            "committer": {
+              "date": "2026-07-21T20:53:08Z"
+            }
+          }
+        },
+        {
+          "sha": "4de0efe3af9ff15ae6e3b0180d9d6ca215d86b2d",
+          "commit": {
+            "committer": {
+              "date": "2026-07-21T20:36:12Z"
+            }
+          }
+        },
+        {
+          "sha": "46135c699328ee26645b75afe7da3c1c5f9c42ea",
+          "commit": {
+            "committer": {
+              "date": "2026-07-16T14:55:02Z"
+            }
+          }
+        }
+      ],
+      "contents": {
+        "a32b3a99c1fc162d56d800cceebb041ffa434c3c": {
+          "type": "file",
+          "path": "Formula/softnet.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFNvZnRuZXQgPCBGb3JtdWxhCiAgZGVzYyAiU29m\ndHdhcmUgbmV0d29ya2luZyB3aXRoIGlzb2xhdGlvbiBmb3IgVGFydCIKICBo\nb21lcGFnZSAiaHR0cHM6Ly9naXRodWIuY29tL29wZW5haS9zb2Z0bmV0Igog\nIHZlcnNpb24gIjAuMjQuMCIKICBkZXBlbmRzX29uIDptYWNvcwoKICB1cmwg\nImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvc29mdG5ldC9yZWxlYXNlcy9k\nb3dubG9hZC8wLjI0LjAvc29mdG5ldC50YXIuZ3oiCiAgc2hhMjU2ICJkYzIw\nOGU1MDM3YjUyNWU3NjkzMzdjMDY0ZjVkZGE4M2RhODNiNGQxZTRhMDM4ZjQz\nNGU4MzA1MGIzOWE1NjBiIgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxsKSBk\nbwogICAgYmluLmluc3RhbGwgInNvZnRuZXQiCiAgZW5kCgogIG9uX21hY29z\nIGRvCiAgICBkZXBlbmRzX29uIDptYWNvcyA9PiA6dGFob2UKICBlbmQKCiAg\nZGVmIGNhdmVhdHMKICAgIDw8fkVPUwogICAgICBTZWUgdGhlIEdpdGh1YiBy\nZXBvc2l0b3J5IGZvciBtb3JlIGluZm9ybWF0aW9uCiAgICBFT1MKICBlbmQK\nZW5kCg==\n",
+          "sha": "1e9d3f930d40264f145ca274a75b20af503f9b8e"
+        },
+        "0df4960f844a47a541253a6159cf1685682b9d83": {
+          "type": "file",
+          "path": "Formula/softnet.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFNvZnRuZXQgPCBGb3JtdWxhCiAgZGVzYyAiU29m\ndHdhcmUgbmV0d29ya2luZyB3aXRoIGlzb2xhdGlvbiBmb3IgVGFydCIKICBo\nb21lcGFnZSAiaHR0cHM6Ly9naXRodWIuY29tL29wZW5haS9zb2Z0bmV0Igog\nIHZlcnNpb24gIjAuMjQuMCIKICBkZXBlbmRzX29uIDptYWNvcwoKICB1cmwg\nImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvc29mdG5ldC9yZWxlYXNlcy9k\nb3dubG9hZC8wLjI0LjAvc29mdG5ldC50YXIuZ3oiCiAgc2hhMjU2ICJkYzIw\nOGU1MDM3YjUyNWU3NjkzMzdjMDY0ZjVkZGE4M2RhODNiNGQxZTRhMDM4ZjQz\nNGU4MzA1MGIzOWE1NjBiIgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxsKSBk\nbwogICAgYmluLmluc3RhbGwgInNvZnRuZXQiCiAgZW5kCgogIG9uX21hY29z\nIGRvCiAgICBkZXBlbmRzX29uIDptYWNvcyA9PiA6dGFob2UKICBlbmQKCiAg\nZGVmIGNhdmVhdHMKICAgIDw8fkVPUwogICAgICBTZWUgdGhlIEdpdGh1YiBy\nZXBvc2l0b3J5IGZvciBtb3JlIGluZm9ybWF0aW9uCiAgICBFT1MKICBlbmQK\nZW5kCg==\n",
+          "sha": "1e9d3f930d40264f145ca274a75b20af503f9b8e"
+        },
+        "f4851503f6335547539bed64b3920eba13bb75fc": {
+          "type": "file",
+          "path": "Formula/softnet.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFNvZnRuZXQgPCBGb3JtdWxhCiAgZGVzYyAiU29m\ndHdhcmUgbmV0d29ya2luZyB3aXRoIGlzb2xhdGlvbiBmb3IgVGFydCIKICBo\nb21lcGFnZSAiaHR0cHM6Ly9naXRodWIuY29tL29wZW5haS9zb2Z0bmV0Igog\nIHZlcnNpb24gIjAuMjMuMCIKICBkZXBlbmRzX29uIDptYWNvcwoKICB1cmwg\nImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvc29mdG5ldC9yZWxlYXNlcy9k\nb3dubG9hZC8wLjIzLjAvc29mdG5ldC50YXIuZ3oiCiAgc2hhMjU2ICJiNWRh\nYTRlNWVmYWVmM2MyNzE2Zjg3MmRjZGEzOTYxYTM1YjJiZGRjZGYwM2ZlNjMw\nYWMzZGIwYWI4MTU2ZjNlIgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxsKSBk\nbwogICAgYmluLmluc3RhbGwgInNvZnRuZXQiCiAgZW5kCgogIG9uX21hY29z\nIGRvCiAgICBkZXBlbmRzX29uIDptYWNvcyA9PiA6c2VxdW9pYQogIGVuZAoK\nICBkZWYgY2F2ZWF0cwogICAgPDx+RU9TCiAgICAgIFNlZSB0aGUgR2l0aHVi\nIHJlcG9zaXRvcnkgZm9yIG1vcmUgaW5mb3JtYXRpb24KICAgIEVPUwogIGVu\nZAplbmQK\n",
+          "sha": "b54d8b3d674a6be1875f011b470cb2187923f17d"
+        },
+        "b9d22f7eef6cea4d9ad4c84459527447363e8014": {
+          "type": "file",
+          "path": "Formula/softnet.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFNvZnRuZXQgPCBGb3JtdWxhCiAgZGVzYyAiU29m\ndHdhcmUgbmV0d29ya2luZyB3aXRoIGlzb2xhdGlvbiBmb3IgVGFydCIKICBo\nb21lcGFnZSAiaHR0cHM6Ly9naXRodWIuY29tL29wZW5haS9zb2Z0bmV0Igog\nIHZlcnNpb24gIjAuMjIuMiIKICBkZXBlbmRzX29uIDptYWNvcwoKICB1cmwg\nImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvc29mdG5ldC9yZWxlYXNlcy9k\nb3dubG9hZC8wLjIyLjIvc29mdG5ldC50YXIuZ3oiCiAgc2hhMjU2ICJkZWU2\nYWVhZDkxNWFhYmY1NjU3MzIzZDUyZDVmMGJjMjRjZmJjM2E4MjY5NWNmMWQ4\nNTBiODA5MTdmYjg5OGI0IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxsKSBk\nbwogICAgYmluLmluc3RhbGwgInNvZnRuZXQiCiAgZW5kCgogIG9uX21hY29z\nIGRvCiAgICBkZXBlbmRzX29uIDptYWNvcyA9PiA6c2VxdW9pYQogIGVuZAoK\nICBkZWYgY2F2ZWF0cwogICAgPDx+RU9TCiAgICAgIFNlZSB0aGUgR2l0aHVi\nIHJlcG9zaXRvcnkgZm9yIG1vcmUgaW5mb3JtYXRpb24KICAgIEVPUwogIGVu\nZAplbmQK\n",
+          "sha": "55ab7c28155e6fa4da795d9437b099ce10cc1a28"
+        },
+        "ec435c94daf7cefded5154ae0a90e70820d898e6": {
+          "type": "file",
+          "path": "Formula/softnet.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFNvZnRuZXQgPCBGb3JtdWxhCiAgZGVzYyAiU29m\ndHdhcmUgbmV0d29ya2luZyB3aXRoIGlzb2xhdGlvbiBmb3IgVGFydCIKICBo\nb21lcGFnZSAiaHR0cHM6Ly9naXRodWIuY29tL29wZW5haS9zb2Z0bmV0Igog\nIHZlcnNpb24gIjAuMjIuMSIKICBkZXBlbmRzX29uIDptYWNvcwoKICB1cmwg\nImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvc29mdG5ldC9yZWxlYXNlcy9k\nb3dubG9hZC8wLjIyLjEvc29mdG5ldC50YXIuZ3oiCiAgc2hhMjU2ICIxMDkz\nYmU2Zjc3YjBjN2E3NWIzMWNmNjUxZmY0Njg0NGE4MWQ3MzU2ODE4NGU4MDc0\nOTRmNTU1MjgwNjg0NjQ0IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxsKSBk\nbwogICAgYmluLmluc3RhbGwgInNvZnRuZXQiCiAgZW5kCgogIG9uX21hY29z\nIGRvCiAgICBkZXBlbmRzX29uIDptYWNvcyA9PiA6c2VxdW9pYQogIGVuZAoK\nICBkZWYgY2F2ZWF0cwogICAgPDx+RU9TCiAgICAgIFNlZSB0aGUgR2l0aHVi\nIHJlcG9zaXRvcnkgZm9yIG1vcmUgaW5mb3JtYXRpb24KICAgIEVPUwogIGVu\nZAplbmQK\n",
+          "sha": "cf3d9c7a455c798c39cea1dab2070880ce571c17"
+        },
+        "9fbd3a07a2ab9d94637344690969f5bbf5496b8b": {
+          "type": "file",
+          "path": "Formula/softnet.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFNvZnRuZXQgPCBGb3JtdWxhCiAgZGVzYyAiU29m\ndHdhcmUgbmV0d29ya2luZyB3aXRoIGlzb2xhdGlvbiBmb3IgVGFydCIKICBo\nb21lcGFnZSAiaHR0cHM6Ly9naXRodWIuY29tL29wZW5haS9zb2Z0bmV0Igog\nIHZlcnNpb24gIjAuMjIuMCIKICBkZXBlbmRzX29uIDptYWNvcwoKICB1cmwg\nImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvc29mdG5ldC9yZWxlYXNlcy9k\nb3dubG9hZC8wLjIyLjAvc29mdG5ldC50YXIuZ3oiCiAgc2hhMjU2ICJlNGVi\nMDdjNjJmMmRmZWFjY2VlYTA1MjQ5NjdhNTNlZjlmMmE3NTcyNDY0MTE4Y2Zi\nZWE2ODExYjRhYjgzNmU3IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxsKSBk\nbwogICAgYmluLmluc3RhbGwgInNvZnRuZXQiCiAgZW5kCgogIG9uX21hY29z\nIGRvCiAgICBkZXBlbmRzX29uIDptYWNvcyA9PiA6c2VxdW9pYQogIGVuZAoK\nICBkZWYgY2F2ZWF0cwogICAgPDx+RU9TCiAgICAgIFNlZSB0aGUgR2l0aHVi\nIHJlcG9zaXRvcnkgZm9yIG1vcmUgaW5mb3JtYXRpb24KICAgIEVPUwogIGVu\nZAplbmQK\n",
+          "sha": "7aa69611af7bb230e23a55b1a44ad3b40c770567"
+        },
+        "9ecce0c3325c738fc3879039762191b3e8b03946": {
+          "type": "file",
+          "path": "Formula/softnet.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFNvZnRuZXQgPCBGb3JtdWxhCiAgZGVzYyAiU29m\ndHdhcmUgbmV0d29ya2luZyB3aXRoIGlzb2xhdGlvbiBmb3IgVGFydCIKICBo\nb21lcGFnZSAiaHR0cHM6Ly9naXRodWIuY29tL29wZW5haS9zb2Z0bmV0Igog\nIHZlcnNpb24gIjAuMjEuMSIKICBkZXBlbmRzX29uIDptYWNvcwoKICB1cmwg\nImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvc29mdG5ldC9yZWxlYXNlcy9k\nb3dubG9hZC8wLjIxLjEvc29mdG5ldC50YXIuZ3oiCiAgc2hhMjU2ICJiZTFj\nNzNkNDdjNWI5ZmZkYmEyMWVmYmU2NWI4YjY0MGI5ZDQ2MjUwYWRlNTg4YWM0\nOTUwZGJjZTI0MTFhYmE2IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxsKSBk\nbwogICAgYmluLmluc3RhbGwgInNvZnRuZXQiCiAgZW5kCgogIG9uX21hY29z\nIGRvCiAgICBkZXBlbmRzX29uIDptYWNvcyA9PiA6c2VxdW9pYQogIGVuZAoK\nICBkZWYgY2F2ZWF0cwogICAgPDx+RU9TCiAgICAgIFNlZSB0aGUgR2l0aHVi\nIHJlcG9zaXRvcnkgZm9yIG1vcmUgaW5mb3JtYXRpb24KICAgIEVPUwogIGVu\nZAplbmQK\n",
+          "sha": "545786591a796e7f07b94f4fc1cf2c77cf1b3a64"
+        },
+        "4de0efe3af9ff15ae6e3b0180d9d6ca215d86b2d": {
+          "type": "file",
+          "path": "Formula/softnet.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFNvZnRuZXQgPCBGb3JtdWxhCiAgZGVzYyAiU29m\ndHdhcmUgbmV0d29ya2luZyB3aXRoIGlzb2xhdGlvbiBmb3IgVGFydCIKICBo\nb21lcGFnZSAiaHR0cHM6Ly9naXRodWIuY29tL29wZW5haS9zb2Z0bmV0Igog\nIHZlcnNpb24gIjAuMjEuMCIKICBkZXBlbmRzX29uIDptYWNvcwoKICB1cmwg\nImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvc29mdG5ldC9yZWxlYXNlcy9k\nb3dubG9hZC8wLjIxLjAvc29mdG5ldC50YXIuZ3oiCiAgc2hhMjU2ICIxMmQ3\nMDA5MmRkZWMxNWIxYTkwYmRiODZhYzU3YWRkNTQ3N2FmYWQxYTNkMzE5OTE5\nNDJjOGMxNzIzYTgwYzY3IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxsKSBk\nbwogICAgYmluLmluc3RhbGwgInNvZnRuZXQiCiAgZW5kCgogIG9uX21hY29z\nIGRvCiAgICBkZXBlbmRzX29uIDptYWNvcyA9PiA6c2VxdW9pYQogIGVuZAoK\nICBkZWYgY2F2ZWF0cwogICAgPDx+RU9TCiAgICAgIFNlZSB0aGUgR2l0aHVi\nIHJlcG9zaXRvcnkgZm9yIG1vcmUgaW5mb3JtYXRpb24KICAgIEVPUwogIGVu\nZAplbmQK\n",
+          "sha": "a3ccdab7592889a0ac4bfb8050a3fa961ba954a5"
+        },
+        "46135c699328ee26645b75afe7da3c1c5f9c42ea": {
+          "type": "file",
+          "path": "Formula/softnet.rb",
+          "encoding": "base64",
+          "content": "IyB0eXBlZDogZmFsc2UKIyBmcm96ZW5fc3RyaW5nX2xpdGVyYWw6IHRydWUK\nCiMgVGhpcyBmaWxlIHdhcyBnZW5lcmF0ZWQgYnkgR29SZWxlYXNlci4gRE8g\nTk9UIEVESVQuCmNsYXNzIFNvZnRuZXQgPCBGb3JtdWxhCiAgZGVzYyAiU29m\ndHdhcmUgbmV0d29ya2luZyB3aXRoIGlzb2xhdGlvbiBmb3IgVGFydCIKICBo\nb21lcGFnZSAiaHR0cHM6Ly9naXRodWIuY29tL29wZW5haS9zb2Z0bmV0Igog\nIHZlcnNpb24gIjAuMjAuMSIKICBkZXBlbmRzX29uIDptYWNvcwoKICB1cmwg\nImh0dHBzOi8vZ2l0aHViLmNvbS9vcGVuYWkvc29mdG5ldC9yZWxlYXNlcy9k\nb3dubG9hZC8wLjIwLjEvc29mdG5ldC50YXIuZ3oiCiAgc2hhMjU2ICI0YTk0\nMTAwYWFjOWJjODNiNTUyN2FmOTIzMjE3YWI2MTUzMjFhNTMyMjQyNTQ4NGM0\nMzQyOTQ3YTZhZTAwMjE0IgoKICBkZWZpbmVfbWV0aG9kKDppbnN0YWxsKSBk\nbwogICAgYmluLmluc3RhbGwgInNvZnRuZXQiCiAgZW5kCgogIG9uX21hY29z\nIGRvCiAgICBkZXBlbmRzX29uIDptYWNvcyA9PiA6c2VxdW9pYQogIGVuZAoK\nICBkZWYgY2F2ZWF0cwogICAgPDx+RU9TCiAgICAgIFNlZSB0aGUgR2l0aHVi\nIHJlcG9zaXRvcnkgZm9yIG1vcmUgaW5mb3JtYXRpb24KICAgIEVPUwogIGVu\nZAplbmQK\n",
+          "sha": "36e3c974f2b7f7788f623bfd853650dbe3818fe9"
+        }
+      },
+      "releases": {
+        "0.24.0": {
+          "tag_name": "0.24.0",
+          "draft": false,
+          "published_at": "2026-09-28T21:51:39Z",
+          "assets": [
+            {
+              "browser_download_url": "https://github.com/openai/softnet/releases/download/0.24.0/softnet.tar.gz",
+              "digest": "sha256:dc208e5037b525e769337c064f5dda83da83b4d1e4a038f434e83050b39a560b",
+              "created_at": "2026-09-28T21:55:31Z",
+              "updated_at": "2026-09-28T21:55:31Z"
+            },
+            {
+              "browser_download_url": "https://github.com/openai/softnet/releases/download/0.24.0/softnet_0.24.0_checksums.txt",
+              "digest": "sha256:3de907d630b2d15d1b55eea2c0813293a3f73425e1aaca551f5022a88b8ccb81",
+              "created_at": "2026-09-28T21:55:31Z",
+              "updated_at": "2026-09-28T21:55:31Z"
+            }
+          ]
+        },
+        "0.23.0": {
+          "tag_name": "0.23.0",
+          "draft": false,
+          "published_at": "2026-08-18T11:53:27Z",
+          "assets": [
+            {
+              "browser_download_url": "https://github.com/openai/softnet/releases/download/0.23.0/softnet.tar.gz",
+              "digest": "sha256:b5daa4e5efaef3c2716f872dcda3961a35b2bddcdf03fe630ac3db0ab8156f3e",
+              "created_at": "2026-08-18T11:57:55Z",
+              "updated_at": "2026-08-18T11:57:55Z"
+            },
+            {
+              "browser_download_url": "https://github.com/openai/softnet/releases/download/0.23.0/softnet_0.23.0_checksums.txt",
+              "digest": "sha256:63d0623d34eec1926623648ab4e2d290fec596454398a1b00a29d5266d3cd79f",
+              "created_at": "2026-08-18T11:57:55Z",
+              "updated_at": "2026-08-18T11:57:55Z"
+            }
+          ]
+        },
+        "0.22.2": {
+          "tag_name": "0.22.2",
+          "draft": false,
+          "published_at": "2026-08-14T12:42:05Z",
+          "assets": [
+            {
+              "browser_download_url": "https://github.com/openai/softnet/releases/download/0.22.2/softnet.tar.gz",
+              "digest": "sha256:dee6aead915aabf5657323d52d5f0bc24cfbc3a82695cf1d850b80917fb898b4",
+              "created_at": "2026-08-14T12:47:03Z",
+              "updated_at": "2026-08-14T12:47:04Z"
+            },
+            {
+              "browser_download_url": "https://github.com/openai/softnet/releases/download/0.22.2/softnet_0.22.2_checksums.txt",
+              "digest": "sha256:0d98f199ed0864a37075e8e57e518f2e60643b2e13ae41f586f04566f18464b0",
+              "created_at": "2026-08-14T12:47:03Z",
+              "updated_at": "2026-08-14T12:47:03Z"
+            }
+          ]
+        },
+        "0.22.1": {
+          "tag_name": "0.22.1",
+          "draft": false,
+          "published_at": "2026-08-11T02:11:11Z",
+          "assets": [
+            {
+              "browser_download_url": "https://github.com/openai/softnet/releases/download/0.22.1/softnet.tar.gz",
+              "digest": "sha256:1093be6f77b0c7a75b31cf651ff46844a81d73568184e807494f555280684644",
+              "created_at": "2026-08-11T02:14:37Z",
+              "updated_at": "2026-08-11T02:14:38Z"
+            },
+            {
+              "browser_download_url": "https://github.com/openai/softnet/releases/download/0.22.1/softnet_0.22.1_checksums.txt",
+              "digest": "sha256:0dbf682dfbcc7121aeb4daa25a71564e96dfc6c1ff3fdfbb633decb7277fcc51",
+              "created_at": "2026-08-11T02:14:37Z",
+              "updated_at": "2026-08-11T02:14:37Z"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

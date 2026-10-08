@@ -23,10 +23,10 @@ What to know before relying on it:
   `brew update` moves Homebrew past that commit, `upgrade` refuses until a newer
   commit has been qualified. `plan`, `explain` and `recover` keep working.
 - It executes bottled `homebrew/core` formulae and official casks made of
-  binaries and generated completions. Other casks and third-party taps are
-  reported as assessment errors, never upgraded some other way. A scope that
-  contains a third-party package, or an unsupported cask with a newer release,
-  therefore exits with status 1.
+  binaries and generated completions, plus versioned release archives from
+  [explicitly trusted taps](docs/trusted-taps.md). Untrusted taps and unsupported
+  installers remain assessment errors. Native pins intentionally retain packages
+  without requiring historical installer support.
 - Homebrew's `gh` formula must be installed and authenticated. It verifies
   bottle attestations, and source history uses the same credentials.
 - Homebrew's package locks do not exclude every other `brew` command. Avoid
@@ -174,9 +174,10 @@ The executor supports bottled `homebrew/core` formulae on Apple
 Silicon macOS at `/opt/homebrew`. Cask execution supports binary and
 generated-completion artifacts, the artifact types of the `codex` cask it was
 qualified with; self-updating casks and other artifact types are not executed.
-Third-party taps and other platforms are reported as unsupported until their
-adapters meet the same requirements. They remain part of the intended product
-scope. Unrelated installed packages
+Third-party formula release archives require explicit `trusted_taps`
+configuration and the [release archive contract](docs/trusted-taps.md).
+Unsupported artifact types and other platforms remain visible assessment errors.
+Unrelated installed packages
 stay outside a Brewfile run, but their dependency requirements still
 constrain changes to shared libraries.
 

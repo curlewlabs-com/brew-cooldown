@@ -11,7 +11,7 @@ set -eu
 project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 brew=${HOMEBREW_BREW_FILE:-brew}
 tracks="probes historical hooks shared-consumer interpreter execution-recovery \
-interruption commands cask cask-interruption cask-failure runtime-scope brewfile"
+interruption commands cask cask-interruption cask-failure runtime-scope brewfile trusted-taps"
 
 usage() {
   echo "usage: script/qualify TRACK | --list" >&2
@@ -163,6 +163,13 @@ runtime-scope)
   cask_install baseline
   experiment runtime_scope
   experiment command_upgrade mixed
+  ;;
+trusted-taps)
+  experiment trusted_taps baseline
+  experiment trusted_taps assessment
+  experiment trusted_taps crash_check
+  experiment trusted_taps recover
+  experiment trusted_taps upgrade
   ;;
 brewfile)
   # A stand-in for a consumer's Brewfile: acceptance needs one formula and one

@@ -45,6 +45,15 @@ module BrewCooldown
             raise Refused, "invalid journal operation"
           end
         end
+        parsed.fetch("operations").each do |entry|
+          full_name = entry["full_name"]
+          next if full_name.nil?
+
+          unless full_name.is_a?(String) && full_name.match?(/\A(?:[a-z0-9_-]+\/[a-z0-9_-]+\/)?[a-z0-9][a-z0-9+@._-]*\z/) &&
+                 full_name.split("/").last == entry.fetch("name") && !full_name.include?("..")
+            raise Refused, "invalid journal canonical package identity"
+          end
+        end
         keys = parsed.fetch("operations").map { |entry| [entry.fetch("kind", "formula"), entry.fetch("name")] }
         raise Refused, "duplicate journal operation identity" unless keys.uniq.length == keys.length
 
@@ -94,7 +103,7 @@ module BrewCooldown
           "drift" => Inventory.differences(data.fetch("inventory"), observed),
           "operations" => data.fetch("operations").map do |entry|
             entry.merge("status" => entry.fetch("status") == "started" ? "unconfirmed" : entry.fetch("status"),
-                        "recovery" => Recovery.commands(entry.fetch("name"),
+                        "recovery" => Recovery.commands(entry.fetch("full_name", entry.fetch("name")),
                                                         kind: entry.fetch("kind", "formula"),
                                                         previous_keg: entry["previous_keg"],
                                                         keg_only: entry.fetch("keg_only")))

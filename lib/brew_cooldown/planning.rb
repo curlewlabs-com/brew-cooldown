@@ -103,10 +103,10 @@ module BrewCooldown
         [:ambiguous, "More than one installed package matches this name; qualify the tap"]
       elsif matches.empty?
         [:missing, "Root package is not installed; scope does not install missing roots"]
-      elsif !((package.kind == :formula && package.tap == "homebrew/core") || (package.kind == :cask && package.tap == "homebrew/cask"))
-        [:unsupported_executor, "Historical execution for this package type or tap is not available"]
       elsif inventory.records.fetch(package).installed.pinned
         [:pinned, "Explicit Homebrew pin"]
+      elsif !((package.kind == :formula && (package.tap == "homebrew/core" || @config.trusted_tap?(package.tap))) || (package.kind == :cask && package.tap == "homebrew/cask"))
+        [:unsupported_executor, "Historical execution needs a supported package type and an explicitly trusted tap (trusted_taps)"]
       else
         [:selected, nil]
       end

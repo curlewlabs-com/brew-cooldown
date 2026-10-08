@@ -6,6 +6,8 @@ require_relative "candidate_evidence"
 require_relative "current_formula"
 require_relative "cask_history"
 require_relative "cask_evidence"
+require_relative "tap_history"
+require_relative "tap_evidence"
 require_relative "installed_inventory"
 require_relative "compatibility"
 require_relative "build_order"
@@ -43,6 +45,12 @@ module BrewCooldown
           package = pending.shift
           next unless visited.add?(package)
 
+          next if @inventory.records[package]&.installed&.pinned
+
+          if package.kind == :formula && package.tap != "homebrew/core" && @config.trusted_tap?(package.tap)
+            collect_tap(package, pending)
+            next
+          end
           if package.kind == :cask && package.tap == "homebrew/cask"
             collect_cask(package, pending)
             next
@@ -196,6 +204,52 @@ module BrewCooldown
         record_error(package, "discover_cask_history", error)
       end
 
+      def collect_tap(package, pending)
+        baseline = @inventory.records[package]&.installed
+        history = TapHistory.new(package:, log: @log, now: @now).refresh
+        installed_build = baseline&.build&.with(rebuild: 0)
+        return if installed_build && BuildOrder.call(history.current.build, installed_build) <= 0
+
+        identities = Set.new
+        history.entries.each do |entry|
+          begin
+            candidate = history.candidate(entry)
+            # Earlier superseded recipes cannot justify advancing this retained
+            # build, and their availability cannot invalidate its assessment.
+            break if installed_build && BuildOrder.call(candidate.build, installed_build) <= 0
+
+            history.verify_candidate!(candidate)
+            candidate.prepare
+            release = TapEvidence.release(package, candidate, published_at: history.publication(candidate, entry))
+            next unless identities.add?(release.identity)
+
+            first_seen = @observations.first_seen(release, now: @now) unless release.published_at
+            assessment = @advisories.assess(release:, installed: baseline)
+            decision = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
+                             .evaluate(release:, installed: baseline, now: @now, security: assessment.evidence, first_seen:)
+            dependencies = candidate.runtime_dependencies.map do |row|
+              RuntimeRequirement.new(package: InstalledInventory.package(row.fetch("full_name")))
+            end
+            @domains[package] ||= []
+            @domains[package] << Option.new(release:, decision:, dependencies:, compatibility_version: nil, retained: false)
+            @prepared[release.identity] = candidate
+            @decisions << { package: package.to_h, build: release.build.to_h, identity: release.identity, decision: decision.to_h,
+                            security: { coverage: assessment.coverage, evidence: assessment.evidence.to_h, advisories: [] } }
+            next unless decision.eligible?
+
+            dependencies.each do |requirement|
+              pending << requirement.package unless @domains.fetch(requirement.package, []).any?(&:retained)
+            end
+          rescue GitHub::API::RateLimitExceededError, GitHub::API::AuthenticationFailedError, GitHub::API::MissingAuthenticationError
+            raise
+          rescue StandardError => error
+            record_error(package, "prepare_tap_candidate", error, commit: entry.commit)
+          end
+        end
+      rescue StandardError => error
+        record_error(package, "discover_tap_history", error)
+      end
+
       def possible_advance?(tag, baseline, current_scheme)
         return true unless baseline && current_scheme == baseline.build.scheme
 
@@ -252,7 +306,7 @@ module BrewCooldown
 
       def record_error(package, operation, error, **context)
         details = { operation:, package: package.to_h, error: error.message, error_class: error.class.name,
-                    backtrace: error.backtrace, **context }
+                    backtrace: error.backtrace, recovery: Executor::Recovery.commands("#{package.tap}/#{package.name}", kind: package.kind.to_s), **context }
         @errors << details
         @log.call(**details)
       end

@@ -3,6 +3,8 @@
 require_relative "candidate_evidence"
 require_relative "cask_history"
 require_relative "cask_evidence"
+require_relative "tap_history"
+require_relative "tap_evidence"
 require_relative "current_formula"
 require_relative "advisories"
 require_relative "registry"
@@ -28,6 +30,8 @@ module BrewCooldown
           candidate = @prepared.fetch(option.release.identity)
           release = if package.kind == :cask
             cask_release(package, candidate, verify_payload:)
+          elsif package.tap != "homebrew/core"
+            tap_release(package, candidate, verify_payload:)
           else
             formula_release(package, candidate, registry, verify_payload:)
           end
@@ -70,6 +74,27 @@ module BrewCooldown
           candidate.bottle.with_verified_snapshot(candidate.bottle.cached_download) { |_snapshot| nil }
         end
         release
+      end
+
+      def tap_release(package, candidate, verify_payload:)
+        raise Executor::Refused, "#{package.tap}: tap is no longer explicitly trusted" unless @config.trusted_tap?(package.tap)
+
+        history = TapHistory.new(package:, log: @log, now: @clock.call).refresh
+        history.verify_candidate!(candidate)
+        entry = history.entries.find { |row| row.commit == candidate.record.fetch("commit") }
+        raise Executor::Refused, "#{package.name}: selected trusted recipe is no longer reachable in current history" unless entry
+
+        source = history.source_record(entry)
+        unless source == candidate.record
+          raise Executor::Refused, "#{package.name}: selected trusted source changed upstream"
+        end
+        if verify_payload
+          candidate.formula.resource.fetch
+          candidate.verify!
+        else
+          candidate.verify_shape!
+        end
+        TapEvidence.release(package, candidate, published_at: history.publication(candidate, entry))
       end
 
       def cask_release(package, candidate, verify_payload:)
