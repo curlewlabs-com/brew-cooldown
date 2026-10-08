@@ -32,7 +32,7 @@ Dir.mktmpdir("cooldown-brewfile-acceptance-") do |directory|
       raise "A declared Brewfile package was omitted" unless roots == expected_roots
       # A complete status is meaningful only when missing or unsupported scope
       # remains impossible to hide behind successful independent components.
-      raise "A Brewfile package is unassessed" unless result.fetch("scope").all? { |entry| %w[selected pinned outside_scope].include?(entry.fetch("status")) }
+      raise "A Brewfile package is unassessed" unless result.fetch("scope").all? { |entry| %w[selected pinned self_managed outside_scope].include?(entry.fetch("status")) }
       if command == "plan"
         raise "Planning mutated installed packages or pins" unless BrewCooldown::Executor::Inventory.capture == before
       else

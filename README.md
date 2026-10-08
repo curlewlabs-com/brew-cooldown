@@ -24,9 +24,9 @@ What to know before relying on it:
   commit has been qualified. `plan`, `explain` and `recover` keep working.
 - It executes bottled `homebrew/core` formulae and official casks made of
   binaries and generated completions, plus versioned release archives from
-  [explicitly trusted taps](docs/trusted-taps.md). Untrusted taps and unsupported
-  installers remain assessment errors. Native pins intentionally retain packages
-  without requiring historical installer support.
+  [explicitly trusted taps](docs/trusted-taps.md). For managed packages, untrusted
+  taps and unsupported installers remain assessment errors. Native pins
+  intentionally retain packages without requiring historical installer support.
 - Homebrew's `gh` formula must be installed and authenticated. It verifies
   bottle attestations, and source history uses the same credentials.
 - Homebrew's package locks do not exclude every other `brew` command. Avoid
@@ -173,7 +173,10 @@ waive the policy for all of its dependencies.
 The executor supports bottled `homebrew/core` formulae on Apple
 Silicon macOS at `/opt/homebrew`. Cask execution supports binary and
 generated-completion artifacts, the artifact types of the `codex` cask it was
-qualified with; self-updating casks and other artifact types are not executed.
+qualified with. Self-updating casks are reported as `self_managed`, outside
+cooldown control, and skipped for automatic upgrades. Their reported versions
+come from Homebrew's records and can be stale after vendor updates. Other
+unsupported artifact types remain assessment errors.
 Third-party formula release archives require explicit `trusted_taps`
 configuration and the [release archive contract](docs/trusted-taps.md).
 Unsupported artifact types and other platforms remain visible assessment errors.

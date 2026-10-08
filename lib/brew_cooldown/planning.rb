@@ -36,13 +36,22 @@ module BrewCooldown
       @discovery = HomebrewAdapter::Discovery.new(inventory:, config: @config, advisories: advisory,
                                                observations:, now: @now, log: @log).collect(roots)
       errors.concat(discovery.errors)
+      scope_results.each do |entry|
+        reason = discovery.self_managed[entry[:package]]
+        next unless reason
+
+        entry.merge!(status: :self_managed, reason:,
+                     recorded_version: inventory.records.fetch(entry.fetch(:package)).installed.build.version)
+      end
+      assessment_roots = roots.dup
+      roots -= discovery.self_managed.keys
       planner = Planner.new(compare_builds: HomebrewAdapter::BuildOrder, compatible: HomebrewAdapter::Compatibility,
                             max_assignments: @config.max_assignments)
       @resolutions = planner.plan(domains: discovery.domains, roots:)
       errors.concat(resolutions.filter_map do |resolution|
         { operation: "resolve", error: resolution.reason } if %i[resolution_limit no_compatible_solution].include?(resolution.status)
       end)
-      installed_security = roots.map do |package|
+      installed_security = assessment_roots.map do |package|
         baseline = inventory.records.fetch(package).installed
         retained = discovery.domains.fetch(package).find(&:retained)
         formula = package.kind == :formula ? inventory.records.fetch(package).retained&.formula : nil

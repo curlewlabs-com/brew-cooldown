@@ -34,7 +34,8 @@ A few probes under `test/integration` leave installed packages alone and are
 safe on a workstation: `advisories.rb`, `registry.rb` and
 `current_formulae.rb` query the live upstream sources,
 `installed_inventory.rb` reads the installed packages,
-`command_help.rb` checks help dispatch, and `command_recovery.rb` drives
+`command_help.rb` checks help dispatch, `self_managed_casks.rb` plans and
+explains already installed self-updating casks, and `command_recovery.rb` drives
 `recover` against a temporary state directory. Run one with
 `HOMEBREW_DEVELOPER=1 brew ruby -- test/integration/registry.rb`.
 

@@ -4,6 +4,7 @@
     "tap": "homebrew/cask",
     "version": "0.155.1",
     "disabled": false,
+    "auto_updates": null,
     "tap_git_head": "3e113459c2e257ba44a9e4de92171b1ce6a17c7a",
     "ruby_source_path": "Casks/c/codex.rb"
   },

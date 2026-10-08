@@ -215,8 +215,9 @@ version-aware advisory source is supported.
 
 ## Casks and third-party taps
 
-The planner evaluates official casks using reachable recipe history and native
-download verification. Their command executor uses the
+The planner reports self-updating official casks as self-managed, following the
+[ownership boundary](command-planning.md). Other official casks use reachable
+recipe history and native download verification. Their command executor uses the
 [validated cask adapter](cask-execution.md). Third-party formulae use the
 [trusted tap release archive adapter](trusted-taps.md) when explicitly configured;
 untrusted taps remain `unsupported_executor` unless intentionally pinned. Cask

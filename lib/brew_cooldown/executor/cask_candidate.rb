@@ -40,7 +40,7 @@ module BrewCooldown
       def prepare
         load_recipe unless @cask
         raise Refused, "cask needs a concrete version and checksum" if cask.version.latest? || !cask.sha256.is_a?(Checksum)
-        raise Refused, "self-updating cask needs a separate execution contract" if cask.auto_updates
+        raise Refused, "self-updating cask is outside cooldown control" if cask.auto_updates
         allowed = [Cask::Artifact::Binary, Cask::Artifact::GeneratedCompletion, Cask::Artifact::Zap]
         unsupported = cask.artifacts.reject { |artifact| allowed.include?(artifact.class) }
         raise Refused, "unvalidated cask artifacts: #{unsupported.map { |artifact| artifact.class.name }.join(', ')}" unless unsupported.empty?

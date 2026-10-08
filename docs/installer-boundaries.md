@@ -169,4 +169,6 @@ The [checkout commands](command-planning.md) connect historical discovery,
 policy-driven selection and component execution to this adapter. The complete
 release bar remains in [verification](verification.md). The
 [cask adapter](cask-execution.md) covers its documented artifact types;
-unsupported cask artifacts and taps remain explicit assessment errors.
+managed casks with unsupported artifacts and untrusted taps remain explicit
+assessment errors. Self-updating casks follow the
+[scope ownership boundary](command-planning.md).

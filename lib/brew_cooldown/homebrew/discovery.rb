@@ -15,7 +15,7 @@ require_relative "../observations"
 
 module BrewCooldown
   module HomebrewAdapter
-    DiscoveryResult = Data.define(:domains, :prepared, :decisions, :errors, :diagnostics)
+    DiscoveryResult = Data.define(:domains, :prepared, :decisions, :errors, :diagnostics, :self_managed)
 
     class Discovery
       class UnknownInstalledBuild < StandardError; end
@@ -25,6 +25,7 @@ module BrewCooldown
         @inventory, @config, @advisories, @observations, @now, @log = inventory, config, advisories, observations, now, log
         @registry, @current_formulae, @current = registry, current_formulae, {}
         @domains, @prepared, @decisions, @errors, @diagnostics = {}, {}, [], [], []
+        @self_managed = {}
         inventory.records.each do |package, record|
           release = Release.new(package:, build: record.installed.build, identity: record.identity, verified: true,
                                 published_at: nil, publication_source: nil)
@@ -109,7 +110,7 @@ module BrewCooldown
             end
           end
         end
-        DiscoveryResult.new(domains: @domains, prepared: @prepared, decisions: @decisions, errors: @errors, diagnostics: @diagnostics)
+        DiscoveryResult.new(domains: @domains, prepared: @prepared, decisions: @decisions, errors: @errors, diagnostics: @diagnostics, self_managed: @self_managed)
       end
 
       private
@@ -167,6 +168,18 @@ module BrewCooldown
         return if baseline&.pinned
 
         current = CurrentCask.fetch(package.name, log: @log)
+        installed_cask = @inventory.records[package]&.retained&.cask
+        if current.fetch("auto_updates") == true || installed_cask&.auto_updates == true
+          reason = CurrentCask.self_managed_reason
+          @self_managed[package] = reason
+          # The receipt still constrains managed dependencies, but retaining
+          # it cannot promise to retain the independently updated application.
+          @domains[package] = @domains.fetch(package, []).map do |option|
+            option.with(decision: option.decision.with(reason:))
+          end
+          @log.call(operation: "classify_cask", package: package.to_h, status: :self_managed, reason:)
+          return
+        end
         history = CaskHistory.new(current:, log: @log)
         history.entries.each do |entry|
           begin

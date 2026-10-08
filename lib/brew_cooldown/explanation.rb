@@ -21,6 +21,7 @@ module BrewCooldown
         package = matches.first
         baseline = installed.find { |entry| entry.package.to_h == package }
         explanation.merge!(status: :matched, package:, installed: baseline&.to_h)
+        explanation[:version_source] = :homebrew_receipt if package.fetch(:kind) == :cask
       else
         explanation.merge!(status: :ambiguous, reason: "Use a canonical identity: #{matches.map { |package| canonical(package) }.join(', ')}")
       end

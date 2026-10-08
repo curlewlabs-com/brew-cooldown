@@ -3,6 +3,9 @@
 Status: historical discovery, policy selection, component execution and recovery
 are connected to the commands. The native cask adapter supports the binary and
 generated-completion artifacts used by Codex on the validated Homebrew runtime.
+Self-updating casks follow the ownership boundary in
+[command planning](command-planning.md): they remain visible as self-managed
+and are not execution targets.
 
 ## Source, artifact and age
 
