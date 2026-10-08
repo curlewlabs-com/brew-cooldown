@@ -2,6 +2,7 @@
 
 require "cask/upgrade"
 require_relative "cask_candidate"
+require_relative "native_cask_system"
 
 module BrewCooldown
   module Executor
@@ -56,6 +57,7 @@ module BrewCooldown
         Executor.cask_map = self
         Cask::CaskLoader.singleton_class.prepend(CaskResolverGuard)
         Cask::Installer.prepend(CaskInstallerGuard)
+        NativeCaskSystem.activate if @candidates.values.any? { |entry| NativeCaskContract.supported?(entry.cask) }
       end
     end
 

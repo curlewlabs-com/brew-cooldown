@@ -109,6 +109,20 @@ when "upgrade"
   selected = planning.discovery.prepared.fetch(resolution.selected.fetch(PACKAGE).release.identity)
   previous = planning.inventory.records.fetch(PACKAGE).retained.cask
   operation = BrewCooldown::Executor::CaskOperation.new(selected, predecessor: previous)
+  # All-installed scope can also advance the VM's provisioned formulae. Their
+  # independently selected operations must account for those inventory changes.
+  planned = planning.resolutions.flat_map do |entry|
+    entry.selected.filter_map do |package, option|
+      next if option.retained
+
+      candidate = planning.discovery.prepared.fetch(option.release.identity)
+      if package.kind == :cask
+        BrewCooldown::Executor::CaskOperation.new(candidate)
+      else
+        BrewCooldown::Executor::FormulaOperation.new(candidate, map: nil)
+      end
+    end
+  end
   before = BrewCooldown::Executor::Inventory.capture
   result = BrewCooldown::Upgrade.new(config: CONFIG, scope: { installed: true }, state_directory: STATE, log: LOG, clock: -> { NOW }).call
   puts JSON.pretty_generate(BrewCooldown::Report.json_value(result))
@@ -119,7 +133,10 @@ when "upgrade"
   raise "Historical recipe provenance lost" unless receipt.source.fetch("tap_git_head") == selected.record.fetch("commit")
   BrewCooldown::Executor::NativeCaskContract.verify_installed!(selected.cask)
   changes = BrewCooldown::Executor::Inventory.differences(before, BrewCooldown::Executor::Inventory.capture)
-  raise "Native cask mutated unplanned inventory" unless changes.any? && changes.all? { |row| operation.owns_path?(row.fetch("path")) }
+  raise "Native cask inventory did not change" unless changes.any? { |row| operation.owns_path?(row.fetch("path")) }
+  raise "Native cask mutated unplanned inventory" unless changes.all? do |row|
+    planned.any? { |entry| entry.owns_path?(row.fetch("path")) }
+  end
   raise "Completed journal retained" unless BrewCooldown::Journals.new(STATE).pending.empty?
 when "drift"
   candidate = BrewCooldown::Executor::CaskCandidate.new(RECORDS.fetch("upgrade")).prepare

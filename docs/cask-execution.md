@@ -194,6 +194,23 @@ unchanged journal persistence govern the operation; no additional persistent
 claim or payload cleanup primitive is introduced. External writers still can
 race those checks, and interrupted hooks remain an operator reconciliation.
 
+Homebrew's native Trash and application-identity APIs use Objective-C. macOS
+can abort class initialization after a multithreaded process forks, as observed
+in the gcloud command-upgrade qualification. The cask map delegates those APIs
+to fresh Homebrew Ruby subprocesses. The same native APIs still own Trash,
+permission retries and application identity; fork safety is not disabled.
+This bridge does not load recipes or invoke package installers. The component
+continues to own installer guards, policy revalidation and journaling.
+
+| Subprocess boundary | Guard and ownership |
+| --- | --- |
+| Authorized mutation | Existing selected recipe and predecessor signatures still authorize uninstall actions before the bridge is reached |
+| API selection | Closed native API dispatch; paths and PIDs are arguments, never Ruby or shell source |
+| Input and result | Native argument semantics; exact JSON parser with checked result shapes and subprocess exit status |
+| Installer resolution | Remains in the component's exact maps; the bridge loads no cask recipes and installs no packages |
+| Error handling | Native failures remain native results; subprocess failures and unreadable results raise and retain the operation journal |
+| Persistence and cleanup | Synchronous subprocesses introduce no saved plan, receipt, replay or payload cleanup |
+
 ### Binary cask contract
 
 In a disposable Apple Silicon VM, install the historical baseline, upgrade to
