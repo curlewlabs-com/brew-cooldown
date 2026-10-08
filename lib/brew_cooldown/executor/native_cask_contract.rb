@@ -111,6 +111,7 @@ module BrewCooldown
           [paths.first.read.strip, *paths.drop(1).map { |path| JSON.parse(path.read).fetch("version") }]
         when "tailscale-app"
           executable = Pathname("/Applications/Tailscale.app/Contents/MacOS/Tailscale")
+          raise Refused, "tailscale-app: native package evidence is missing" unless files(cask.token).all?(&:file?)
           raise Refused, "tailscale-app: installed executable is missing" unless executable.file? && executable.executable?
           unless plist_value(files(cask.token).fetch(0), "CFBundleIdentifier") == "io.tailscale.ipn.macsys"
             raise Refused, "tailscale-app: installed bundle identity differs"

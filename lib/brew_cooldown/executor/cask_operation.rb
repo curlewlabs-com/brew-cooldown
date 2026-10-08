@@ -44,8 +44,9 @@ module BrewCooldown
       def install
         if @predecessor
           installer = Cask::Installer.new(cask, upgrade: true, require_sha: true)
+          # Native app shutdown keeps its running updater out of PKG replacement.
           Cask::Upgrade.upgrade_cask(@predecessor, cask, binaries: true, force: false, require_sha: true,
-                                    quit: false, skip_cask_deps: false, verbose: false,
+                                    quit: NativeCaskContract.supported?(cask), skip_cask_deps: false, verbose: false,
                                     download_queue: Homebrew::DownloadQueue.default, new_cask_installer: installer)
         else
           Cask::Installer.new(cask, require_sha: true).install
