@@ -137,7 +137,10 @@ module BrewCooldown
 
         # The vendor installer can restore optional components over the network.
         # Its own fixed-version property keeps that work on the selected SDK.
-        with_env(CLOUDSDK_COMPONENT_MANAGER_FIXED_SDK_VERSION: cask.version.to_s,
+        # The versioned formula does not replace macOS's python3. Vendor commands
+        # must use the interpreter already assessed in the selected dependency map.
+        with_env(CLOUDSDK_PYTHON: (HOMEBREW_PREFIX/"opt/python@3.14/libexec/bin/python").to_s,
+                 CLOUDSDK_COMPONENT_MANAGER_FIXED_SDK_VERSION: cask.version.to_s,
                  CLOUDSDK_COMPONENT_MANAGER_DISABLE_UPDATE_CHECK: "true") { yield }
       end
     end

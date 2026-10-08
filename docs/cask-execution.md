@@ -121,7 +121,9 @@ and the hooks recreate its Python environment. The selected Python dependency
 must already satisfy the shared plan. The vendor installer preserves optional
 components and may download them; its process-scoped fixed-SDK-version setting
 keeps them on the selected release. Native predecessor restoration receives
-the predecessor's setting. The Python-environment hook's external wheel download
+the predecessor's setting. Vendor commands use the declared Homebrew Python
+interpreter; a versioned Python formula does not replace macOS's `python3`.
+The Python-environment hook's external wheel download
 remains vendor-managed hook behavior, not a Homebrew package operation or a
 separately cooldown-assessed artifact. Zap is never run.
 

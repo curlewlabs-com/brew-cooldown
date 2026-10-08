@@ -56,8 +56,10 @@ end
 def verify_payload
   retained = BrewCooldown::Executor::CaskRetained.new(NAME)
   if NAME == "gcloud-cli"
-    output, status = Open3.capture2e((HOMEBREW_PREFIX/"bin/gcloud").to_s, "version", "--format=json")
-    raise "Historical gcloud does not run: #{output}" unless status.success? && JSON.parse(output).fetch("Google Cloud SDK") == retained.cask.version.to_s
+    BrewCooldown::Executor::NativeCaskContract.with_installer_environment(retained.cask) do
+      output, status = Open3.capture2e((HOMEBREW_PREFIX/"bin/gcloud").to_s, "version", "--format=json")
+      raise "Historical gcloud does not run: #{output}" unless status.success? && JSON.parse(output).fetch("Google Cloud SDK") == retained.cask.version.to_s
+    end
     root = HOMEBREW_PREFIX/"share/google-cloud-sdk"
     alpha = JSON.parse((root/".install/alpha.snapshot.json").read)
     raise "Optional SDK component advanced independently" unless alpha.fetch("version") == retained.cask.version.to_s
