@@ -3,10 +3,9 @@
 require "global"
 require "formula_installer"
 require "digest"
+require_relative "errors"
 
 module BrewCooldownWorker
-  class Refused < StandardError; end
-
   source = File.binread(ENV.fetch("HOMEBREW_COOLDOWN_WORKER_PLAN"))
   unless Digest::SHA256.hexdigest(source) == ENV.fetch("HOMEBREW_COOLDOWN_WORKER_DIGEST")
     raise Refused, "post-install recipe map changed"
@@ -44,7 +43,8 @@ module BrewCooldownWorker
       resource.downloader.define_singleton_method(:fetch) { |timeout: nil| resource.verify_download_integrity(archive) }
     end
 
-    keys = [name, path.to_s, (HOMEBREW_CELLAR/token/formula.pkg_version.to_s/".brew/#{token}.rb").to_s]
+    keys = [name, path.to_s, (HOMEBREW_CELLAR/token/formula.pkg_version.to_s/".brew/#{token}.rb").to_s,
+            (HOMEBREW_PREFIX/"opt/#{token}/.brew/#{token}.rb").to_s]
     keys << "homebrew/core/#{name}" if tap == "homebrew/core"
     keys.each { |key| result[key] = formula }
   end.freeze
@@ -58,6 +58,12 @@ module BrewCooldownWorker
       end
 
       formula = FORMULAE.fetch(reference.to_s) { raise Refused, "unplanned post-install lookup: #{reference}" }
+      # Native source post-install chooses the opt recipe when that release is
+      # active. Accept its alias only while it points at the selected keg.
+      if reference.to_s.start_with?("#{HOMEBREW_PREFIX}/opt/") &&
+         Pathname(reference).realpath != HOMEBREW_CELLAR/formula.name/formula.pkg_version.to_s/".brew/#{formula.name}.rb"
+        raise Refused, "post-install opt recipe no longer selects the planned release: #{reference}"
+      end
       unless flags.empty? || (flags == ["--build-from-source"] && RELEASE_ARCHIVES.include?(formula.full_name))
         raise Refused, "unplanned recipe flags: #{reference}"
       end

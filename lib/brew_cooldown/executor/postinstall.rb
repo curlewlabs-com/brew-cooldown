@@ -45,6 +45,7 @@ module BrewCooldown
           contents = JSON.generate(records)
           (stage/"recipes.json").write(contents)
           FileUtils.copy_file(File.join(__dir__, "worker.rb"), stage/"worker.rb")
+          FileUtils.copy_file(File.join(__dir__, "errors.rb"), stage/"errors.rb")
           Executor.worker_plan = stage
           with_env(HOMEBREW_COOLDOWN_WORKER_PLAN: (stage/"recipes.json").to_s,
                    HOMEBREW_COOLDOWN_WORKER_DIGEST: Digest::SHA256.hexdigest(contents)) do

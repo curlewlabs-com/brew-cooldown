@@ -125,4 +125,20 @@ output, status = Open3.capture2e((HOMEBREW_PREFIX/"opt/tart/bin/tart").to_s, "--
 raise "Installed Tart did not execute: #{output}" unless status.success? && output.include?("2.37.0")
 raise "Tart native completion hook did not run" unless (HOMEBREW_PREFIX/"opt/tart/share/zsh/site-functions").glob("*").any?
 raise "Completed upgrade retained journals" unless BrewCooldown::Journals.new(STATE).pending.empty?
+
+# A canonical opt path must not let a worker authorized for the older recipe
+# resolve the newer active receipt. Exercise the native parser without hooks.
+older = BASELINE.map do |name, commit|
+  history = BrewCooldown::HomebrewAdapter::TapHistory.new(package: PACKAGE.with(name:), log: LOG, now: NOW).refresh
+  history.candidate(BrewCooldown::HomebrewAdapter::TapHistoryEntry.new(commit:, published_at: nil)).prepare
+end
+BrewCooldown::Executor::Postinstall.with_map(BrewCooldown::Executor::ExactMap.new(older)) do
+  stage = BrewCooldown::Executor.worker_plan
+  code = 'require "cmd/postinstall"; Homebrew::Cmd::Postinstall.new.args.named.to_resolved_formulae'
+  output, status = Open3.capture2e(*HOMEBREW_RUBY_EXEC_ARGS, "-I", $LOAD_PATH.join(File::PATH_SEPARATOR),
+                                 "-r", (stage/"worker.rb").to_s, "-e", code,
+                                 (HOMEBREW_PREFIX/"opt/tart/.brew/tart.rb").to_s)
+  raise "Worker accepted another active release: #{output}" unless !status.success? &&
+    output.include?("post-install opt recipe no longer selects the planned release")
+end
 puts "PASS: historical eligible release upgrades, dependency receipts, native hooks and journal cleanup"

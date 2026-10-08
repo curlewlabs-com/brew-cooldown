@@ -22,6 +22,8 @@ adapter. Those cases remain explicit failures, rather than falling through to
 ordinary `brew upgrade`. Execution copies the selected recipe and archive into
 sandbox-protected private
 snapshots; native receipts retain the selected tap and source commit.
+The worker accepts Homebrew's `opt` recipe alias only when its real path selects
+the planned keg's embedded recipe.
 Trusted install code is not statically interpreted:
 Homebrew evaluates the exact recipe and runs its hooks in the native sandbox.
 Trusting a tap therefore includes trusting its installation code.
