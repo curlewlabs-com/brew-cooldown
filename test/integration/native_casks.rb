@@ -64,8 +64,11 @@ def verify_payload
     alpha = JSON.parse((root/".install/alpha.snapshot.json").read)
     raise "Optional SDK component advanced independently" unless alpha.fetch("version") == retained.cask.version.to_s
   else
-    output, status = Open3.capture2e("/Applications/Tailscale.app/Contents/MacOS/Tailscale", "version")
-    raise "Historical Tailscale does not run: #{output}" unless status.success? && output.lines.first.strip == retained.cask.version.to_s
+    # The vendor launcher chooses GUI or CLI from terminal environment. VM
+    # subprocesses must select CLI explicitly rather than launching an app.
+    output, status = Open3.capture2e({ "TAILSCALE_BE_CLI" => "1" },
+                                   "/Applications/Tailscale.app/Contents/MacOS/Tailscale", "version", "--json")
+    raise "Historical Tailscale does not run: #{output}" unless status.success? && JSON.parse(output).fetch("short") == retained.cask.version.to_s
   end
   retained
 end

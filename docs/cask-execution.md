@@ -172,6 +172,10 @@ inspection must keep those operations unconfirmed and leave packages unchanged.
 The printed native forward-repair command is exercised before explicit journal
 acknowledgment. Restoration of hooks, extensions or user configuration is not
 certified by accepting a journal.
+The Tailscale runtime probe selects the vendor's explicit
+[CLI mode](https://tailscale.com/docs/reference/tailscale-cli?tab=macos) and
+reads JSON version output. Its executable can otherwise select a GUI from the
+launch environment; the runtime probe must not depend on a terminal session.
 
 | Boundary | Native cask path |
 | --- | --- |
