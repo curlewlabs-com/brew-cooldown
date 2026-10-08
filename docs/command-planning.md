@@ -31,6 +31,27 @@ Formula consumers continue to constrain the same dependency through their
 recorded bottle requirements. Native cask pins are included in both scope
 decisions and inventory fingerprints.
 
+Official casks declaring `auto_updates` in their installed recipe or fresh
+Homebrew metadata are `self_managed`. This declaration includes user-triggered
+vendor updates; it does not establish whether automatic updates are enabled.
+Their independent update paths can bypass cooldowns and leave Homebrew's version
+record stale,
+so they remain visible in scope but receive no historical candidate discovery
+or automatic upgrade. Reported versions are Homebrew-recorded versions, not
+claims about the live application. A self-managed entry alone does not make
+the assessment incomplete. Missing or malformed metadata, unreadable inventory
+and other assessment failures remain errors.
+
+Unsupported cask security coverage remains explicit; a recorded version does
+not establish the live application's security state.
+
+Recorded runtime dependencies still participate in normal managed planning,
+and the retained cask remains a consumer constraint. Native pins keep their
+existing precedence and do not control vendor updates. Pre-install
+revalidation refuses a managed cask if fresh metadata now declares self-update
+capability. No persistent updater setting is changed or inferred. See
+Homebrew's [self-updating app behavior](https://docs.brew.sh/FAQ#how-does-brew-upgrade-handle-apps-that-update-themselves).
+
 Homebrew's installed receipt does not reliably retain the bottle rebuild
 identity. An embedded recipe's default rebuild value cannot establish which
 bottle was poured: the recipe can have no bottle block, or carry older bottle
@@ -102,6 +123,7 @@ Qualified tap names and declared Brewfile aliases also identify scoped packages.
 Explanations retain assessment errors from the whole scope, since a focused
 view must not turn a failed plan into success. JSON includes the full plan plus
 an `explanation` object with the matched identity and native installed baseline.
+Cask explanations label that version as Homebrew-recorded, including for pins.
 No separate explanation cache or saved plan is maintained.
 
 Discovery first reads fresh current formula metadata for the whole scope in one
@@ -142,16 +164,24 @@ a rollback can both leave the registry ahead of the API, so the diagnostic
 does not claim which caused the disagreement. Missing bottle rebuild evidence
 remains missing rather than being displayed as a confirmed rebuild.
 
-Cask discovery uses fresh official metadata to anchor the source history to a
-Homebrew commit. Each historical recipe is bound to its Git blob, loaded through
-the native cask evaluator and paired with its verified vendor download. The
-source commit supplies the age of that exact recipe and checksum; missing or
+Managed cask discovery uses fresh official metadata to anchor source history
+to a Homebrew commit. Each historical recipe is bound to its Git blob, loaded
+through the native cask evaluator and paired with its verified vendor download.
+The source commit supplies the age of that exact recipe and checksum; missing or
 unusable dates use the observation fallback. Current withdrawals and version
 rollbacks constrain historical candidates. Independent recipe identities keep
 their own clocks, and equally versioned eligible recipes prefer the later
 publication. See [cask execution](cask-execution.md).
 
 ## Verification
+
+`test/integration/self_managed_casks.rb` runs read-only planning and explanation
+against already installed self-updating casks. It compares reported versions
+with native receipts, checks that dependencies remain in scope and no cask
+upgrade is proposed, and verifies unchanged installed state. The unit suite
+uses recorded official metadata and native receipt excerpts to exercise
+all-installed scope, automatic upgrade skipping, metadata failures and the
+pre-install transition to self-management.
 
 `test/integration/command_explain.rb` runs the actual package explanation with
 an empty Homebrew cache. It compares the reported baseline with the native cask

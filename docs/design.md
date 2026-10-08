@@ -69,9 +69,9 @@ privileged helper, hosted database, telemetry, or private infrastructure.
 The installation adapters target bottled `homebrew/core` formulae and the
 official binary casks described in [cask execution](cask-execution.md), and
 [trusted tap release archives](trusted-taps.md), on Apple Silicon macOS at
-`/opt/homebrew`. Discovery and planning explicitly report unsupported cask
-artifacts, untrusted taps, source-only packages, and other platforms. They are
-not silently omitted or advertised as executable support.
+`/opt/homebrew`. Discovery and planning explicitly report unsupported managed
+cask artifacts, untrusted taps, source-only packages, and other platforms. They
+are not silently omitted or advertised as executable support.
 Additional adapters must meet the same contracts before enabling upgrade paths.
 This narrows initial execution, not the requirement to select historical
 eligible versions.
@@ -80,7 +80,9 @@ eligible versions.
 
 - `plan --brewfile PATH` refreshes metadata and prints a plan for installed
   entries and their required runtime dependencies.
-- `plan --installed` selects all installed formulae and casks as roots.
+- `plan --installed` includes all installed formulae and casks in scope.
+  Self-managed casks remain visible outside cooldown control; other supported
+  packages are managed roots. See [command planning](command-planning.md).
 - `upgrade` accepts the same scope options, computes a fresh plan, stages its
   artifacts, revalidates it, and applies independent eligible components.
 - `upgrade --security-only` permits only components needed to fix a verified

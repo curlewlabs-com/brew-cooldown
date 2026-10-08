@@ -11,7 +11,8 @@ module BrewCooldown
       package = explanation[:package]
       if (baseline = explanation[:installed])
         build = baseline.fetch(:build).to_h
-        output.puts("Installed: #{build.fetch(:version)} (revision #{build.fetch(:revision)}, rebuild #{build[:rebuild] || 'unknown'})")
+        label = explanation[:version_source] == :homebrew_receipt ? "Homebrew-recorded version" : "Installed"
+        output.puts("#{label}: #{build.fetch(:version)} (revision #{build.fetch(:revision)}, rebuild #{build[:rebuild] || 'unknown'})")
       end
       result.fetch(:candidates).select { |entry| entry.fetch(:package) == package }.each do |candidate|
         decision = candidate.fetch(:decision)
@@ -90,6 +91,7 @@ module BrewCooldown
       output.puts("#{heading}: #{result.fetch(:status)}")
       result.fetch(:scope).each do |entry|
         output.puts("#{entry.fetch(:requested)}: #{entry.fetch(:status)}#{entry[:reason] ? " - #{entry[:reason]}" : ''}")
+        output.puts("  Homebrew-recorded version: #{entry[:recorded_version]}") if entry[:recorded_version]
       end
       result.fetch(:components).each do |component|
         component.fetch(:selected).each do |selection|

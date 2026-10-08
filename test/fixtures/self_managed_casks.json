@@ -1,0 +1,253 @@
+{
+  "retrieved_at": "2026-10-08",
+  "sources": {
+    "gcloud-cli": "https://formulae.brew.sh/api/cask/gcloud-cli.json",
+    "tailscale-app": "https://formulae.brew.sh/api/cask/tailscale-app.json",
+    "codex": "https://formulae.brew.sh/api/cask/codex.json",
+    "python@3.14": "https://formulae.brew.sh/api/formula/python@3.14.json",
+    "mpdecimal": "https://formulae.brew.sh/api/formula/mpdecimal.json",
+    "openssl@3": "https://formulae.brew.sh/api/formula/openssl@3.json",
+    "sqlite": "https://formulae.brew.sh/api/formula/sqlite.json",
+    "xz": "https://formulae.brew.sh/api/formula/xz.json",
+    "zstd": "https://formulae.brew.sh/api/formula/zstd.json",
+    "ca-certificates": "https://formulae.brew.sh/api/formula/ca-certificates.json",
+    "readline": "https://formulae.brew.sh/api/formula/readline.json",
+    "lz4": "https://formulae.brew.sh/api/formula/lz4.json"
+  },
+  "current": {
+    "gcloud-cli": {
+      "token": "gcloud-cli",
+      "tap": "homebrew/cask",
+      "version": "588.0.0",
+      "disabled": false,
+      "disable_reason": null,
+      "auto_updates": true,
+      "tap_git_head": "6e61a21ab6014ecb23b5c95f352d924f97f30d12",
+      "ruby_source_path": "Casks/g/gcloud-cli.rb"
+    },
+    "tailscale-app": {
+      "token": "tailscale-app",
+      "tap": "homebrew/cask",
+      "version": "1.104.1",
+      "disabled": false,
+      "disable_reason": null,
+      "auto_updates": true,
+      "tap_git_head": "6e61a21ab6014ecb23b5c95f352d924f97f30d12",
+      "ruby_source_path": "Casks/t/tailscale-app.rb"
+    },
+    "codex": {
+      "token": "codex",
+      "tap": "homebrew/cask",
+      "version": "0.162.0",
+      "disabled": false,
+      "disable_reason": null,
+      "auto_updates": null,
+      "tap_git_head": "6e61a21ab6014ecb23b5c95f352d924f97f30d12",
+      "ruby_source_path": "Casks/c/codex.rb"
+    }
+  },
+  "receipts": {
+    "gcloud-cli": {
+      "source": {
+        "tap": "homebrew/cask",
+        "tap_git_head": "f40dc7011bce5c93434579706436e3a57b357d20",
+        "version": "581.0.0"
+      },
+      "runtime_dependencies": {
+        "formula": [
+          {
+            "full_name": "python@3.14",
+            "version": "3.14.7",
+            "revision": 0,
+            "bottle_rebuild": 0,
+            "pkg_version": "3.14.7",
+            "declared_directly": true
+          },
+          {
+            "full_name": "mpdecimal",
+            "version": "4.0.1",
+            "revision": 0,
+            "bottle_rebuild": 0,
+            "pkg_version": "4.0.1",
+            "declared_directly": false
+          },
+          {
+            "full_name": "openssl@3",
+            "version": "3.6.3",
+            "revision": 0,
+            "bottle_rebuild": 1,
+            "pkg_version": "3.6.3",
+            "declared_directly": false
+          },
+          {
+            "full_name": "sqlite",
+            "version": "3.53.4",
+            "revision": 0,
+            "bottle_rebuild": 0,
+            "pkg_version": "3.53.4",
+            "declared_directly": false
+          },
+          {
+            "full_name": "xz",
+            "version": "5.8.3",
+            "revision": 0,
+            "bottle_rebuild": 0,
+            "pkg_version": "5.8.3",
+            "declared_directly": false
+          },
+          {
+            "full_name": "zstd",
+            "version": "1.5.7",
+            "revision": 1,
+            "bottle_rebuild": 0,
+            "pkg_version": "1.5.7_1",
+            "declared_directly": false
+          },
+          {
+            "full_name": "ca-certificates",
+            "version": "2026-08-13",
+            "revision": 0,
+            "bottle_rebuild": 0,
+            "pkg_version": "2026-08-13",
+            "declared_directly": false
+          },
+          {
+            "full_name": "readline",
+            "version": "8.3.3",
+            "revision": 0,
+            "bottle_rebuild": 0,
+            "pkg_version": "8.3.3",
+            "declared_directly": false
+          },
+          {
+            "full_name": "lz4",
+            "version": "1.10.0",
+            "revision": 0,
+            "bottle_rebuild": 1,
+            "pkg_version": "1.10.0",
+            "declared_directly": false
+          }
+        ]
+      }
+    },
+    "tailscale-app": {
+      "source": {
+        "tap": "homebrew/cask",
+        "tap_git_head": "8b84cd6c14d73bc028ae5f4bf939f8c3bbb9ec90",
+        "version": "1.102.4"
+      },
+      "runtime_dependencies": {}
+    }
+  },
+  "receipt_source": "Homebrew Cask::Tab receipt excerpts read from the engineering Mac on 2026-10-08; application versions are not asserted",
+  "formulae": {
+    "python@3.14": {
+      "name": "python@3.14",
+      "tap": "homebrew/core",
+      "version_scheme": 0,
+      "disabled": false,
+      "versions": {
+        "stable": "3.14.8",
+        "head": null,
+        "bottle": true
+      },
+      "revision": 0
+    },
+    "mpdecimal": {
+      "name": "mpdecimal",
+      "tap": "homebrew/core",
+      "version_scheme": 0,
+      "disabled": false,
+      "versions": {
+        "stable": "4.0.1",
+        "head": null,
+        "bottle": true
+      },
+      "revision": 0
+    },
+    "openssl@3": {
+      "name": "openssl@3",
+      "tap": "homebrew/core",
+      "version_scheme": 0,
+      "disabled": false,
+      "versions": {
+        "stable": "3.6.5",
+        "head": null,
+        "bottle": true
+      },
+      "revision": 0
+    },
+    "sqlite": {
+      "name": "sqlite",
+      "tap": "homebrew/core",
+      "version_scheme": 0,
+      "disabled": false,
+      "versions": {
+        "stable": "3.53.4",
+        "head": null,
+        "bottle": true
+      },
+      "revision": 0
+    },
+    "xz": {
+      "name": "xz",
+      "tap": "homebrew/core",
+      "version_scheme": 1,
+      "disabled": false,
+      "versions": {
+        "stable": "5.8.4",
+        "head": null,
+        "bottle": true
+      },
+      "revision": 0
+    },
+    "zstd": {
+      "name": "zstd",
+      "tap": "homebrew/core",
+      "version_scheme": 0,
+      "disabled": false,
+      "versions": {
+        "stable": "1.5.7",
+        "head": "HEAD",
+        "bottle": true
+      },
+      "revision": 1
+    },
+    "ca-certificates": {
+      "name": "ca-certificates",
+      "tap": "homebrew/core",
+      "version_scheme": 0,
+      "disabled": false,
+      "versions": {
+        "stable": "2026-09-25",
+        "head": null,
+        "bottle": true
+      },
+      "revision": 0
+    },
+    "readline": {
+      "name": "readline",
+      "tap": "homebrew/core",
+      "version_scheme": 0,
+      "disabled": false,
+      "versions": {
+        "stable": "8.3.6",
+        "head": null,
+        "bottle": true
+      },
+      "revision": 0
+    },
+    "lz4": {
+      "name": "lz4",
+      "tap": "homebrew/core",
+      "version_scheme": 0,
+      "disabled": false,
+      "versions": {
+        "stable": "1.10.0",
+        "head": "HEAD",
+        "bottle": true
+      },
+      "revision": 0
+    }
+  }
+}
