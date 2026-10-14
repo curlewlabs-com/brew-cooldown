@@ -77,6 +77,7 @@ module BrewCooldown
             record_error(package, "discover_history", error)
             next
           end
+          scheme_floor = nil
           tags.sort_by { |tag| Version.new(tag) }.reverse_each do |tag|
             # Homebrew increments the scheme when ordinary version ordering
             # changes. Fresh current metadata bounds the historical schemes;
@@ -85,9 +86,10 @@ module BrewCooldown
 
             begin
               metadata = @registry.resolve(package.name, tag)
-              next unless metadata_advances?(metadata, baseline, current.fetch("version_scheme"))
+              next unless metadata_advances?(metadata, baseline, current.fetch("version_scheme"), scheme_floor)
 
               candidate = prepare(metadata)
+              scheme_floor = next_scheme_floor(scheme_floor, candidate, metadata, baseline)
               option = evaluate(package, candidate, metadata, baseline, current)
               @domains[package] ||= []
               @domains[package] << option
@@ -274,8 +276,12 @@ module BrewCooldown
         versions.any? { |version| version >= before }
       end
 
-      def metadata_advances?(metadata, baseline, current_scheme)
-        return true unless baseline && current_scheme == baseline.build.scheme
+      def metadata_advances?(metadata, baseline, current_scheme, scheme_floor)
+        return true unless baseline
+
+        version_ordered = current_scheme == baseline.build.scheme ||
+                          (scheme_floor && metadata.latest_publication && metadata.latest_publication < scheme_floor)
+        return true unless version_ordered
 
         before = PkgVersion.new(Version.new(baseline.build.version), baseline.build.revision)
         comparison = PkgVersion.parse(metadata.pkg_version) <=> before
@@ -285,6 +291,19 @@ module BrewCooldown
           raise UnknownInstalledBuild, unknown_build_reason(metadata.name, metadata.pkg_version, metadata.rebuild)
         end
         comparison.positive? || (comparison.zero? && metadata.rebuild > baseline.build.rebuild)
+      end
+
+      # Bottles publish as their recipe changes merge, and Homebrew's audit
+      # forbids lowering a formula's version scheme. A bottle published before
+      # a verified build of at most the installed scheme therefore carries at
+      # most that scheme too, and ordinary version order decides whether it
+      # advances. Without this bound a scheme change prepares the package's
+      # whole history, and bottles older than Homebrew's attestations fail
+      # verification on every run.
+      def next_scheme_floor(floor, candidate, metadata, baseline)
+        return floor unless baseline && metadata.published_at && candidate.formula.version_scheme <= baseline.build.scheme
+
+        [floor, metadata.published_at].compact.max
       end
 
       def prepare(metadata)

@@ -24,7 +24,10 @@ timestamp belongs to that manifest; the index creation date is not substituted
 for it. A missing platform timestamp remains absent for the observation-clock
 fallback. Historical calendar-only dates also use the observation fallback:
 they do not establish an instant or timezone, and assuming midnight could
-shorten a delay. An invalid date or malformed timestamp is an error.
+shorten a delay. Such a date still bounds publication from above: the bottle
+existed by the date's end in the westernmost timezone. Discovery uses that
+bound only to order bottles across a version-scheme change, never as an age. An
+invalid date or malformed timestamp is an error.
 
 Official registry metadata uses both `homebrew` and the historical `Homebrew`
 vendor spelling. Both are accepted within the same bound official repository;
