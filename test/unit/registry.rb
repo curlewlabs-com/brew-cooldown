@@ -89,9 +89,11 @@ raise "Wrong platform publication" unless metadata.published_at == Time.iso8601(
 # Old index annotations survive platform additions. Real official responses
 # guard against rejecting installed libraries just because their format aged.
 [
-  ["lz4", "1.10.0", :arm64_sonoma, nil],
-  ["libyaml", "0.2.5", :arm64_tahoe, Time.iso8601("2025-09-10T18:51:04Z")],
-].each do |name, tag, platform_tag, publication|
+  # lz4 records only 2024-08-05. That date can have ended as late as the next
+  # midnight twelve hours behind UTC, which is all a calendar date can bound.
+  ["lz4", "1.10.0", :arm64_sonoma, nil, Time.iso8601("2024-08-06T12:00:00Z")],
+  ["libyaml", "0.2.5", :arm64_tahoe, Time.iso8601("2025-09-10T18:51:04Z"), Time.iso8601("2025-09-10T18:51:04Z")],
+].each do |name, tag, platform_tag, publication, latest|
   index_body = (FIXTURES/"#{name}-index.json").read
   platform_body = (FIXTURES/"#{name}-platform.json").read
   index_sha = Digest::SHA256.hexdigest(index_body)
@@ -102,6 +104,7 @@ raise "Wrong platform publication" unless metadata.published_at == Time.iso8601(
   historical = registry(source).resolve(name, tag, platform: platform_tag)
   raise "Historical formula identity changed" unless historical.name == name && historical.pkg_version == tag
   raise "Historical platform clock was invented or lost" unless historical.published_at == publication
+  raise "Historical publication bound was misplaced" unless historical.latest_publication == latest
   raise "Historical dependency evidence changed" unless historical.runtime_dependencies == []
 end
 
@@ -134,6 +137,7 @@ raise "Index clock displaced platform publication" unless metadata_reader(change
 without_date = Marshal.load(Marshal.dump(platform))
 without_date["annotations"].delete("org.opencontainers.image.created")
 raise "Missing platform clock inherited another date" unless metadata_reader.complete(without_date).published_at.nil?
+raise "Missing platform clock gained a publication bound" unless metadata_reader.complete(without_date).latest_publication.nil?
 
 [
   ["Index identity", ->(row) { row["annotations"]["org.opencontainers.image.title"] = "another" }],

@@ -45,7 +45,8 @@ entries, candidates = {}, {}
   digest = Digest::SHA256.hexdigest(recipe)
   entries[version] = HomebrewAdapter::BottleMetadata.new(name: "example", pkg_version: version, rebuild: 0,
     platform: "arm64_tahoe", index_sha256: digest, platform_sha256: digest, bottle_sha256: digest,
-    published_at: Time.iso8601("2026-08-01T00:00:00Z"), runtime_dependencies: [], source: nil)
+    published_at: Time.iso8601("2026-08-01T00:00:00Z"), latest_publication: Time.iso8601("2026-08-01T00:00:00Z"),
+    runtime_dependencies: [], source: nil)
   candidates[version] = Prepared.new(formula:, rebuild: 0, worker_record: { "recipe_sha256" => digest },
     runtime_dependencies: [], compatibility_version: nil, identity: { "version" => version }, tag: "arm64_tahoe")
 end

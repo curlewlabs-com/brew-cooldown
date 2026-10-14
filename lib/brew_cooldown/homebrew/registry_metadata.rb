@@ -7,8 +7,12 @@ require "bottle_specification"
 
 module BrewCooldown
   module HomebrewAdapter
+    # `published_at` is the age clock and stays absent without a full
+    # timestamp. `latest_publication` only orders bottles: it is the last
+    # instant the platform manifest can have been created, which a
+    # calendar-only date still bounds.
     BottleMetadata = Data.define(:name, :pkg_version, :rebuild, :platform, :index_sha256, :platform_sha256,
-                                 :bottle_sha256, :published_at, :runtime_dependencies, :source)
+                                 :bottle_sha256, :published_at, :latest_publication, :runtime_dependencies, :source)
 
     class RegistryMetadata
       # Older official indexes preserve the GitHub organization's original case
@@ -77,9 +81,11 @@ module BrewCooldown
         unless JSON.parse(text!(descriptor_annotations["sh.brew.tab"], "descriptor receipt")) == tab
           raise RegistryError, "Descriptor and platform runtime receipts differ for #{@name} #{@tag}"
         end
-        published_at = publication_time(annotations["org.opencontainers.image.created"])
+        created = annotations["org.opencontainers.image.created"]
+        published_at = publication_time(created)
         BottleMetadata.new(name: @name, pkg_version: @version, rebuild: @rebuild, platform: @platform,
                            index_sha256: @index_sha256, platform_sha256:, bottle_sha256:, published_at:,
+                           latest_publication: published_at || calendar_end(created),
                            runtime_dependencies: dependencies.freeze, source: annotations["org.opencontainers.image.source"])
       rescue KeyError, TypeError, JSON::ParserError, ArgumentError => error
         raise RegistryError, "Invalid platform metadata for #{@name} #{@tag}: #{error.message}"
@@ -100,6 +106,15 @@ module BrewCooldown
         end
         DateTime.rfc3339(value)
         Time.iso8601(value).utc
+      end
+
+      # The date's zone is unknown, so it may have ended as late as the next
+      # midnight in the westernmost offset. Anything earlier could misplace a
+      # bottle built late on that local day.
+      def calendar_end(value)
+        return unless value.is_a?(String) && value.match?(/\A[0-9]{4}-[0-9]{2}-[0-9]{2}\z/)
+
+        Time.iso8601("#{(Date.iso8601(value) + 1).iso8601}T00:00:00-12:00").utc
       end
 
       def native_platform(manifests)

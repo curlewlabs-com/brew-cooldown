@@ -137,8 +137,16 @@ version, the unknown-rebuild diagnostic is reported from that metadata.
 
 For a package that is behind, the registry supplies its history. When the
 current scheme matches the installed scheme, native version ordering excludes
-old tags before downloading their bottles. A scheme change
-requires inspecting old-looking versions too. Registry references disambiguate
+old tags before downloading their bottles. A scheme change requires inspecting
+old-looking versions too, until the walk prepares a build whose verified recipe
+still has at most the installed scheme. Homebrew's audit forbids lowering a
+formula's scheme, so bottles published before that build's platform manifest
+are ordered by version alone, as without a scheme change. Their versions below
+the installation are not downloaded, including bottles that predate Homebrew's
+attestations and would fail verification. A calendar-only date counts as
+earlier only when the date ended before that instant in every timezone. Without
+such a build, every tag is still prepared and its failures still fail the
+assessment. Registry references disambiguate
 upstream version suffixes from bottle rebuild suffixes. Every selected candidate
 still gets its actual version scheme from the verified embedded recipe.
 An actively disabled formula is reported with Homebrew's reason; loading an
