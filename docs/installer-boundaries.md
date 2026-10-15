@@ -186,6 +186,12 @@ brew install --formula lua@5.4
 brew ruby -- test/integration/sibling_link.rb upgrade
 ```
 
+On 2026-10-15 the experiment passed in the Qualify workflow on macOS 26.6.2
+with Homebrew 7.0.9 at the validated commit. Both phases completed through the
+executor. The upgrade read `lua@5.4` 5.4.9 from its keg and left it unlinked.
+Homebrew has deprecated `lua@5.4` and will disable it on 2027-08-26, after
+which this fixture needs another unlinked keg-only sibling.
+
 The [checkout commands](command-planning.md) connect historical discovery,
 policy-driven selection and component execution to this adapter. The complete
 release bar remains in [verification](verification.md). The
