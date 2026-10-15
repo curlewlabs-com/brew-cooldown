@@ -20,9 +20,21 @@ module BrewCooldown
 
       def resolve(reference)
         candidate = candidates[reference.to_s.delete_prefix("homebrew/core/")]
-        raise Refused, "unplanned formula lookup: #{reference}" unless candidate
+        return candidate.formula if candidate
+        return installed_sibling(reference.to_s) if @resolving_siblings
 
-        candidate.formula
+        raise Refused, "unplanned formula lookup: #{reference}"
+      end
+
+      # Linking asks every sibling the tap names, such as node@18 for node,
+      # whether it holds prefix links to displace, and natively loads today's
+      # recipe for each. Only an installed sibling can hold links, and the
+      # recipe in its keg answers for it. KegGuard still refuses displacing it.
+      def resolving_siblings
+        previous, @resolving_siblings = @resolving_siblings, true
+        yield
+      ensure
+        @resolving_siblings = previous
       end
 
       def validate(formula)
@@ -54,8 +66,23 @@ module BrewCooldown
         Executor.active_map = self
         Formulary.singleton_class.prepend(ResolverGuard)
         Dependency.singleton_class.prepend(BottleDependencyGraph)
+        Formula.prepend(SiblingLinks)
         FormulaInstaller.prepend(InstallerGuard)
         Keg.prepend(KegGuard)
+      end
+
+      private
+
+      def installed_sibling(reference)
+        name = reference.delete_prefix("homebrew/core/")
+        # Native traversal skips a sibling it cannot load, which is also the
+        # truth for one never installed: it has no keg to link.
+        raise FormulaUnavailableError, name unless Formula.racks.include?(HOMEBREW_CELLAR/name)
+
+        opt = HOMEBREW_PREFIX/"opt"/name
+        raise Refused, "#{name}: installed sibling has no active opt link" unless opt.symlink? && opt.exist?
+
+        Retained.new(Keg.new(opt.realpath)).formula
       end
     end
 
@@ -72,6 +99,15 @@ module BrewCooldown
         end
 
         Executor.active_map.resolve(reference)
+      end
+    end
+
+    # Native linking, its conflict handling and the two native decisions
+    # InstallerGuard disables all reach siblings through this list. The
+    # sibling allowance lasts only while the list is built.
+    module SiblingLinks
+      def link_overwrite_formulae
+        Executor.active_map.resolving_siblings { super }
       end
     end
 
