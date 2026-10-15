@@ -104,7 +104,9 @@ shared-consumer)
   experiment shared_consumer upgrade
   ;;
 interpreter)
-  provision install --formula --only-dependencies ruby@3.3
+  # The fixture bottles record these runtime dependencies. Today's ruby@3.3
+  # recipe can name others: it moved to openssl@4, which 3.3.11 cannot use.
+  provision install --formula libyaml ca-certificates openssl@3
   experiment interpreter_upgrade baseline
   experiment interpreter_upgrade upgrade
   # The partial upgrade needs the formula baseline beside the interpreter and
