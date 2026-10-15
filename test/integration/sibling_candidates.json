@@ -1,0 +1,12 @@
+{
+  "baseline": {
+    "name": "lua",
+    "version": "5.5.0",
+    "index_sha256": "6cd102dd79173401ad28ec16e9cad8bcf5158b70ccc171f9f41ac9873b6a2f4d"
+  },
+  "upgrade": {
+    "name": "lua",
+    "version": "5.5.1",
+    "index_sha256": "81be85b160815d77bcc636168eec1a8df1e4078e11b2acad2f6eec569c865508"
+  }
+}

@@ -10,8 +10,9 @@ set -eu
 
 project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 brew=${HOMEBREW_BREW_FILE:-brew}
-tracks="probes historical hooks shared-consumer interpreter execution-recovery \
-interruption commands cask cask-interruption cask-failure runtime-scope brewfile trusted-taps"
+tracks="probes historical hooks shared-consumer interpreter sibling-link \
+execution-recovery interruption commands cask cask-interruption cask-failure \
+runtime-scope brewfile trusted-taps"
 
 usage() {
   echo "usage: script/qualify TRACK | --list" >&2
@@ -110,6 +111,13 @@ interpreter)
   # nothing else connecting them into one component (docs/command-planning.md).
   experiment historical_install baseline
   experiment command_upgrade partial
+  ;;
+sibling-link)
+  experiment sibling_link baseline
+  # Native auto-linking skips a keg-only sibling once lua is installed, so
+  # the upgrade meets lua@5.4 installed but unlinked.
+  provision install --formula lua@5.4
+  experiment sibling_link upgrade
   ;;
 execution-recovery)
   experiment historical_install baseline
