@@ -37,6 +37,15 @@ local changes, it reports `unsupported_runtime` without downloading candidates
 or starting a component. Each component checks again before its first mutation.
 `plan`, `explain` and `recover` install nothing and stay available.
 
+Qualification follows Homebrew's releases. While Homebrew's
+[developer mode](https://docs.brew.sh/Manpage#developer-subcommand) is on,
+`brew update` follows Homebrew's `main` branch instead, and any developer
+command, `brew ruby` included, turns that mode on until `brew developer off`.
+`upgrade` then names the checkout as not a Homebrew release, because waiting
+will not bring a qualification for it. The
+[scheduler contract](#scheduler-contract) updates in a way that stays on
+releases either way.
+
 Release qualification must run the native installation, dependency, hook and
 recovery experiments on each newly supported Homebrew runtime. The Qualify
 workflow runs them on every pull request that moves the qualified commit; see
@@ -126,11 +135,17 @@ invokes the upgrade command:
 
 ```sh
 set -eu
-/opt/homebrew/bin/brew update
+HOMEBREW_UPDATE_TO_TAG=1 /opt/homebrew/bin/brew update --force
 exec /path/to/brew-cooldown/bin/brew-cooldown upgrade \
   --config /path/to/brew-cooldown/examples/conservative.json \
   --brewfile /path/to/Brewfile
 ```
+
+`HOMEBREW_UPDATE_TO_TAG` keeps the update on the latest release even after a
+developer command has turned on developer mode
+([Homebrew's environment](https://docs.brew.sh/Manpage#environment)). `--force`
+moves a checkout already at the tip of Homebrew's `main` branch, which an
+unforced update leaves in place while `main` has not moved.
 
 Provide `/opt/homebrew/bin` on `PATH` and a stable `HOME` for the installing
 account. Preserve stdout, stderr and the command's exit status in scheduler

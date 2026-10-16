@@ -21,7 +21,7 @@ What to know before relying on it:
   adapter was
   [qualified on](docs/scheduled-adoption.md#homebrew-runtime-changes). Once
   `brew update` moves Homebrew past that commit, `upgrade` refuses until a newer
-  commit has been qualified. `plan`, `explain` and `recover` keep working.
+  release has been qualified. `plan`, `explain` and `recover` keep working.
 - It executes bottled `homebrew/core` formulae and official casks made of
   binaries and generated completions, plus versioned release archives from
   [explicitly trusted taps](docs/trusted-taps.md). For managed packages, untrusted
