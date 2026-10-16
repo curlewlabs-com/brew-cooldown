@@ -21,16 +21,45 @@ module BrewCooldown
         raise Refused, "execution needs Apple Silicon macOS at /opt/homebrew" unless
           OS.mac? && Hardware::CPU.arm? && HOMEBREW_PREFIX.to_s == "/opt/homebrew"
 
-        head, status = Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s, "rev-parse", "HEAD")
-        raise Refused, "Homebrew checkout identity unavailable" unless status.success?
-        unless head.strip == VALIDATED_HOMEBREW_COMMIT
-          raise Refused, "Homebrew checkout #{head.strip} is not the commit the installer adapter was qualified on " \
-                         "(#{VALIDATED_HOMEBREW_COMMIT}); plan and explain still work, upgrade does not"
-        end
+        check_checkout!(HOMEBREW_REPOSITORY.to_s)
+      end
 
-        changes, status = Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s,
-                                       "status", "--porcelain", "--untracked-files=no")
+      def self.check_checkout!(repository, validated: VALIDATED_HOMEBREW_COMMIT)
+        head, status = Open3.capture2("git", "-C", repository, "rev-parse", "HEAD")
+        raise Refused, "Homebrew checkout identity unavailable" unless status.success?
+        head = head.strip
+        raise Refused, unqualified_checkout(repository, head, validated) unless head == validated
+
+        changes, status = Open3.capture2("git", "-C", repository, "status", "--porcelain", "--untracked-files=no")
         raise Refused, "Homebrew checkout changed" unless status.success? && changes.empty?
+      end
+
+      # A release awaits qualification, but a checkout between releases never
+      # gets it: `brew update` follows Homebrew's main branch while developer
+      # mode is on, and any developer command such as `brew ruby` turns that
+      # mode on until `brew developer off`
+      # (https://docs.brew.sh/Manpage#developer-subcommand). Naming that case
+      # spares an operator waiting on a qualification that cannot arrive.
+      def self.unqualified_checkout(repository, head, validated)
+        refusal = "is not the commit the installer adapter was qualified on (#{validated}); " \
+                  "plan and explain still work, upgrade does not"
+        return "Homebrew checkout #{head} #{refusal}" unless non_release?(repository, head)
+
+        described, status = Open3.capture2("git", "-C", repository, "describe", "--tags", head)
+        identity = status.success? ? "#{head} (#{described.strip})" : head
+        # `--force` because without it `brew update` leaves a checkout sitting at
+        # main's unchanged tip where it is, whatever HOMEBREW_UPDATE_TO_TAG asks:
+        # https://github.com/Homebrew/brew/blob/cdc1ca503231b9a96da64526774915d913c3ec9f/Library/Homebrew/cmd/update.sh#L1041-L1049
+        "Homebrew checkout #{identity} is not a Homebrew release and #{refusal}. Homebrew follows its main " \
+          "branch while developer mode is on; run `brew developer off` or set HOMEBREW_UPDATE_TO_TAG=1, then " \
+          "`brew update --force`, to return to the latest release"
+      end
+
+      def self.non_release?(repository, head)
+        tags, status = Open3.capture2("git", "-C", repository, "tag", "--points-at", head)
+        # The release-tag shape `brew update` itself selects:
+        # https://github.com/Homebrew/brew/blob/cdc1ca503231b9a96da64526774915d913c3ec9f/Library/Homebrew/cmd/update.sh#L263-L266
+        status.success? && tags.lines.none? { |tag| tag.strip.match?(/\A\d+\.\d+\.\d+\z/) }
       end
 
       def apply(expected_inventory:, before_install: nil, &progress)
