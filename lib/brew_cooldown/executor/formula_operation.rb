@@ -78,11 +78,29 @@ module BrewCooldown
         Executor.executing_name = nil
       end
 
-      def owns_path?(path)
+      def owns_change?(change)
+        path = change.fetch("path")
         names = [name, *formula.aliases, *formula.oldnames]
-        path.start_with?("#{formula.rack}/") || names.any? do |entry|
+        return true if path.start_with?("#{formula.rack}/") || names.any? do |entry|
           [HOMEBREW_PREFIX/"opt"/entry, HOMEBREW_LINKED_KEGS/entry].any? { |allowed| allowed.to_s == path }
         end
+
+        # Replacing a keg also moves links the tap no longer names for it.
+        # Unlinking the old keg removes the aliases its receipt recorded, and
+        # linking the new one repoints any other opt link into the rack. Once
+        # Homebrew gave python and python3 to python@3.15, upgrading python@3.14
+        # removed opt/python and moved opt/python@3 to the new keg.
+        link_directories = [HOMEBREW_PREFIX/"opt", HOMEBREW_LINKED_KEGS].map(&:to_s)
+        return false unless link_directories.include?(File.dirname(path))
+
+        expected, observed = change.values_at("expected", "observed")
+        into_rack?(path, expected) && (observed.nil? || into_rack?(path, observed))
+      end
+
+      private
+
+      def into_rack?(link, target)
+        target.is_a?(String) && File.expand_path(target, File.dirname(link)).start_with?("#{formula.rack}/")
       end
     end
   end

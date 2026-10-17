@@ -152,7 +152,7 @@ module BrewCooldown
             operation.install
             map.candidates.values.reject(&:install?).each(&:check_linkage!)
             after = Inventory.capture
-            unexpected = Inventory.differences(inventory, after).reject { |change| operation.owns_path?(change.fetch("path")) }
+            unexpected = Inventory.differences(inventory, after).reject { |change| operation.owns_change?(change) }
             raise Refused, "unplanned inventory change after #{kind}/#{name}: #{unexpected}" unless unexpected.empty?
 
             inventory = after

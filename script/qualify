@@ -11,8 +11,8 @@ set -eu
 project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 brew=${HOMEBREW_BREW_FILE:-brew}
 tracks="probes historical hooks shared-consumer interpreter sibling-link \
-execution-recovery interruption commands cask cask-interruption cask-failure \
-runtime-scope brewfile trusted-taps"
+moved-alias execution-recovery interruption commands cask cask-interruption \
+cask-failure runtime-scope brewfile trusted-taps"
 
 usage() {
   echo "usage: script/qualify TRACK | --list" >&2
@@ -120,6 +120,10 @@ sibling-link)
   # the upgrade meets lua@5.4 installed but unlinked.
   provision install --formula lua@5.4
   experiment sibling_link upgrade
+  ;;
+moved-alias)
+  experiment sibling_link baseline
+  experiment moved_alias
   ;;
 execution-recovery)
   experiment historical_install baseline
