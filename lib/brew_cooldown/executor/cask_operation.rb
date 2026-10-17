@@ -72,7 +72,7 @@ module BrewCooldown
         end
       end
 
-      def owns_path?(path) = path.start_with?("#{cask.caskroom_path}/")
+      def owns_change?(change) = change.fetch("path").start_with?("#{cask.caskroom_path}/")
     end
   end
 end

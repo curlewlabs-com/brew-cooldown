@@ -192,6 +192,26 @@ executor. The upgrade read `lua@5.4` 5.4.9 from its keg and left it unlinked.
 Homebrew has deprecated `lua@5.4` and will disable it on 2027-08-26, after
 which this fixture needs another unlinked keg-only sibling.
 
+Replacing a keg also moves links its tap no longer names for it. A receipt
+records the aliases the tap gave the formula at installation. Unlinking the old
+keg removes those alias links, and linking the new keg repoints any other `opt`
+link that still resolves into the rack. Homebrew gave `python`, `python3` and
+`python@3` to python@3.15 while python@3.14 3.14.7 was installed, so the
+upgrade to 3.14.8 removed `opt/python` and `opt/python3` and moved
+`opt/python@3`. The executor counts an `opt` or linked-keg change as the
+operation's own when the link resolved into its rack before the installation
+and still does, or is gone. Any other link change remains unplanned.
+
+A fresh VM installs only under today's aliases, so the moved-alias experiment
+records an alias in the sibling-link baseline's receipt, adds its `opt` link
+and an `opt` link into the rack that no name covers, then upgrades lua:
+
+```sh
+export HOMEBREW_COOLDOWN_TEST_STATE="$PWD/alias-state"
+brew ruby -- test/integration/sibling_link.rb baseline
+brew ruby -- test/integration/moved_alias.rb
+```
+
 The [checkout commands](command-planning.md) connect historical discovery,
 policy-driven selection and component execution to this adapter. The complete
 release bar remains in [verification](verification.md). The
