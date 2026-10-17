@@ -116,8 +116,10 @@ waits, intentional pins, conclusive formula candidate exclusions described in
 input, incomplete assessment, unsupported selected packages, operational
 blockers, or execution failure. JSON distinguishes those conditions. Pending
 cooldowns do not make routine scheduled runs fail. A known vulnerable
-installation without an actionable fix is an operational blocker, including
-when pinned.
+installation with a fix the plan does not select is an operational blocker,
+including when pinned. One that no published release fixes is a warning: no
+run can install a fix that does not exist, and failing every run until one
+appears would hide each run's other results.
 
 ## Configuration
 
@@ -191,7 +193,7 @@ gets an explicit diagnostic, while independent eligible work proceeds.
 The diagnostic does not turn an already installed version and revision into an
 upgrade failure. Native Homebrew's outdated check uses package version and
 version scheme, not a persisted bottle rebuild. Security evidence that leaves
-an installed vulnerability without an actionable fix remains an error.
+an installed vulnerability with an unselected fix remains an error.
 
 The normalized candidate graph exists in memory for one invocation. Historical
 queries are scoped to selected roots and discovered dependencies, paginated,

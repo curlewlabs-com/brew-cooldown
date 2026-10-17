@@ -64,7 +64,10 @@ the commands to `explain PACKAGE`; the JSON diagnostics stay one per package.
 An already installed version and revision do not fail the run solely because
 its bottle rebuild is unknown. This follows native Homebrew's version-based
 upgrade boundary, without claiming identical installed artifact bytes. A known
-installed vulnerability without an actionable fix still fails assessment.
+installed vulnerability with a fix the plan does not select still fails
+assessment, as does one whose candidates were not all checked against it. When
+every candidate remains affected, or none exists, the result carries a warning
+naming the advisories instead, and the run's status does not change.
 Retaining a dependency at its recorded package version and revision follows
 Homebrew's installed-dependency contract, which does not require a bottle
 rebuild. This does not establish exact installed artifact identity. Any other

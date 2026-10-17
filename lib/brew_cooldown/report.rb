@@ -39,6 +39,7 @@ module BrewCooldown
         candidates: result.fetch(:candidates).select { |entry| identities.include?(entry.fetch(:identity)) },
         installed_security: result.fetch(:installed_security).select { |entry| entry.fetch(:package) == package },
         diagnostics: Array(result[:diagnostics]).select { |entry| !entry[:package] || entry[:package] == package },
+        warnings: Array(result[:warnings]).select { |entry| entry[:package] == package },
       )
       print_human(focused, output, heading: "Scope assessment")
     end
@@ -140,6 +141,7 @@ module BrewCooldown
                     "replacement is selected for #{names.join(', ')}")
         output.puts("  Inspect one package and its repair commands:\n    brew-cooldown explain #{names.first}")
       end
+      Array(result[:warnings]).each { |entry| output.puts(error_line(entry, label: "Warning")) }
       result.fetch(:errors).each do |entry|
         output.puts(error_line(entry))
         recoveries = entry[:recovery]
@@ -152,20 +154,20 @@ module BrewCooldown
       end
     end
 
-    # Errors print after every per-package line, so they are what the end of a
-    # report or a captured log tail shows. Each must name the package it is
-    # about, or that tail cannot be acted on without the full report. A scope
-    # entry is named as its scope line names it; a candidate error also carries
-    # the tag that failed, since several releases of one package can fail the
-    # same way.
-    def self.error_line(entry)
+    # Warnings and errors print after every per-package line, so they are what
+    # the end of a report or a captured log tail shows. Each must name the
+    # package it is about, or that tail cannot be acted on without the full
+    # report. A scope entry is named as its scope line names it; a candidate
+    # error also carries the tag that failed, since several releases of one
+    # package can fail the same way.
+    def self.error_line(entry, label: "Error")
       package = entry[:package]
       name = entry[:requested] || case package
                                   when String then package
                                   when Hash, Data then package.to_h[:name]
                                   end
-      message = entry[:error] || entry[:reason]
-      name ? "Error: #{[name, entry[:tag]].compact.join(' ')}: #{message}" : "Error: #{message}"
+      message = entry[:error] || entry[:warning] || entry[:reason]
+      name ? "#{label}: #{[name, entry[:tag]].compact.join(' ')}: #{message}" : "#{label}: #{message}"
     end
 
     def self.json_value(value)
