@@ -10,18 +10,18 @@ def package(name)
   BrewCooldown::PackageId.new(kind: :formula, tap: "homebrew/core", name:)
 end
 
-def build(version)
-  BrewCooldown::Build.new(version:, revision: 0, rebuild: 0, scheme: 0)
+def build(version, revision: 0)
+  BrewCooldown::Build.new(version:, revision:, rebuild: 0, scheme: 0)
 end
 
-def requirement(name, version, cohort: nil)
-  BrewCooldown::Requirement.new(package: package(name), build: build(version), compatibility_version: cohort)
+def requirement(name, version, cohort: nil, revision: 0)
+  BrewCooldown::Requirement.new(package: package(name), build: build(version, revision:), compatibility_version: cohort)
 end
 
 def option(name, version, retained: false, dependencies: [], cohort: nil, status: :eligible,
-           eligible_at: Time.iso8601("2026-09-01T00:00:00Z"))
-  release = BrewCooldown::Release.new(package: package(name), build: build(version),
-                        identity: Digest::SHA256.hexdigest([name, version, retained].join(":")),
+           eligible_at: Time.iso8601("2026-09-01T00:00:00Z"), revision: 0)
+  release = BrewCooldown::Release.new(package: package(name), build: build(version, revision:),
+                        identity: Digest::SHA256.hexdigest([name, version, revision, retained].join(":")),
                         verified: true, published_at: nil, publication_source: nil)
   decision = BrewCooldown::Decision.new(status:, reason: "test decision", eligible_at:, delay_kind: :patch,
                           age_source: :first_observation, fixed_advisories: [])
@@ -116,10 +116,30 @@ assert_version(result, "outside", "5.0.0")
 
 # Among compatible dependencies, preserve the installed choice before doing
 # unnecessary work simply because a newer compatible release exists.
-cohort_root = old_root.with(dependencies: [requirement("library", "1.0.1", cohort: 1)])
+cohort_root = old_root.with(dependencies: [requirement("library", "1.0.0", cohort: 1)])
 result = resolve([base_root, base_library.with(compatibility_version: 1), cohort_root,
                   old_library.with(compatibility_version: 1)], roots: ["app"]).fetch(0)
+assert_version(result, "app", "1.0.1")
 assert_version(result, "library", "1.0.0")
+
+# A cohort covers releases after the consumer's recorded build, never before.
+# A node bottle built against simdutf 9.2.0_1 failed to load beside an
+# installed 9.2.0 of the same cohort, whose revision lacked symbols it used.
+installed_library = base_library.with(compatibility_version: 1)
+rebuilt_library = option("library", "1.0.0", revision: 1, cohort: 1, status: :cooldown)
+rebuilt_root = old_root.with(dependencies: [requirement("library", "1.0.0", cohort: 1, revision: 1)])
+if BrewCooldown::HomebrewAdapter::Compatibility.call(rebuilt_root.dependencies.first, installed_library)
+  raise "An older build of the cohort satisfied a consumer built with a later one"
+end
+result = resolve([base_root, installed_library, rebuilt_root, rebuilt_library], roots: ["app"]).fetch(0)
+raise "Consumer advanced without the dependency build it records" unless result.status == :unchanged
+unless result.rejected_options.fetch(rebuilt_root.release.identity).include?("compatible with 1.0.0 (revision 1)")
+  raise "Rejected consumer does not name the dependency revision it needs"
+end
+eligible_rebuild = rebuilt_library.with(decision: rebuilt_library.decision.with(status: :eligible))
+result = resolve([base_root, installed_library, rebuilt_root, eligible_rebuild], roots: ["app"]).fetch(0)
+assert_version(result, "app", "1.0.1")
+raise "Recorded dependency build was not selected" unless result.selected.fetch(package("library")).release.build.revision == 1
 
 # An unrelated broken component must leave another root free to advance.
 broken = option("broken", "2.0.0", dependencies: [requirement("absent", "2.0.0")])

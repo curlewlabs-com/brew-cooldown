@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "version"
+require "pkg_version"
+
 module BrewCooldown
   module HomebrewAdapter
     module Compatibility
@@ -20,7 +23,19 @@ module BrewCooldown
 
         cohort = requirement.compatibility_version
         # Homebrew uses nil for absence; zero can be an explicit cohort.
-        cohort.is_a?(Integer) && cohort == option.compatibility_version
+        return false unless cohort.is_a?(Integer) && cohort == option.compatibility_version
+
+        covers?(required, selected)
+      end
+
+      # A cohort reaches forward from the build a consumer recorded, never back
+      # to an earlier one. Homebrew's audit asks for a cohort bump only when a
+      # dependency's version changes: simdutf 9.2.0_1, built as C++20, kept
+      # cohort 5 while exporting symbols that 9.2.0 lacks, and node built
+      # against 9.2.0_1 failed to load beside 9.2.0.
+      def self.covers?(required, selected)
+        PkgVersion.new(Version.new(selected.version), selected.revision) >=
+          PkgVersion.new(Version.new(required.version), required.revision)
       end
     end
   end
