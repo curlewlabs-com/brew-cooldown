@@ -83,6 +83,25 @@ module BrewCooldown
       end
     end
 
+    # The age clock comes from publication metadata, not from verifying the
+    # artifact, so a release whose clock has not run out can be held before
+    # its identity is verified. Only an affected installation lets a young
+    # release through (security_exception?), and judging that needs the
+    # verified candidate, so it is left to evaluate, as is every release the
+    # clock would no longer hold. nil means evaluate decides.
+    def unverified_cooldown(build:, installed:, published_at:, publication_source:, now:, security:)
+      return if installed.nil? || installed.pinned || security.installed_affected == true
+      return unless published_at && publication_source && published_at <= now
+      advance = @compare_builds.call(build, installed.build)
+      return if advance.nil? || advance <= 0
+
+      kind = delay_kind(installed.build, build)
+      eligible_at = published_at + @delays.fetch(kind) * SECONDS_PER_DAY
+      return if now >= eligible_at
+
+      decision(:cooldown, "Candidate is still cooling down", eligible_at:, delay_kind: kind, age_source: publication_source)
+    end
+
     private
 
     def delay_kind(installed, candidate)

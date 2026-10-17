@@ -153,6 +153,19 @@ such a build, every tag is still prepared and its failures still fail the
 assessment. Registry references disambiguate
 upstream version suffixes from bottle rebuild suffixes. Every selected candidate
 still gets its actual version scheme from the verified embedded recipe.
+
+Preparing a candidate downloads and attests its bottle, the costliest step of a
+run, and most candidates are still cooling down. A candidate's clock comes from
+its platform manifest's publication time, not from that verification, so when
+the manifest shows a release still cooling down, the walk holds it without
+preparing it, and the run that could select it prepares it. The walk still
+prepares a young release while the installed version is affected by an
+advisory, since only a verified candidate can prove it a security fix; a
+release dated only by calendar day, whose clock starts at a verified first
+observation; and every release across a scheme change. A held release never
+reaches the solver, its own advisories are reported as `not_assessed`, and a
+bottle that would fail verification is reported once its release could be
+selected rather than on every run before that.
 An actively disabled formula is reported with Homebrew's reason; loading an
 older recipe cannot bypass that current withdrawal signal.
 Candidates ahead of Homebrew's currently published version, revision or rebuild
