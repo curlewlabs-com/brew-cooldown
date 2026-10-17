@@ -5,7 +5,9 @@ require_relative "policy"
 
 module BrewCooldown
   Requirement = Data.define(:package, :build, :compatibility_version) do
-    def description = "compatible with #{build.version}"
+    # The revision can be the whole difference, as between an installed
+    # 9.2.0 and a consumer built with 9.2.0_1.
+    def description = "compatible with #{build.version} (revision #{build.revision})"
   end
   RuntimeRequirement = Data.define(:package) do
     def description = "installed and active"

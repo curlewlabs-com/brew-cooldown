@@ -26,4 +26,18 @@ end
 raise "A different retained package version was accepted without compatibility evidence" unless mismatched_version_rejected
 BrewCooldown::Executor::Compatibility.validate!(requirement.merge("compatibility_version" => 0),
                                                target.with(compatibility_version: 0))
-puts "PASS: native-only rebuild evidence and explicit compatibility cohorts"
+
+# A cohort reaches forward from the consumer's recorded build only. Retaining
+# an earlier revision of the same cohort left a node bottle unable to load.
+cohort_requirement = requirement.merge("compatibility_version" => 5)
+BrewCooldown::Executor::Compatibility.validate!(
+  cohort_requirement, target.with(formula: formula.with(pkg_version: PkgVersion.parse("1.0.1")), compatibility_version: 5),
+)
+begin
+  BrewCooldown::Executor::Compatibility.validate!(cohort_requirement.merge("pkg_version" => "1.0.0_1"),
+                                                 target.with(compatibility_version: 5, install?: false))
+rescue BrewCooldown::Executor::Refused => error
+  older_rejected = error.message.include?("older than 1.0.0_1")
+end
+raise "An earlier build of the cohort satisfied a consumer built with a later one" unless older_rejected
+puts "PASS: native-only rebuild evidence and explicit compatibility cohorts that reach only forward"

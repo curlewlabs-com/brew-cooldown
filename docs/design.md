@@ -286,6 +286,10 @@ and dependency semantics. A bare dependency name is not a promise of binary
 compatibility. Exact recorded dependency versions are admissible; replacing
 them with another version requires positive compatibility evidence supported
 by the adapter. A minimum version by itself supplies no upper ABI guarantee.
+A matching compatibility cohort supplies that guarantee only from the recorded
+build forward. Homebrew asks for a new cohort only when a dependency's version
+changes, so an earlier revision of the same cohort can lack symbols the
+consumer links.
 An unchanged installed dependency can satisfy its recorded upstream version
 and formula revision without a bottle rebuild identifier, matching Homebrew's
 installed-dependency contract. This does not authorize a rebuild-only upgrade

@@ -67,9 +67,10 @@ upgrade boundary, without claiming identical installed artifact bytes. A known
 installed vulnerability without an actionable fix still fails assessment.
 Retaining a dependency at its recorded package version and revision follows
 Homebrew's installed-dependency contract, which does not require a bottle
-rebuild. This does not establish exact installed artifact identity. Replacing
-a dependency uses exact build evidence or an explicit compatibility
-identifier.
+rebuild. This does not establish exact installed artifact identity. Any other
+dependency build needs exact build evidence or a matching compatibility
+identifier, and that identifier covers only builds at or after the recorded
+package version and revision.
 
 Installed identity relies exclusively on Homebrew's receipts and installed
 recipes. The tool does not save a supplemental installation receipt, including

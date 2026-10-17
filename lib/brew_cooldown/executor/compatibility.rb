@@ -21,7 +21,15 @@ module BrewCooldown
         return if version_matches && rebuild_matches
 
         required = dependency["compatibility_version"]
-        return if required.is_a?(Integer) && required == selected.compatibility_version
+        if required.is_a?(Integer) && required == selected.compatibility_version
+          # HomebrewAdapter::Compatibility.covers? says why a cohort reaches
+          # only forward from the consumer's recorded build.
+          return if selected.formula.pkg_version >= PkgVersion.parse(dependency.fetch("pkg_version"))
+
+          raise Refused, "#{selected.formula.name} #{selected.formula.pkg_version}: older than " \
+                         "#{dependency.fetch('pkg_version')}, which the consumer was built with; " \
+                         "compatibility cohort #{required} does not reach back to it"
+        end
 
         raise Refused, "#{selected.formula.name} #{selected.formula.pkg_version}: " \
                        "no compatibility evidence for consumer built with #{dependency.fetch('pkg_version')}"
