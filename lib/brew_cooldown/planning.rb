@@ -13,7 +13,10 @@ module BrewCooldown
       @config, @scope, @now, @log, @state_directory = config, scope, now, log, state_directory
     end
 
+    # Phase events mark the steps that log nothing of their own, so a run's
+    # timeline can attribute every stretch of it.
     def call
+      @log.call(operation: "phase", phase: "read_inventory")
       @inventory = HomebrewAdapter::InstalledInventory.capture(log: @log)
       entries = HomebrewAdapter::Scope.read(@scope, installed: inventory.records.keys)
       scope_results = entries.map { |entry| resolve_entry(entry, inventory) }
@@ -33,6 +36,7 @@ module BrewCooldown
       errors.concat(scope_results.select { |entry| %i[missing unsupported_executor ambiguous].include?(entry[:status]) })
       advisory = HomebrewAdapter::Advisories.refresh(now: @now, log: @log)
       observations = Observations.new(@state_directory, prefix: HOMEBREW_PREFIX)
+      @log.call(operation: "phase", phase: "discover")
       @discovery = HomebrewAdapter::Discovery.new(inventory:, config: @config, advisories: advisory,
                                                observations:, now: @now, log: @log).collect(roots)
       errors.concat(discovery.errors)
@@ -47,11 +51,13 @@ module BrewCooldown
       roots -= discovery.self_managed.keys
       planner = Planner.new(compare_builds: HomebrewAdapter::BuildOrder, compatible: HomebrewAdapter::Compatibility,
                             max_assignments: @config.max_assignments)
+      @log.call(operation: "phase", phase: "resolve")
       @resolutions = planner.plan(domains: discovery.domains, roots:)
       errors.concat(resolutions.filter_map do |resolution|
         { operation: "resolve", error: resolution.reason } if %i[resolution_limit no_compatible_solution].include?(resolution.status)
       end)
       warnings = []
+      @log.call(operation: "phase", phase: "assess_installed")
       installed_security = assessment_roots.map do |package|
         baseline = inventory.records.fetch(package).installed
         retained = discovery.domains.fetch(package).find(&:retained)
@@ -67,6 +73,7 @@ module BrewCooldown
         { package: package.to_h, pinned: baseline.pinned, coverage: assessment.coverage,
           evidence: assessment.evidence.to_h, diagnostics: assessment.diagnostics }
       end
+      @log.call(operation: "phase", phase: "recheck_inventory")
       current = HomebrewAdapter::InstalledInventory.capture(log: @log)
       if current.fingerprint != inventory.fingerprint
         errors << { operation: "inventory_drift", error: "Installed state changed during planning; rerun after package operations finish",

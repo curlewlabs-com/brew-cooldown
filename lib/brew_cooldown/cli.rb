@@ -8,10 +8,12 @@ require_relative "recovery"
 require_relative "state_directory"
 require_relative "upgrade"
 require_relative "explanation"
+require_relative "event_log"
 
 module BrewCooldown
   module CLI
     def self.run(arguments)
+      log = EventLog.new
       output = STDOUT.dup
       # Native subprocesses inherit descriptors, not Ruby's $stdout variable.
       # Keep their diagnostics off the result stream, including in JSON mode.
@@ -37,7 +39,6 @@ module BrewCooldown
       raise ConfigurationError, "Unexpected arguments: #{arguments.join(' ')}" unless arguments.empty?
       raise ConfigurationError, "Command #{command.inspect} is not available; this build supports plan, upgrade, explain and recover" unless %w[plan upgrade explain recover].include?(command)
 
-      log = ->(**event) { warn JSON.generate(event) }
       if command == "recover"
         raise ConfigurationError, "recover does not take scope or configuration options" if
           options[:brewfile] || options[:installed] || options[:config] || options[:security_only]
@@ -74,7 +75,7 @@ module BrewCooldown
     rescue StandardError => error
       diagnostic = { schema: 1, status: "error", operation: command || "parse_arguments", error: error.message,
                      error_class: error.class.name, backtrace: error.backtrace }
-      warn JSON.generate(diagnostic)
+      (log || EventLog.new).call(**diagnostic)
       output.puts(options&.fetch(:json, false) ? JSON.pretty_generate(diagnostic) : "Error: #{error.message}")
       1
     ensure

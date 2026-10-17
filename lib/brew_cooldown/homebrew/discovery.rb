@@ -89,6 +89,8 @@ module BrewCooldown
               next unless metadata_advances?(metadata, baseline, current.fetch("version_scheme"), scheme_floor)
               next if defer(package, metadata, baseline, current)
 
+              # Preparing logs nothing of its own and is the costliest step.
+              @log.call(operation: "prepare_candidate", package: package.to_h, tag:)
               candidate = prepare(metadata)
               scheme_floor = next_scheme_floor(scheme_floor, candidate, metadata, baseline)
               option = evaluate(package, candidate, metadata, baseline, current)
