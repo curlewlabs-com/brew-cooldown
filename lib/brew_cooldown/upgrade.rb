@@ -47,6 +47,7 @@ module BrewCooldown
           next if @security_only && resolution.selected.values.none? { |option| option.decision.status == :security_fix }
 
           directory = journals.component_directory(resolution.selected.keys)
+          @log.call(operation: "phase", phase: "execute_component", roots: resolution.roots.map(&:to_h))
           result = ForkedComponent.call(log: @log) do
             execute_component(planning, resolution, directory, expected)
           end

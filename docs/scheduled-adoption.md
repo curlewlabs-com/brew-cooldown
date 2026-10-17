@@ -149,7 +149,10 @@ unforced update leaves in place while `main` has not moved.
 
 Provide `/opt/homebrew/bin` on `PATH` and a stable `HOME` for the installing
 account. Preserve stdout, stderr and the command's exit status in scheduler
-logs. The command emits structured operation diagnostics on stderr; `--json`
+logs. The command emits structured operation diagnostics on stderr, one JSON
+object per line, each with `elapsed_seconds` since the command began; the gaps
+between them show where a slow run spent its time, and `phase` and
+`prepare_candidate` events mark the steps that log nothing else. `--json`
 selects machine-readable results on stdout. Cooldown holds and explicit pins
 can produce a successful run with no installations. Missing scope, incomplete
 evidence and installation failures produce a nonzero exit even if independent
