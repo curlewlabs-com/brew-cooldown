@@ -212,6 +212,12 @@ brew ruby -- test/integration/sibling_link.rb baseline
 brew ruby -- test/integration/moved_alias.rb
 ```
 
+On 2026-10-17 the experiment passed in the Qualify workflow on macOS 26.6.2
+with Homebrew 7.0.9 at the validated commit. The upgrade removed `lua-moved`
+and moved `lua-renamed` to lua 5.5.1. Before the executor owned those links,
+the same experiment failed with the unplanned inventory change the python@3.14
+upgrade had reported.
+
 The [checkout commands](command-planning.md) connect historical discovery,
 policy-driven selection and component execution to this adapter. The complete
 release bar remains in [verification](verification.md). The
