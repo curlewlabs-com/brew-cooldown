@@ -160,7 +160,10 @@ eligible routine update can still proceed under the normal age policy.
 
 A candidate known to remain affected by a reported vulnerability is held
 and explained. Pins and dependency constraints can also prevent a security
-update, and appear in the result rather than being silently overridden.
+update, and appear in the result rather than being silently overridden; a fix
+held back that way fails the run. When no published release fixes an advisory
+that affects the installed version, the run finishes and reports it as a
+warning naming the advisory, since nothing it could install would help.
 
 ## Dependencies and scope
 

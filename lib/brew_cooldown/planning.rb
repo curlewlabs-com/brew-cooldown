@@ -51,6 +51,7 @@ module BrewCooldown
       errors.concat(resolutions.filter_map do |resolution|
         { operation: "resolve", error: resolution.reason } if %i[resolution_limit no_compatible_solution].include?(resolution.status)
       end)
+      warnings = []
       installed_security = assessment_roots.map do |package|
         baseline = inventory.records.fetch(package).installed
         retained = discovery.domains.fetch(package).find(&:retained)
@@ -59,9 +60,9 @@ module BrewCooldown
         assessment = advisory.assess(release: retained.release, installed: baseline,
                                     candidate_patches: patches, installed_patches: patches)
         selected = resolutions.filter_map { |result| result.selected[package] }.first
-        if assessment.evidence.installed_affected && (!selected || selected.retained)
-          errors << { operation: "security", package: package.to_h,
-                      error: "Installed version has known advisory evidence without an actionable selected upgrade" }
+        candidates = discovery.domains.fetch(package).reject(&:retained)
+        if (finding = Planning.security_finding(package:, assessment:, selected:, candidates:))
+          (finding.key?(:warning) ? warnings : errors) << finding
         end
         { package: package.to_h, pinned: baseline.pinned, coverage: assessment.coverage,
           evidence: assessment.evidence.to_h, diagnostics: assessment.diagnostics }
@@ -82,8 +83,25 @@ module BrewCooldown
         inventory_digest: Digest::SHA256.hexdigest(JSON.generate(inventory.fingerprint)),
         scope: scope_results.map { |entry| entry.merge(package: entry[:package]&.to_h) },
         components: resolutions.map { |resolution| render_resolution(resolution) },
-        candidates: discovery.decisions, installed_security:, diagnostics: discovery.diagnostics, errors:,
+        candidates: discovery.decisions, installed_security:, diagnostics: discovery.diagnostics, warnings:, errors:,
       }
+    end
+
+    # No run can install a fix nobody has published, so failing on one only
+    # hides the run's other results until upstream ships it; it is reported
+    # instead. Any other candidate state is a fix the plan did not take, or a
+    # release whose advisory evidence was never reached, and stays an error.
+    def self.security_finding(package:, assessment:, selected:, candidates:)
+      return unless assessment.evidence.installed_affected && (!selected || selected.retained)
+
+      unless candidates.all? { |option| option.decision.status == :affected }
+        return { operation: "security", package: package.to_h,
+                 error: "Installed version has known advisory evidence without an actionable selected upgrade" }
+      end
+
+      advisories = assessment.advisories.select { |entry| entry.installed_state == :affected }.map(&:id).uniq
+      { operation: "security", status: "unfixed_advisory", package: package.to_h, advisories:,
+        warning: "Installed version is affected by #{advisories.join(', ')}, and no published candidate fixes it yet" }
     end
 
     private
