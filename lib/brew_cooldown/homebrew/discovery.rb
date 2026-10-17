@@ -25,7 +25,7 @@ module BrewCooldown
         @inventory, @config, @advisories, @observations, @now, @log = inventory, config, advisories, observations, now, log
         @registry, @current_formulae, @current = registry, current_formulae, {}
         @domains, @prepared, @decisions, @errors, @diagnostics = {}, {}, [], [], []
-        @self_managed = {}
+        @self_managed, @installed_security = {}, {}
         inventory.records.each do |package, record|
           release = Release.new(package:, build: record.installed.build, identity: record.identity, verified: true,
                                 published_at: nil, publication_source: nil)
@@ -87,6 +87,7 @@ module BrewCooldown
             begin
               metadata = @registry.resolve(package.name, tag)
               next unless metadata_advances?(metadata, baseline, current.fetch("version_scheme"), scheme_floor)
+              next if defer(package, metadata, baseline, current)
 
               candidate = prepare(metadata)
               scheme_floor = next_scheme_floor(scheme_floor, candidate, metadata, baseline)
@@ -304,6 +305,38 @@ module BrewCooldown
         return floor unless baseline && metadata.published_at && candidate.formula.version_scheme <= baseline.build.scheme
 
         [floor, metadata.published_at].compact.max
+      end
+
+      # Preparing downloads and attests a bottle, the costliest step of a run,
+      # and most candidates are still cooling down. Policy#unverified_cooldown
+      # holds those from registry metadata alone, and the run that could select
+      # one prepares it. Only version-ordered history qualifies: across a scheme
+      # change, ordering needs each recipe's own scheme.
+      def defer(package, metadata, baseline, current)
+        return false unless baseline && current.fetch("version_scheme") == baseline.build.scheme
+
+        version = PkgVersion.parse(metadata.pkg_version)
+        build = Build.new(version: version.version.to_s, revision: version.revision, rebuild: metadata.rebuild,
+                          scheme: baseline.build.scheme)
+        CurrentFormula.verify_candidate!(current, build, log: @log)
+        policy = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
+        decision = policy.unverified_cooldown(build:, installed: baseline, published_at: metadata.published_at,
+                                              publication_source: metadata.published_at && :platform_manifest,
+                                              now: @now, security: installed_security(package, baseline))
+        return false unless decision
+
+        @decisions << { package: package.to_h, build: build.to_h, identity: metadata.platform_sha256,
+                        decision: decision.to_h, security: { coverage: :not_assessed } }
+        true
+      end
+
+      def installed_security(package, baseline)
+        @installed_security[package] ||= begin
+          formula = @inventory.records[package]&.retained&.formula
+          patches = formula ? Advisories.patch_identifiers(formula) : []
+          release = @domains.fetch(package).find(&:retained).release
+          @advisories.assess(release:, installed: baseline, candidate_patches: patches, installed_patches: patches).evidence
+        end
       end
 
       def prepare(metadata)
