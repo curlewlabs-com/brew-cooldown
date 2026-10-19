@@ -7,5 +7,5 @@ module BrewCooldown
   # Qualify workflow's run on the pull request that moves it (CONTRIBUTING.md).
   # The file loads without Homebrew so tooling can read the same value the
   # executor enforces.
-  VALIDATED_HOMEBREW_COMMIT = "cdc1ca503231b9a96da64526774915d913c3ec9f"
+  VALIDATED_HOMEBREW_COMMIT = "8f10429b56be28a25032b87463fffc95e556b5bc"
 end
