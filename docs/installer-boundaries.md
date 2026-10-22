@@ -242,6 +242,11 @@ brew link --formula opentofu
 brew ruby -- test/integration/conflict_check.rb upgrade
 ```
 
+On 2026-10-22 the experiment passed in the Qualify workflow on macOS 26.6.2
+with Homebrew 7.0.10 at the validated commit. Both executor phases completed,
+and the check between them raised `FormulaConflictError` naming tenv while
+tenv 4.15.1 was linked.
+
 The [checkout commands](command-planning.md) connect historical discovery,
 policy-driven selection and component execution to this adapter. The complete
 release bar remains in [verification](verification.md). The
