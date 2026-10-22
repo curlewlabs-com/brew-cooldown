@@ -57,7 +57,7 @@ module BrewCooldown
           results << result.merge("roots" => resolution.roots.map(&:to_h))
           observed = Executor::Inventory.capture
           changes = Executor::Inventory.differences(expected, observed)
-          unless changes.all? { |change| owned_change?(change.fetch("path"), resolution, planning.discovery.prepared) }
+          unless changes.all? { |change| owned_change?(change, resolution, planning.discovery.prepared) }
             errors << { operation: "inventory_drift", error: "Unexpected installed-state change; remaining selections need a fresh plan",
                         changes:, recovery: recovery_commands(resolution) }
             break
@@ -114,17 +114,18 @@ module BrewCooldown
       Executor::Execution.new(map, state_directory: directory, casks: operations).apply(expected_inventory: expected, before_install:)
     end
 
-    def owned_change?(path, resolution, prepared)
+    # The component's executor has already accepted each of its changes. A
+    # second rule here would refuse what it accepted, such as an opt link
+    # Homebrew moved within the rack, and stop every later component.
+    def owned_change?(change, resolution, prepared)
       resolution.selected.values.reject(&:retained).any? do |option|
-        if option.release.package.kind == :cask
-          cask = prepared.fetch(option.release.identity).cask
-          next path.start_with?("#{cask.caskroom_path}/")
-        end
-        formula = prepared.fetch(option.release.identity).formula
-        names = [formula.name, *formula.aliases, *formula.oldnames]
-        path.start_with?("#{formula.rack}/") || names.any? do |name|
-          [HOMEBREW_PREFIX/"opt"/name, HOMEBREW_LINKED_KEGS/name].any? { |allowed| allowed.to_s == path }
-        end
+        candidate = prepared.fetch(option.release.identity)
+        operation = if option.release.package.kind == :cask
+                      Executor::CaskOperation.new(candidate)
+                    else
+                      Executor::FormulaOperation.new(candidate, map: nil)
+                    end
+        operation.owns_change?(change)
       end
     end
   end

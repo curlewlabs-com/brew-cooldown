@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../lib/brew_cooldown/executor/formula_operation"
+require_relative "../../lib/brew_cooldown/upgrade"
 
 # Upgrading python@3.14 from 3.14.7 to 3.14.8 after Homebrew moved the python,
 # python3 and python@3 aliases to python@3.15 changed these links. The upgrade
@@ -33,4 +34,21 @@ foreign = [
   change.call(HOMEBREW_CELLAR/"python@3.15/3.15.0/INSTALL_RECEIPT.json", "0" * 64, "1" * 64)
 ]
 foreign.each { |entry| raise "Foreign change accepted: #{entry}" if operation.owns_change?(entry) }
+
+# The upgrade rechecks the inventory after each component before starting the
+# next. When it kept its own copy of the rule, upgrading python@3.14 3.14.8 to
+# 3.14.8_1 completed and then failed the run on the opt/python@3 link the
+# executor had just accepted.
+package = BrewCooldown::PackageId.new(kind: :formula, tap: "homebrew/core", name: "python@3.14")
+release = Data.define(:package, :identity).new(package:, identity: "python@3.14 3.14.8")
+option = Data.define(:release, :retained).new(release:, retained: false)
+resolution = Data.define(:selected).new(selected: { package => option })
+prepared = { release.identity => Data.define(:formula).new(formula:) }
+upgrade = BrewCooldown::Upgrade.allocate
+owned.each do |entry|
+  raise "Upgrade refused an owned change: #{entry}" unless upgrade.send(:owned_change?, entry, resolution, prepared)
+end
+foreign.each do |entry|
+  raise "Upgrade accepted a foreign change: #{entry}" if upgrade.send(:owned_change?, entry, resolution, prepared)
+end
 puts "PASS: links that pointed into the replaced keg's rack, and no others"
