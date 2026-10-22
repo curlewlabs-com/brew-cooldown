@@ -218,6 +218,30 @@ and moved `lua-renamed` to lua 5.5.1. Before the executor owned those links,
 the same experiment failed with the unplanned inventory change the python@3.14
 upgrade had reported.
 
+Before pouring a keg it will link, Homebrew checks each formula the recipe
+names in `conflicts_with`. Natively that loads today's recipe for each one,
+installed or not, and counts it as a conflict only when its keg is linked. The
+adapter reads that linked state from the prefix without loading the recipe, as
+Homebrew already does for a formula in an untrusted tap. A linked conflict still
+stops the installation, and the lookup itself is still refused. On 2026-10-22 a
+scheduled run on an Apple Silicon Mac stopped upgrading opentofu 1.12.6 to
+1.13.0 with `unplanned formula lookup: tenv`, though tenv was not installed.
+
+The conflict-check experiment installs opentofu 1.13.0 with tenv absent, checks
+that 1.13.2 is refused beside a linked tenv, then upgrades to 1.13.2 beside the
+same tenv unlinked:
+
+```sh
+export HOMEBREW_COOLDOWN_TEST_STATE="$PWD/conflict-state"
+brew ruby -- test/integration/conflict_check.rb baseline
+brew unlink --formula opentofu
+brew install --formula tenv
+brew ruby -- test/integration/conflict_check.rb linked
+brew unlink --formula tenv
+brew link --formula opentofu
+brew ruby -- test/integration/conflict_check.rb upgrade
+```
+
 The [checkout commands](command-planning.md) connect historical discovery,
 policy-driven selection and component execution to this adapter. The complete
 release bar remains in [verification](verification.md). The

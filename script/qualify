@@ -11,8 +11,8 @@ set -eu
 project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 brew=${HOMEBREW_BREW_FILE:-brew}
 tracks="probes historical hooks shared-consumer interpreter sibling-link \
-moved-alias execution-recovery interruption commands cask cask-interruption \
-cask-failure runtime-scope brewfile trusted-taps"
+moved-alias conflict-check execution-recovery interruption commands cask \
+cask-interruption cask-failure runtime-scope brewfile trusted-taps"
 
 usage() {
   echo "usage: script/qualify TRACK | --list" >&2
@@ -124,6 +124,16 @@ sibling-link)
 moved-alias)
   experiment sibling_link baseline
   experiment moved_alias
+  ;;
+conflict-check)
+  experiment conflict_check baseline
+  # Native conflict checking lets tenv install only while opentofu is unlinked.
+  provision unlink --formula opentofu
+  provision install --formula tenv
+  experiment conflict_check linked
+  provision unlink --formula tenv
+  provision link --formula opentofu
+  experiment conflict_check upgrade
   ;;
 execution-recovery)
   experiment historical_install baseline
