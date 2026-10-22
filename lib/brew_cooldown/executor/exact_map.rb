@@ -140,6 +140,22 @@ module BrewCooldown
         super
       end
 
+      # Natively, every name in conflicts_with loads today's recipe, installed
+      # or not, and only a linked keg makes it a conflict. Read that from the
+      # prefix, as native code already does for an untrusted tap it will not
+      # load, so a recipe naming a formula outside the plan can still install.
+      def check_conflicts
+        return if force? || skip_link? || !link_keg
+
+        conflicts = formula.conflicts.select do |conflict|
+          name = conflict.name.split("/").last
+          next false if name == formula.name
+
+          (HOMEBREW_LINKED_KEGS/name).exist? && (HOMEBREW_PREFIX/"opt"/name).exist?
+        end
+        raise FormulaConflictError.new(formula, conflicts) unless conflicts.empty?
+      end
+
       def install
         validate_candidate
         super

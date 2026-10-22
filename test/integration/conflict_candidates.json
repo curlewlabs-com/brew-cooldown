@@ -1,0 +1,12 @@
+{
+  "baseline": {
+    "name": "opentofu",
+    "version": "1.13.0",
+    "index_sha256": "6638717127d8112ccfa407d1206329ef594d199b47d41453a3824ed6af419d85"
+  },
+  "upgrade": {
+    "name": "opentofu",
+    "version": "1.13.2",
+    "index_sha256": "1221cb66af48021dcee8fc7ecc4008a28830a04dad61cbdf72fed7c2c6698036"
+  }
+}
