@@ -31,28 +31,24 @@ cooldown policy.
 The native installer adapter is validated against one Homebrew commit, recorded
 in `lib/brew_cooldown/validated_homebrew.rb`; the
 [boundary experiments](installer-boundaries.md) describe the qualification runs.
-A scheduled `brew update` can replace that code before execution. `upgrade`
-checks the runtime before it plans: on any other commit, or on a checkout with
+The scheduler selects that commit before execution. `upgrade` checks the
+runtime before it plans: on any other commit, or on a checkout with
 local changes, it reports `unsupported_runtime` without downloading candidates
 or starting a component. Each component checks again before its first mutation.
 `plan`, `explain` and `recover` install nothing and stay available.
 
-Qualification follows Homebrew's releases. While Homebrew's
-[developer mode](https://docs.brew.sh/Manpage#developer-subcommand) is on,
-`brew update` follows Homebrew's `main` branch instead, and any developer
-command, `brew ruby` included, turns that mode on until `brew developer off`.
-`upgrade` then names the checkout as not a Homebrew release, because waiting
-will not bring a qualification for it. The
-[scheduler contract](#scheduler-contract) updates in a way that stays on
-releases either way.
+Qualification follows Homebrew's releases. Runtime adoption follows the
+qualified commit in the reviewed updater checkout, so a release awaiting
+qualification does not stop package upgrades on the approved runtime. Package
+discovery fetches current upstream metadata independently of `brew update`.
 
 Release qualification must run the native installation, dependency, hook and
 recovery experiments on each newly supported Homebrew runtime. The Qualify
 workflow runs them on every pull request that moves the qualified commit; see
 [contributing](../CONTRIBUTING.md#supporting-a-newer-homebrew). Broader runtime
 compatibility needs evidence from that qualification; a version range alone
-does not establish it. The scheduler should surface compatibility errors until
-the installed runtime has passed adapter validation.
+does not establish it. A scheduler that cannot select the approved runtime
+must surface that failure rather than bypass validation.
 
 ## Provisioning and scope
 
@@ -80,8 +76,8 @@ scheduler's policy reviewable independently of later default changes:
 ```
 
 Before activation, provision the consumer's actual Brewfile in an expendable
-Apple Silicon VM using ordinary Homebrew. Run `brew update`, then validate the
-resulting runtime and full workload through
+Apple Silicon VM using ordinary Homebrew. Select the qualified runtime as in
+the [scheduler contract](#scheduler-contract), then validate the full workload through
 `test/integration/brewfile_acceptance.rb`, with `HOMEBREW_COOLDOWN_DISPOSABLE=1`
 and `HOMEBREW_COOLDOWN_TEST_BREWFILE` naming the provisioned file. This
 exercises the checkout commands and conservative profile; the consumer's
@@ -130,22 +126,30 @@ checks it again before applying each selected operation.
 
 ## Scheduler contract
 
-After qualification and activation review, a job refreshes Homebrew, then
-invokes the upgrade command:
+After qualification and activation review, refresh the dedicated updater
+checkout to its reviewed default branch. Read its qualified Homebrew commit
+without entering Homebrew, refuse local changes in Homebrew's checkout, then
+select that exact runtime before invoking the upgrade command:
 
 ```sh
 set -eu
-HOMEBREW_UPDATE_TO_TAG=1 /opt/homebrew/bin/brew update --force
-exec /path/to/brew-cooldown/bin/brew-cooldown upgrade \
+updater=/path/to/brew-cooldown
+qualified=$(/usr/bin/ruby -r "$updater/lib/brew_cooldown/validated_homebrew.rb" \
+  -e 'print BrewCooldown::VALIDATED_HOMEBREW_COMMIT')
+changes=$(git -C /opt/homebrew status --porcelain)
+test -z "$changes"
+git -C /opt/homebrew fetch origin "$qualified"
+git -C /opt/homebrew checkout --detach "$qualified"
+exec "$updater/bin/brew-cooldown" upgrade \
   --config /path/to/brew-cooldown/examples/conservative.json \
   --brewfile /path/to/Brewfile
 ```
 
-`HOMEBREW_UPDATE_TO_TAG` keeps the update on the latest release even after a
-developer command has turned on developer mode
-([Homebrew's environment](https://docs.brew.sh/Manpage#environment)). `--force`
-moves a checkout already at the tip of Homebrew's `main` branch, which an
-unforced update leaves in place while `main` has not moved.
+An ordinary `brew update` can move Homebrew ahead of qualification, including
+after a successful package upgrade. Keep it outside the scheduled sequence.
+Selecting the approved commit can also restore a checkout that a manual
+update moved ahead; installed package versions remain governed by the upgrade
+policy. The launcher disables Homebrew's automatic update during execution.
 
 Provide `/opt/homebrew/bin` on `PATH` and a stable `HOME` for the installing
 account. Preserve stdout, stderr and the command's exit status in scheduler
