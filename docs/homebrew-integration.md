@@ -131,6 +131,9 @@ Ruby recipe text with heuristic substitutions. A process-local resolver maps
 canonical package identities to the selected formula objects. Installed
 packages retained unchanged also have explicit entries. An unknown identity,
 alias migration, alternative recipe load, or version substitution is rejected.
+Native bookkeeping uses separate
+[installed-state queries](installer-inspection.md); inspecting an existing
+helper or sibling does not expand that candidate map.
 
 The adapter may use internal loader and installer hooks, but all such hooks
 live in the adapter and in a fresh worker process. No modification of the

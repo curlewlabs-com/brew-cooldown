@@ -35,6 +35,8 @@ module BrewCooldown
 
       def verify_before!
         raise Refused, "#{name} is pinned" if formula.pinned?
+
+        InstalledState.preflight!(formula)
       end
 
       def install
