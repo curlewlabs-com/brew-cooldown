@@ -130,6 +130,14 @@ An existing authenticated GitHub CLI or Homebrew's supported
 The updater reports missing prerequisites instead of installing them during
 planning. Keep credentials out of configuration files and scheduler logs.
 
+On macOS, verify authentication in the scheduler's execution session. A token
+available from the GUI session's Keychain can be unavailable to an SSH shell
+with the same account, `HOME` and `PATH`. After activating a LaunchAgent,
+trigger its installed job through `launchctl kickstart` in that account's GUI
+domain and inspect its logs. An SSH-only `gh auth status` failure does not
+establish that the saved token is invalid; confirm access from the job's
+session before replacing working credentials.
+
 Keep configuration and the consumer Brewfile under review. Run a plan with the
 same absolute paths and account that the scheduler will use. A successful plan
 does not authorize later installation: `upgrade` computes a fresh plan and
