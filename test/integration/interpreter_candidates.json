@@ -1,4 +1,12 @@
 {
+  "dependencies": [
+    {
+      "name": "openssl@3",
+      "version": "3.6.3",
+      "rebuild": 1,
+      "index_sha256": "334b8fc18edb00f1d315d6e3d9890dc36b5c9571ae8ae13edd95475c858ea371"
+    }
+  ],
   "baseline": {
     "name": "ruby@3.3",
     "version": "3.3.11",

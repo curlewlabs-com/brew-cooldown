@@ -150,6 +150,15 @@ remained unchanged throughout. Keg-only formulae retain their existing prefix
 link choice; the adapter does not invoke native automatic promotion of a new
 versioned formula onto the prefix's executable paths.
 
+The interpreter fixture installs its recorded OpenSSL bottle alongside the
+Ruby baseline, then retains that library for the Ruby upgrade. Provisioning
+from today's OpenSSL recipe can select a version older than the Ruby bottles'
+recorded build requirements; sharing a compatibility cohort does not establish
+backward compatibility. The candidate loader verifies the fixture's immutable
+registry identity and bottle attestation before installation.
+The OpenSSL fixture metadata was read from Homebrew's official GHCR manifests
+on 2026-10-26.
+
 Installed dependency relationships with neither endpoint changing are retained.
 For a replacement, the installed recipe and consumer receipt supply
 compatibility evidence. A poured receipt can omit a compatibility identifier
