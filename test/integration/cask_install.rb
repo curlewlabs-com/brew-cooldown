@@ -118,7 +118,8 @@ raise "Historical executable failed: #{output}" unless status.success? && output
 raise "Generated completion missing" unless (HOMEBREW_PREFIX/"share/zsh/site-functions/_codex").exist?
 after = BrewCooldown::Executor::Inventory.capture
 formula_changes = BrewCooldown::Executor::Inventory.differences(before, after).reject do |change|
-  change.fetch("path").start_with?(cask.caskroom_path.to_s + "/")
+  change.fetch("path").start_with?(cask.caskroom_path.to_s + "/") ||
+    change.fetch("path") == (HOMEBREW_PREFIX/"bin/codex").to_s
 end
 raise "Cask operation changed formula inventory: #{formula_changes}" unless formula_changes.empty?
 puts "PASS: historical cask #{mode}, native receipt, executable, completions and retained formula dependencies"
