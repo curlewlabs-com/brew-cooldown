@@ -107,7 +107,10 @@ when "failure"
   binary.unlink
   binary.write(marker)
   begin
-    result = execution.apply(expected_inventory: before)
+    # The fixture now changes observed command links. Plan against that state
+    # to exercise native collision recovery rather than the earlier drift gate.
+    conflict_inventory = BrewCooldown::Executor::Inventory.capture
+    result = execution.apply(expected_inventory: conflict_inventory)
     puts JSON.pretty_generate(result)
     raise "Native cask conflict was not reported" unless result.fetch("status") == "needs_reconciliation" &&
       result.fetch("operations").fetch(0).fetch("status") == "failed"
