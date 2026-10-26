@@ -18,7 +18,16 @@ module BrewCooldown
         keg = Keg.new(opt.realpath)
         raise Refused, "#{name}: installed opt link selects another rack" unless keg.name == name
 
-        Retained.new(keg).formula
+        # Inspection needs the installed recipe's linking declarations, not
+        # the dependency compatibility evidence required of a retained plan.
+        recipe = keg/".brew/#{name}.rb"
+        tap = Tab.for_keg(keg).tap
+        raise Refused, "#{name}: installed recipe has no tap identity" unless tap
+
+        formula = Formulary.from_contents(name, recipe, recipe.read, tap:, from_metadata: true)
+        raise Refused, "#{name}: installed recipe differs from keg" unless formula.pkg_version == keg.version
+
+        formula
       end
 
       def self.siblings(formula)

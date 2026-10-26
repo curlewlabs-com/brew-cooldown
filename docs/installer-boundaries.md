@@ -177,12 +177,12 @@ brew ruby -- test/integration/interpreter_upgrade.rb upgrade
 Linking a keg into the prefix makes Homebrew ask every sibling its tap names,
 such as `lua@5.4` for `lua` or `node@18` for `node`, whether that sibling holds
 links the new keg would displace. Natively that loads today's recipe for each
-sibling, installed or not. While that list is built, the adapter treats a
-sibling with no installed rack as absent and reads an installed one from the
-recipe in its active keg, as it does for a retained dependency. Displacing a
-linked sibling remains an unplanned unlink and is refused, and any other
-unplanned lookup is still refused. The interpreter experiment does not reach
-this path: an unlinked keg-only upgrade only refreshes its `opt` link.
+sibling, installed or not. The adapter's separate
+[installed-state inspection](installer-inspection.md) treats a sibling with no
+installed rack as absent and reads an installed one's recipe from its active
+keg. This never widens the candidate resolver. Displacing a linked sibling
+remains an unplanned unlink and is refused. The interpreter experiment does
+not reach this path: an unlinked keg-only upgrade only refreshes its `opt` link.
 
 The sibling-link experiment installs lua 5.5.0 with no sibling present, then
 upgrades it to 5.5.1 beside a `lua@5.4` that ordinary Homebrew installed and
