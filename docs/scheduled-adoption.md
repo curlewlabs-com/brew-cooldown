@@ -31,16 +31,26 @@ cooldown policy.
 The native installer adapter is validated against one Homebrew commit, recorded
 in `lib/brew_cooldown/validated_homebrew.rb`; the
 [boundary experiments](installer-boundaries.md) describe the qualification runs.
-The scheduler selects that commit before execution. `upgrade` checks the
+The scheduler checks that commit before execution. `upgrade` checks the
 runtime before it plans: on any other commit, or on a checkout with
 local changes, it reports `unsupported_runtime` without downloading candidates
 or starting a component. Each component checks again before its first mutation.
 `plan`, `explain` and `recover` install nothing and stay available.
 
-Qualification follows Homebrew's releases. Runtime adoption follows the
-qualified commit in the reviewed updater checkout, so a release awaiting
-qualification does not stop package upgrades on the approved runtime. Package
-discovery fetches current upstream metadata independently of `brew update`.
+Qualification follows Homebrew's releases. Runtime adoption uses Homebrew's
+native update lifecycle only when its latest release is qualified. If the
+installed runtime already matches qualification while a newer release is
+waiting, defer Homebrew's self-update and keep package upgrades on the approved
+runtime. Homebrew's update migrations wait with that self-update. Package
+discovery fetches current upstream metadata independently of
+`brew update`; use native update when permitted so Homebrew also performs its
+prefix migrations.
+
+Do not restore an older runtime with a raw Git checkout after a newer Homebrew
+has used the shared prefix. Qualification starts from a fresh prefix at the
+target commit; it does not establish backward compatibility with prefix state
+that a newer release may have migrated. An ahead or unrelated checkout remains
+an error until that runtime is qualified.
 
 Release qualification must run the native installation, dependency, hook and
 recovery experiments on each newly supported Homebrew runtime. The Qualify
@@ -76,8 +86,9 @@ scheduler's policy reviewable independently of later default changes:
 ```
 
 Before activation, provision the consumer's actual Brewfile in an expendable
-Apple Silicon VM using ordinary Homebrew. Select the qualified runtime as in
-the [scheduler contract](#scheduler-contract), then validate the full workload through
+Apple Silicon VM using ordinary Homebrew, starting from a fresh prefix at the
+qualified commit as the [Qualify workflow](../.github/workflows/qualify.yml)
+does. Validate the full workload through
 `test/integration/brewfile_acceptance.rb`, with `HOMEBREW_COOLDOWN_DISPOSABLE=1`
 and `HOMEBREW_COOLDOWN_TEST_BREWFILE` naming the provisioned file. This
 exercises the checkout commands and conservative profile; the consumer's
@@ -127,29 +138,35 @@ checks it again before applying each selected operation.
 ## Scheduler contract
 
 After qualification and activation review, refresh the dedicated updater
-checkout to its reviewed default branch. Read its qualified Homebrew commit
-without entering Homebrew, refuse local changes in Homebrew's checkout, then
-select that exact runtime before invoking the upgrade command:
+checkout to its reviewed default branch. Its
+`lib/brew_cooldown/validated_homebrew.rb` export loads through system Ruby
+without entering Homebrew. Refuse local changes in Homebrew's checkout and
+compare its current commit with qualification before deciding on a native
+update:
+
+- If the current runtime matches and the latest release is unqualified, retain
+  the current runtime and proceed with package upgrades.
+- If the latest release is qualified and the current runtime is its ancestor
+  or already matches it, run native `brew update --force` with
+  `HOMEBREW_UPDATE_TO_TAG=1`, then recheck the resulting commit.
+- Otherwise, report the mismatch without changing the runtime. Never downgrade
+  the shared prefix to clear a compatibility error.
+
+The native update can observe a release published after the preflight check.
+An identity mismatch afterward remains an error, not a reason to roll back.
+After runtime preparation succeeds, invoke the upgrade command:
 
 ```sh
 set -eu
-updater=/path/to/brew-cooldown
-qualified=$(/usr/bin/ruby -r "$updater/lib/brew_cooldown/validated_homebrew.rb" \
-  -e 'print BrewCooldown::VALIDATED_HOMEBREW_COMMIT')
-changes=$(git -C /opt/homebrew status --porcelain)
-test -z "$changes"
-git -C /opt/homebrew fetch origin "$qualified"
-git -C /opt/homebrew checkout --detach "$qualified"
-exec "$updater/bin/brew-cooldown" upgrade \
+exec /path/to/brew-cooldown/bin/brew-cooldown upgrade \
   --config /path/to/brew-cooldown/examples/conservative.json \
   --brewfile /path/to/Brewfile
 ```
 
-An ordinary `brew update` can move Homebrew ahead of qualification, including
-after a successful package upgrade. Keep it outside the scheduled sequence.
-Selecting the approved commit can also restore a checkout that a manual
-update moved ahead; installed package versions remain governed by the upgrade
-policy. The launcher disables Homebrew's automatic update during execution.
+An unconditional `brew update` can move Homebrew ahead of qualification,
+including after a successful package upgrade. Runtime adoption therefore needs
+the qualification check in either position. The launcher disables Homebrew's
+automatic update during execution.
 
 Provide `/opt/homebrew/bin` on `PATH` and a stable `HOME` for the installing
 account. Preserve stdout, stderr and the command's exit status in scheduler
