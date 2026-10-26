@@ -8,16 +8,25 @@ require_relative "../../lib/brew_cooldown/executor/execution"
 BrewCooldown::Executor::Execution.check_homebrew!
 
 phase = ARGV.fetch(0)
-record = JSON.parse(File.read(File.join(__dir__, "interpreter_candidates.json"))).fetch(phase)
+fixtures = JSON.parse(File.read(File.join(__dir__, "interpreter_candidates.json")))
+record = fixtures.fetch(phase)
 candidate = BrewCooldown::Executor::Candidate.new(record).prepare(allow_hooks: true)
 raise "Baseline requires ruby@3.3 absent" if phase == "baseline" && candidate.formula.opt_prefix.exist?
-retained = candidate.runtime_dependencies.map do |dependency|
+candidates = [candidate]
+if phase == "baseline"
+  candidates.concat(fixtures.fetch("dependencies").map do |dependency|
+    BrewCooldown::Executor::Candidate.new(dependency).prepare(allow_hooks: true)
+  end)
+end
+selected_names = candidates.map { |selected| selected.formula.full_name }
+dependencies = candidates.flat_map(&:runtime_dependencies).uniq { |dependency| dependency.fetch("full_name") }
+retained = dependencies.reject { |dependency| selected_names.include?(dependency.fetch("full_name")) }.map do |dependency|
   path = HOMEBREW_PREFIX/"opt"/dependency.fetch("full_name")
   raise "Prepare installed dependency #{path}" unless path.exist?
 
   BrewCooldown::Executor::Retained.new(Keg.new(path.realpath))
 end
-map = BrewCooldown::Executor::ExactMap.new([candidate, *retained])
+map = BrewCooldown::Executor::ExactMap.new([*candidates, *retained])
 map.activate
 inventory = BrewCooldown::Executor::Inventory.capture
 
