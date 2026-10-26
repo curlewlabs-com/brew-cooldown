@@ -14,6 +14,15 @@ inspection. Acceptance clears only the unfinished journal; it neither runs
 repair commands nor certifies hook side effects. Malformed journals are
 preserved and reported for inspection. No installation receipt is created.
 
+Inventory includes prefix command symlinks in `bin` and `sbin`, including
+broken links. A partial unlink can remove commands while leaving the receipt,
+opt link and linked-keg record intact; those records alone do not establish
+that commands remain available. Recovery acknowledgment covers the observed
+command links as well. Journals written before command-link capture explicitly
+report that their baseline did not cover those links; an empty drift list from
+such a journal cannot establish that commands survived. Inspection does not
+certify every exported file, documentation index or hook side effect.
+
 Execute a dependency-ordered component through native installers. Prepare and
 verify candidates before mutation. Acquire the tool's prefix-scoped lock and
 native formula locks, then re-read receipts, active links, pins and the Homebrew

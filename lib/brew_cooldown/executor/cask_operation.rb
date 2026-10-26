@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "cask_map"
+require_relative "inventory"
 
 module BrewCooldown
   module Executor
@@ -72,7 +73,17 @@ module BrewCooldown
         end
       end
 
-      def owns_change?(change) = change.fetch("path").start_with?("#{cask.caskroom_path}/")
+      def owns_change?(change)
+        path = change.fetch("path")
+        return true if path.start_with?("#{cask.caskroom_path}/")
+        return false unless Inventory.command_link?(path)
+        return false unless cask.artifacts.grep(Cask::Artifact::Binary).any? { |artifact| artifact.target.to_s == path }
+
+        targets = change.values_at("expected", "observed").compact
+        !targets.empty? && targets.all? do |target|
+          File.expand_path(target, File.dirname(path)).start_with?("#{cask.caskroom_path}/")
+        end
+      end
     end
   end
 end

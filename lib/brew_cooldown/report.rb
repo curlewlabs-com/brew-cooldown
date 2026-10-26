@@ -71,6 +71,7 @@ module BrewCooldown
       output.puts("Error: #{result[:error]}") if result[:error]
       output.puts("Journal: #{result[:journal]}") if result[:journal]
       Array(result[:journals]).each { |path| output.puts("Journal: #{path}") }
+      Array(result[:unverified]).each { |message| output.puts("Unverified: #{message}") }
       Array(result[:drift] || result[:changes]).each do |change|
         output.puts("Changed #{change.fetch('path')}: expected #{change['expected'].inspect}, observed #{change['observed'].inspect}")
       end

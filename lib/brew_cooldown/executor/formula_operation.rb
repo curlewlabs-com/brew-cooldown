@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "postinstall"
+require_relative "inventory"
 
 module BrewCooldown
   module Executor
@@ -41,6 +42,7 @@ module BrewCooldown
 
       def install
         Executor.executing_name = name
+        linked = formula.opt_prefix.exist? ? formula.linked? : !formula.keg_only?
         # The launcher enables developer mode only to enter `brew ruby`.
         # Its source-cycle diagnostic loads build-only recipes even when
         # pouring bottles. Normal runtime/architecture checks still run.
@@ -48,7 +50,6 @@ module BrewCooldown
           Postinstall.with_map(@map) do
             existing = formula.opt_prefix.exist?
             requested = existing && Tab.for_keg(Keg.new(formula.opt_prefix.realpath)).installed_on_request
-            linked = existing ? formula.linked? : !formula.keg_only?
             options = { installed_on_request: requested, link_keg: linked }
             if candidate.respond_to?(:release_archive?) && candidate.release_archive?
               options[:build_from_source_formulae] = [formula.full_name]
@@ -63,6 +64,12 @@ module BrewCooldown
         expected = HOMEBREW_CELLAR/name/formula.pkg_version.to_s
         raise Refused, "#{name}: selected keg is not active" unless formula.opt_prefix.realpath == expected
         raise Refused, "#{name}: installation receipt missing" unless (expected/"INSTALL_RECEIPT.json").file?
+        if linked
+          keg = Keg.new(expected)
+          raise Refused, "#{name}: selected keg is not linked" unless keg.linked?
+
+          Inventory.verify_commands!(keg)
+        end
 
         tab = Tab.for_keg(Keg.new(expected))
         raise Refused, "#{name}: installed receipt has a different tap identity" unless tab.tap == formula.tap.name
@@ -82,6 +89,10 @@ module BrewCooldown
 
       def owns_change?(change)
         path = change.fetch("path")
+        if Inventory.command_link?(path)
+          targets = change.values_at("expected", "observed").compact
+          return !targets.empty? && targets.all? { |target| into_rack?(path, target) }
+        end
         names = [name, *formula.aliases, *formula.oldnames]
         return true if path.start_with?("#{formula.rack}/") || names.any? do |entry|
           [HOMEBREW_PREFIX/"opt"/entry, HOMEBREW_LINKED_KEGS/entry].any? { |allowed| allowed.to_s == path }
