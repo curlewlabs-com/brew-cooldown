@@ -45,6 +45,7 @@ module BrewCooldown
           { schema: 1, command: "recover", status: "needs_reconciliation",
             journals: reports.map { |entry| entry.fetch("journal") },
             drift: reports.flat_map { |entry| entry.fetch("drift") }.uniq,
+            unverified: reports.flat_map { |entry| entry.fetch("unverified") }.uniq,
             operations: reports.flat_map { |entry| entry.fetch("operations") },
             accept_current: {
               "digest" => digest,

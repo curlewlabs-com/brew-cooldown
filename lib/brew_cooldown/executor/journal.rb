@@ -29,7 +29,7 @@ module BrewCooldown
         return unless path.file?
 
         parsed = JSON.parse(path.read)
-        raise Refused, "unsupported execution journal schema" unless parsed.is_a?(Hash) && parsed["schema"] == 1
+        raise Refused, "unsupported execution journal schema" unless parsed.is_a?(Hash) && [1, 2].include?(parsed["schema"])
         raise Refused, "journal belongs to a different Homebrew prefix" unless parsed.fetch("prefix") == HOMEBREW_PREFIX.realpath.to_s
         unless parsed.fetch("inventory").is_a?(Hash) && parsed.fetch("inventory").all? { |key, value| key.is_a?(String) && value.is_a?(String) } &&
                parsed.fetch("operations").is_a?(Array)
@@ -65,7 +65,7 @@ module BrewCooldown
       def start(operations, inventory)
         raise Refused, "unfinished execution journal: #{path}" if path.exist?
 
-        @data = { "schema" => 1, "prefix" => HOMEBREW_PREFIX.realpath.to_s,
+        @data = { "schema" => 2, "prefix" => HOMEBREW_PREFIX.realpath.to_s,
                   "inventory" => inventory, "operations" => operations }
         persist
       end
@@ -97,10 +97,15 @@ module BrewCooldown
 
       def report(observed: Inventory.capture)
         load unless data
+        # A legacy baseline cannot identify command links lost before its
+        # journal was written. Do not present current links as that baseline.
+        legacy = data.fetch("schema") == 1
+        compared = legacy ? observed.reject { |path, _| Inventory.command_link?(path) } : observed
         {
           "status" => "needs_reconciliation",
           "journal" => path.to_s,
-          "drift" => Inventory.differences(data.fetch("inventory"), observed),
+          "drift" => Inventory.differences(data.fetch("inventory"), compared),
+          "unverified" => legacy ? ["This journal predates command-link baselines; pre-upgrade command links were not recorded."] : [],
           "operations" => data.fetch("operations").map do |entry|
             entry.merge("status" => entry.fetch("status") == "started" ? "unconfirmed" : entry.fetch("status"),
                         "recovery" => Recovery.commands(entry.fetch("full_name", entry.fetch("name")),

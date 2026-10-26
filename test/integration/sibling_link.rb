@@ -38,11 +38,11 @@ assert(siblings.map(&:full_name) == expected, "Unexpected link siblings: #{sibli
 siblings.each do |sibling|
   assert(sibling.path.to_s.start_with?("#{sibling_rack}/"), "#{sibling.full_name} was not read from its keg")
 end
-# The allowance must end with the traversal, or any installed formula would
-# become loadable outside the plan.
+# Installed-state traversal must not expand candidate resolution: a sibling
+# can be inspected without granting it a place in the package plan.
 begin
   Formulary.factory("lua@5.4")
-  raise "Sibling lookup was allowed outside link traversal"
+  raise "Sibling inspection expanded candidate resolution"
 rescue BrewCooldown::Executor::Refused => error
   raise unless error.message.include?("unplanned formula lookup")
 end

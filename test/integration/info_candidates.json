@@ -1,0 +1,12 @@
+{
+  "baseline": {
+    "name": "coreutils",
+    "version": "9.12",
+    "index_sha256": "cea74fb5d41923680806e231454c0ae907105a0f65050f681e1e05022dea7a2a"
+  },
+  "upgrade": {
+    "name": "coreutils",
+    "version": "9.12_1",
+    "index_sha256": "2912de5466de9e2e45c6dc2ea40f8c78479304ea28260afeede965e460db81f1"
+  }
+}

@@ -2,6 +2,7 @@
 
 require_relative "candidate"
 require_relative "compatibility"
+require_relative "installed_state"
 require "install"
 
 module BrewCooldown
@@ -21,20 +22,8 @@ module BrewCooldown
       def resolve(reference)
         candidate = candidates[reference.to_s.delete_prefix("homebrew/core/")]
         return candidate.formula if candidate
-        return installed_sibling(reference.to_s) if @resolving_siblings
 
         raise Refused, "unplanned formula lookup: #{reference}"
-      end
-
-      # Linking asks every sibling the tap names, such as node@18 for node,
-      # whether it holds prefix links to displace, and natively loads today's
-      # recipe for each. Only an installed sibling can hold links, and the
-      # recipe in its keg answers for it. KegGuard still refuses displacing it.
-      def resolving_siblings
-        previous, @resolving_siblings = @resolving_siblings, true
-        yield
-      ensure
-        @resolving_siblings = previous
       end
 
       def validate(formula)
@@ -66,23 +55,10 @@ module BrewCooldown
         Executor.active_map = self
         Formulary.singleton_class.prepend(ResolverGuard)
         Dependency.singleton_class.prepend(BottleDependencyGraph)
-        Formula.prepend(SiblingLinks)
+        Formula.prepend(FormulaInspection)
+        Utils::Path.singleton_class.prepend(InfoHelper)
         FormulaInstaller.prepend(InstallerGuard)
         Keg.prepend(KegGuard)
-      end
-
-      private
-
-      def installed_sibling(reference)
-        name = reference.delete_prefix("homebrew/core/")
-        # Native traversal skips a sibling it cannot load, which is also the
-        # truth for one never installed: it has no keg to link.
-        raise FormulaUnavailableError, name unless Formula.racks.include?(HOMEBREW_CELLAR/name)
-
-        opt = HOMEBREW_PREFIX/"opt"/name
-        raise Refused, "#{name}: installed sibling has no active opt link" unless opt.symlink? && opt.exist?
-
-        Retained.new(Keg.new(opt.realpath)).formula
       end
     end
 
@@ -99,15 +75,6 @@ module BrewCooldown
         end
 
         Executor.active_map.resolve(reference)
-      end
-    end
-
-    # Native linking, its conflict handling and the two native decisions
-    # InstallerGuard disables all reach siblings through this list. The
-    # sibling allowance lasts only while the list is built.
-    module SiblingLinks
-      def link_overwrite_formulae
-        Executor.active_map.resolving_siblings { super }
       end
     end
 
@@ -151,7 +118,7 @@ module BrewCooldown
           name = conflict.name.split("/").last
           next false if name == formula.name
 
-          (HOMEBREW_LINKED_KEGS/name).exist? && (HOMEBREW_PREFIX/"opt"/name).exist?
+          InstalledState.linked?(conflict.name)
         end
         raise FormulaConflictError.new(formula, conflicts) unless conflicts.empty?
       end
@@ -222,11 +189,45 @@ module BrewCooldown
 
     module KegGuard
       def unlink(**options)
-        if Executor.executing_name && name != Executor.executing_name
-          raise Refused, "#{Executor.executing_name}: unplanned unlink of #{name}"
+        authorize_mutation!("unlink")
+        super
+      end
+
+      def link(**options)
+        authorize_mutation!("link")
+        super
+      end
+
+      def optlink(**options)
+        authorize_mutation!("optlink")
+        # Native optlink deletes alias destinations even without --overwrite.
+        # An installed-state answer cannot authorize taking another rack's opt.
+        records = [opt_record, *aliases.map { |entry| opt_record.parent/entry }, *oldname_opt_records]
+        records.each do |record|
+          next unless record.symlink? || record.exist?
+          next if record.symlink? && File.expand_path(record.readlink.to_s, record.dirname).start_with?("#{rack}/")
+
+          raise Refused, "#{name}: optlink would overwrite unrelated path #{record}"
+        end
+        super
+      end
+
+      def uninstall(**options)
+        authorize_mutation!("uninstall")
+        super
+      end
+
+      private
+
+      def authorize_mutation!(operation)
+        if Executor.executing_name
+          return if name == Executor.executing_name
+        else
+          candidate = Executor.active_map.candidates.values.find { |entry| entry.formula.name == name }
+          return if candidate&.install?
         end
 
-        super
+        raise Refused, "#{Executor.executing_name || 'exact map'}: unplanned #{operation} of #{name}"
       end
     end
   end

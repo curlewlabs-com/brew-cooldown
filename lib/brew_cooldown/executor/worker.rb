@@ -4,6 +4,7 @@ require "global"
 require "formula_installer"
 require "digest"
 require_relative "errors"
+require_relative "installed_state"
 
 module BrewCooldownWorker
   source = File.binread(ENV.fetch("HOMEBREW_COOLDOWN_WORKER_PLAN"))
@@ -80,3 +81,4 @@ end
 
 Formulary.singleton_class.prepend(BrewCooldownWorker::Resolver)
 FormulaInstaller.prepend(BrewCooldownWorker::NoInstaller)
+Utils::Path.singleton_class.prepend(BrewCooldown::Executor::InfoHelper)

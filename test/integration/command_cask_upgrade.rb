@@ -46,7 +46,11 @@ Dir.mktmpdir("cooldown-cask-upgrade-") do |directory|
     raise "Generated completions missing" unless (HOMEBREW_PREFIX/"share/zsh/site-functions/_codex").size.positive?
     after = BrewCooldown::Executor::Inventory.capture
     changes = BrewCooldown::Executor::Inventory.differences(before, after)
-    raise "Cask upgrade changed formula inventory" unless changes.any? && changes.all? { |entry| entry.fetch("path").start_with?("#{before_cask.caskroom_path}/") }
+    only_cask_changes = changes.all? do |entry|
+      entry.fetch("path").start_with?("#{before_cask.caskroom_path}/") ||
+        entry.fetch("path") == (HOMEBREW_PREFIX/"bin/codex").to_s
+    end
+    raise "Cask upgrade changed formula inventory" unless changes.any? && only_cask_changes
     raise "Completed journal remained" unless state.glob("**/active.json").empty?
     report, diagnostics, check = Open3.capture3(launcher, "recover", "--json")
     warn diagnostics

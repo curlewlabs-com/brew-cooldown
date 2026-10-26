@@ -11,7 +11,7 @@ set -eu
 project_directory=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 brew=${HOMEBREW_BREW_FILE:-brew}
 tracks="probes historical hooks shared-consumer interpreter sibling-link \
-moved-alias conflict-check execution-recovery interruption commands cask \
+moved-alias conflict-check info-absent info-installed command-links execution-recovery interruption commands cask \
 cask-interruption cask-failure runtime-scope brewfile trusted-taps"
 
 usage() {
@@ -134,6 +134,21 @@ conflict-check)
   provision unlink --formula tenv
   provision link --formula opentofu
   experiment conflict_check upgrade
+  ;;
+info-absent | info-installed)
+  provision install --formula gmp ca-certificates openssl@4
+  helper=absent
+  if [ "$track" = info-installed ]; then
+    provision install --formula texinfo
+    helper=installed
+  fi
+  experiment installed_inspection baseline "$helper"
+  experiment installed_inspection upgrade "$helper"
+  ;;
+command-links)
+  provision install --formula gmp
+  experiment installed_inspection baseline absent
+  experiment command_link_recovery
   ;;
 execution-recovery)
   experiment historical_install baseline
