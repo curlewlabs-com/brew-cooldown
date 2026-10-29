@@ -91,7 +91,11 @@ old keg only when it still exists, or a native reinstall to repair forward.
 Quote every shell argument. Native reinstall adopts Homebrew's current release
 and is outside the tool's cooldown selection; relinking does not undo changes
 made by a post-install hook. Do not suggest forced overwrites or unpinning as
-automatic repair.
+automatic repair. A printed command that enters a developer command such as
+`brew ruby` sets `HOMEBREW_DEVELOPER` for that command alone; run from an
+ordinary shell, it would otherwise leave Homebrew's persistent developer mode
+on, and the next `brew update` would follow Homebrew's main branch past every
+qualified release.
 
 Cask choices use `--cask` explicitly and retain the previous version in the
 report. Homebrew can remove versioned files during a failed upgrade and its
