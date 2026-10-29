@@ -44,8 +44,10 @@ Dir.mktmpdir("cooldown-homebrew-checkout-") do |directory|
   # This is what `brew update` produces in developer mode. Waiting for a
   # qualification would never end, so the refusal has to name the repair.
   raise "Checkout between releases was accepted" if between.nil?
+  # `brew developer off` alone leaves developer mode on while HOMEBREW_DEVELOPER
+  # is set, so the tag-pinned update is the repair and the variable is named.
   ["7.0.9-1-g", "not a Homebrew release", qualified, "plan and explain still work",
-   "brew developer off", "HOMEBREW_UPDATE_TO_TAG=1", "brew update --force"].each do |fragment|
+   "HOMEBREW_UPDATE_TO_TAG=1 brew update --force", "brew developer off", "HOMEBREW_DEVELOPER "].each do |fragment|
     raise "Between-releases refusal lacks #{fragment.inspect}: #{between}" unless between.include?(fragment)
   end
 
