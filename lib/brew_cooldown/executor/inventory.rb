@@ -66,10 +66,13 @@ module BrewCooldown
         if kind == "formula" && previous_keg && Pathname(previous_keg).directory?
           method = keg_only ? "optlink" : "link"
           code = "require 'keg'; Keg.new(Pathname(#{previous_keg.to_s.dump})).#{method}"
+          # From an ordinary shell, `brew ruby` would switch on the account's
+          # persistent developer mode (see Execution.unqualified_checkout), and
+          # the next `brew update` would leave the qualified release.
           commands << {
             "purpose" => "Restore retained keg links; does not undo post-install configuration changes",
             "command" => Shellwords.join([brew, "unlink", "--formula", name]) + " && " +
-                         Shellwords.join([brew, "ruby", "-e", code])
+                         Shellwords.join(["env", "HOMEBREW_DEVELOPER=1", brew, "ruby", "-e", code])
           }
         end
         commands << {

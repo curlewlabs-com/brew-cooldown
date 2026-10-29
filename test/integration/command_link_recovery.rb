@@ -82,9 +82,21 @@ choice = report.fetch(:operations).first.fetch("recovery").find do |entry|
   entry.fetch("purpose").start_with?("Restore retained keg links")
 end
 assert(choice, "Recovery omitted retained-keg restoration")
-output, status = Open3.capture2e("/bin/sh", "-c", choice.fetch("command"))
-puts output
-assert(status.success?, "Printed retained-keg recovery failed")
+# Run the choice as an operator would, from a shell outside developer mode,
+# so the command alone decides whether developer mode persists.
+developer_mode = ->(*args) { Open3.capture2("git", "-C", HOMEBREW_REPOSITORY.to_s, "config", *args).first.strip }
+recorded = developer_mode.call("homebrew.devcmdrun")
+developer_mode.call("--unset-all", "homebrew.devcmdrun")
+begin
+  output, status = Open3.capture2e({ "HOMEBREW_DEVELOPER" => nil, "HOMEBREW_DEV_CMD_RUN" => nil },
+                                   "/bin/sh", "-c", choice.fetch("command"))
+  puts output
+  assert(status.success?, "Printed retained-keg recovery failed")
+  assert(developer_mode.call("homebrew.devcmdrun").empty?,
+         "Printed retained-keg recovery switched on persistent developer mode")
+ensure
+  developer_mode.call("homebrew.devcmdrun", recorded) unless recorded.empty?
+end
 BrewCooldown::Executor::Inventory.verify_commands!(keg)
 assert(BrewCooldown::Executor::Inventory.capture == before, "Recovery did not restore the original inventory")
 rejected = recovery.call(accept_current: digest)
