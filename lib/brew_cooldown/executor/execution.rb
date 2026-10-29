@@ -50,9 +50,13 @@ module BrewCooldown
         # `--force` because without it `brew update` leaves a checkout sitting at
         # main's unchanged tip where it is, whatever HOMEBREW_UPDATE_TO_TAG asks:
         # https://github.com/Homebrew/brew/blob/cdc1ca503231b9a96da64526774915d913c3ec9f/Library/Homebrew/cmd/update.sh#L1041-L1049
+        # HOMEBREW_UPDATE_TO_TAG is the repair, not `brew developer off`, which
+        # leaves developer mode on while HOMEBREW_DEVELOPER is set:
+        # https://github.com/Homebrew/brew/blob/c6069d2a943b71b0a90d91fc1ac93cb9c1634dcc/Library/Homebrew/developer/subcommand/off.rb#L23-L26
         "Homebrew checkout #{identity} is not a Homebrew release and #{refusal}. Homebrew follows its main " \
-          "branch while developer mode is on; run `brew developer off` or set HOMEBREW_UPDATE_TO_TAG=1, then " \
-          "`brew update --force`, to return to the latest release"
+          "branch while developer mode is on; run `HOMEBREW_UPDATE_TO_TAG=1 brew update --force` to return to " \
+          "the latest release, then `brew developer off`, and unset HOMEBREW_DEVELOPER if " \
+          "`brew developer state` still reports developer mode"
       end
 
       def self.non_release?(repository, head)
