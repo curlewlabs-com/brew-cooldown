@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# Reads current official-cask metadata to bound candidate releases.
 
 require "utils/curl"
 require "uri"
@@ -10,7 +11,7 @@ module BrewCooldown
       def self.fetch(name, log:)
         url = "https://formulae.brew.sh/api/cask/#{URI.encode_www_form_component(name)}.json"
         log.call(operation: "read_current_cask", package: name, url:)
-        result = Utils::Curl.curl_output("--silent", "--show-error", "--dump-header", "-", url, show_output: false)
+        result = Utils::Curl.curl_output("--silent", "--show-error", "--dump-header", "-", url)
         parsed = Utils::Curl.parse_curl_output(result.stdout)
         response = parsed.fetch(:responses).last
         unless result.success? && response && response[:status_code] == "200"
