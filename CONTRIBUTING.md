@@ -109,3 +109,36 @@ tracks.
 
 Keep each pull request focused on one change, make sure the checks pass, and
 describe the _why_ in the pull request body. CI must be green before merge.
+
+## Releasing
+
+A release is a fixed `vMAJOR.MINOR.PATCH` tag and the GitHub Release published
+on it. There is no floating tag and no packaged artifact: `brew-cooldown` runs
+from a checkout, and a release names a tested commit to check out. The
+fixed-version-tag ruleset and release immutability keep both from moving once
+published.
+
+Release when `main` changes what runs, `bin/` or `lib/`, since the last tag. A
+newly qualified Homebrew commit is such a change and always earns one, because
+each release states the Homebrew commit `upgrade` accepts. A fix is a patch
+release. New behavior, or a changed command, option or configuration key, is a
+minor release until 1.0.
+
+1. Pick a `main` commit whose CI and CodeQL runs passed, and the Qualify run
+   that passed on that tree.
+2. Tag it and push the tag:
+
+   ```sh
+   git tag v0.3.1 <commit>
+   git push origin v0.3.1
+   ```
+
+3. Publish the release with notes in the existing releases' sections:
+   Highlights, Compatibility and boundaries (naming the qualified Homebrew
+   commit and version), and Verification (the released commit and the runs
+   from step 1), ending with the compare link to the previous tag.
+
+   ```sh
+   gh release create v0.3.1 --verify-tag --notes-file notes.md \
+     --title "v0.3.1 - <summary>"
+   ```
