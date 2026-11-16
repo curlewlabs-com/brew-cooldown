@@ -28,11 +28,14 @@ to that directory. The worker verifies the map and recipe digests before
 evaluation. This is temporary invocation state, not a release catalog.
 
 Worker formula resolution accepts only selected canonical identities and exact
-recipe paths. Installer construction is refused. The sandbox denies reading
-the brew launcher, preventing the tested recursive command-line invocation.
-Unexpected subprocess arguments or unavailable native sandboxing stop the
-operation. Homebrew's failure flag is checked; a hook failure after pouring
-is a partial failure, not a successful installation.
+recipe paths. Homebrew's build and post-install children load their recipe
+file through a path entry that bypasses the name lookup, so the worker answers
+both from the same map; in the coordinator, the path entry resolves only the
+recipe inside a selected keg. Installer construction is refused. The sandbox
+denies reading the brew launcher, preventing the tested recursive command-line
+invocation. Unexpected subprocess arguments or unavailable native sandboxing
+stop the operation. Homebrew's failure flag is checked; a hook failure after
+pouring is a partial failure, not a successful installation.
 
 This is a boundary around trusted official hooks, not a general sandbox for
 hostile Ruby or third-party recipes. Arbitrary direct filesystem changes,
@@ -158,6 +161,13 @@ backward compatibility. The candidate loader verifies the fixture's immutable
 registry identity and bottle attestation before installation.
 The OpenSSL fixture metadata was read from Homebrew's official GHCR manifests
 on 2026-10-26.
+
+The installed-inspection fixture does the same in the other direction. Its
+Coreutils upgrade bottle records openssl@4 4.0.3 without a compatibility
+cohort, so today's newer openssl@4 has no evidence that the consumer works
+against it. The upgrade installs the recorded openssl@4 bottle with Coreutils,
+the first Coreutils release in the fixture to depend on OpenSSL. That fixture's
+metadata was read from the same manifests on 2026-11-16.
 
 Installed dependency relationships with neither endpoint changing are retained.
 For a replacement, the installed recipe and consumer receipt supply

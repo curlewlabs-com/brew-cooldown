@@ -26,6 +26,18 @@ module BrewCooldown
         raise Refused, "unplanned formula lookup: #{reference}"
       end
 
+      # A recipe file is planned only as the recipe inside a selected keg.
+      def resolve_path(path)
+        expected = Pathname(path).expand_path
+        candidate = candidates.each_value.find do |entry|
+          formula = entry.formula
+          expected == HOMEBREW_CELLAR/formula.name/formula.pkg_version.to_s/".brew/#{formula.name}.rb"
+        end
+        return candidate.formula if candidate
+
+        raise Refused, "unplanned formula source: #{path}"
+      end
+
       def validate(formula)
         candidate = candidates[formula.full_name]
         raise Refused, "formula substitution: #{formula.full_name}" unless candidate&.formula.equal?(formula)
@@ -75,6 +87,15 @@ module BrewCooldown
         end
 
         Executor.active_map.resolve(reference)
+      end
+
+      # Native relocation reads a poured keg's recipe by path, without factory.
+      def from_path(path, spec = :stable, alias_path: nil, force_bottle: false, flags: [], ignore_errors: false)
+        unless spec == :stable && alias_path.nil? && !force_bottle && flags.empty? && !ignore_errors
+          raise Refused, "unplanned formula loading options: #{path}"
+        end
+
+        Executor.active_map.resolve_path(path)
       end
     end
 

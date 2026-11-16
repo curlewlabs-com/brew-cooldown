@@ -136,7 +136,9 @@ conflict-check)
   experiment conflict_check upgrade
   ;;
 info-absent | info-installed)
-  provision install --formula gmp ca-certificates openssl@4
+  # The upgrade step installs OpenSSL from its recorded bottle: today's
+  # openssl@4 can be newer than the one the Coreutils bottle was built against.
+  provision install --formula gmp ca-certificates
   helper=absent
   if [ "$track" = info-installed ]; then
     provision install --formula texinfo

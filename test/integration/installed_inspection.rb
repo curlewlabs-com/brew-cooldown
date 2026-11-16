@@ -27,15 +27,26 @@ assert(%w[baseline upgrade].include?(phase) && %w[absent installed].include?(hel
 assert(!File.executable?("/usr/bin/install-info"), "Fixture needs Homebrew's optional helper path")
 assert((HOMEBREW_CELLAR/"texinfo").directory? == (helper == "installed"), "Unexpected helper state")
 
-record = JSON.parse(File.read(File.join(__dir__, "info_candidates.json"))).fetch(phase)
-candidate = BrewCooldown::Executor::Candidate.new(record).prepare
-dependencies = candidate.runtime_dependencies.map do |entry|
+fixtures = JSON.parse(File.read(File.join(__dir__, "info_candidates.json")))
+candidate = BrewCooldown::Executor::Candidate.new(fixtures.fetch(phase)).prepare
+candidates = [candidate]
+# The upgrade bottle was built against an OpenSSL that today's recipe may have
+# moved past, and a newer build is not compatibility evidence. Install the
+# recorded one with the upgrade, which is when Coreutils first depends on it.
+if phase == "upgrade"
+  candidates.concat(fixtures.fetch("dependencies").map do |dependency|
+    BrewCooldown::Executor::Candidate.new(dependency).prepare(allow_hooks: true)
+  end)
+end
+selected_names = candidates.map { |selected| selected.formula.full_name }
+dependencies = candidates.flat_map(&:runtime_dependencies).uniq { |entry| entry.fetch("full_name") }
+dependencies = dependencies.reject { |entry| selected_names.include?(entry.fetch("full_name")) }.map do |entry|
   name = entry.fetch("full_name").delete_prefix("homebrew/core/")
   BrewCooldown::Executor::Retained.new(Keg.new((HOMEBREW_PREFIX/"opt"/name).realpath))
 end
 assert(phase != "baseline" || candidate.formula.installed_kegs.empty?, "Baseline requires Coreutils absent")
 assert(phase != "upgrade" || Keg.new(candidate.formula.opt_prefix.realpath).version.to_s == "9.12", "Missing baseline")
-map = BrewCooldown::Executor::ExactMap.new([*dependencies, candidate])
+map = BrewCooldown::Executor::ExactMap.new([*dependencies, *candidates])
 map.activate
 
 # Even an installed helper cannot become a selected package merely because
@@ -44,6 +55,10 @@ refuses("helper candidate lookup") { Formulary.factory("texinfo") }
 inspected = BrewCooldown::Executor::InstalledState.formula("gh")
 refuses("installer for an inspected formula") { FormulaInstaller.new(inspected) }
 unplanned = Keg.new(inspected.opt_prefix.realpath)
+# Native code also loads a recipe by file, which bypasses the lookup above.
+refuses("recipe file of an inspected formula") { Formulary.from_path(unplanned/".brew/gh.rb") }
+planned = HOMEBREW_CELLAR/"coreutils"/candidate.formula.pkg_version.to_s/".brew/coreutils.rb"
+assert(Formulary.from_path(planned).equal?(candidate.formula), "Selected keg recipe resolved outside the plan")
 %i[unlink link optlink uninstall].each do |operation|
   refuses("unplanned keg #{operation}") { unplanned.public_send(operation) }
 end

@@ -1,4 +1,11 @@
 {
+  "dependencies": [
+    {
+      "name": "openssl@4",
+      "version": "4.0.3",
+      "index_sha256": "cdeea9c8816142e560226582b9c3dd8cb8303add111a7039c0ea507f9ed60696"
+    }
+  ],
   "baseline": {
     "name": "coreutils",
     "version": "9.12",
