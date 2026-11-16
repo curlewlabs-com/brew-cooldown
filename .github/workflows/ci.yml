@@ -26,6 +26,7 @@ jobs:
       # floating version, so a new finding means a script changed.
       - name: shellcheck
         run: |
+          # renovate: datasource=github-releases depName=koalaman/shellcheck extractVersion=^v(?<version>.+)$
           ver=0.11.0
           url="https://github.com/koalaman/shellcheck/releases/download/v${ver}/shellcheck-v${ver}.linux.x86_64.tar.xz"
           curl -fsSL "$url" | tar -xJ
