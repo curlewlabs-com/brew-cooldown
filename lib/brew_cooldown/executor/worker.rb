@@ -70,6 +70,13 @@ module BrewCooldownWorker
       end
       formula
     end
+
+    # build.rb and postinstall.rb load the parent-selected recipe file through
+    # this entry rather than factory. Answering it from the same map keeps the
+    # verified recipe, its tap and its archive snapshot in force there too.
+    def from_path(path, spec = :stable, alias_path: nil, force_bottle: false, flags: [], ignore_errors: false)
+      factory(path.to_s, spec, alias_path:, force_bottle:, flags:, ignore_errors:)
+    end
   end
 
   module NoInstaller

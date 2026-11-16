@@ -55,6 +55,10 @@ refuses("helper candidate lookup") { Formulary.factory("texinfo") }
 inspected = BrewCooldown::Executor::InstalledState.formula("gh")
 refuses("installer for an inspected formula") { FormulaInstaller.new(inspected) }
 unplanned = Keg.new(inspected.opt_prefix.realpath)
+# Native code also loads a recipe by file, which bypasses the lookup above.
+refuses("recipe file of an inspected formula") { Formulary.from_path(unplanned/".brew/gh.rb") }
+planned = HOMEBREW_CELLAR/"coreutils"/candidate.formula.pkg_version.to_s/".brew/coreutils.rb"
+assert(Formulary.from_path(planned).equal?(candidate.formula), "Selected keg recipe resolved outside the plan")
 %i[unlink link optlink uninstall].each do |operation|
   refuses("unplanned keg #{operation}") { unplanned.public_send(operation) }
 end
