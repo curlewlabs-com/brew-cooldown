@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# Reads historical core-registry responses with destination validation.
 
 require "utils/curl"
 require "resource"
@@ -26,7 +27,7 @@ module BrewCooldown
         # private mirror's authorization must never be sent to the public host.
         result = Utils::Curl.curl_output("--silent", "--show-error", "--dump-header", "-",
                                         "--header", "Authorization: Bearer QQ==",
-                                        "--header", "Accept: #{ACCEPT}", url, show_output: false)
+                                        "--header", "Accept: #{ACCEPT}", url)
         parsed = Utils::Curl.parse_curl_output(result.stdout)
         response = parsed.fetch(:responses).last
         unless result.success? && response && response.fetch(:status_code) == "200"
