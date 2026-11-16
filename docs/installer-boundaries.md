@@ -159,6 +159,13 @@ registry identity and bottle attestation before installation.
 The OpenSSL fixture metadata was read from Homebrew's official GHCR manifests
 on 2026-10-26.
 
+The installed-inspection fixture does the same in the other direction. Its
+Coreutils upgrade bottle records openssl@4 4.0.3 without a compatibility
+cohort, so today's newer openssl@4 has no evidence that the consumer works
+against it. The upgrade installs the recorded openssl@4 bottle with Coreutils,
+the first Coreutils release in the fixture to depend on OpenSSL. That fixture's
+metadata was read from the same manifests on 2026-11-16.
+
 Installed dependency relationships with neither endpoint changing are retained.
 For a replacement, the installed recipe and consumer receipt supply
 compatibility evidence. A poured receipt can omit a compatibility identifier
