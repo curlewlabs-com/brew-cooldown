@@ -21,7 +21,7 @@ jobs:
   lint:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # Pin shellcheck to an exact release rather than ubuntu's preinstalled,
       # floating version, so a new finding means a script changed.
       - name: shellcheck
@@ -42,7 +42,7 @@ jobs:
       HOMEBREW_NO_AUTO_UPDATE: 1
       HOMEBREW_NO_ANALYTICS: 1
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The suite runs inside Homebrew's Ruby against Homebrew's internal
       # libraries, which change without notice. Test against the commit the
       # executor is qualified on instead of whatever the image shipped with.

@@ -26,7 +26,7 @@ jobs:
     outputs:
       names: ${{ steps.list.outputs.names }}
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The script owns the track list, so a new track cannot be left out here.
       - id: list
         run: echo "names=$(script/qualify --list | jq -Rsc 'split("\n") | map(select(length > 0))')" >>"$GITHUB_OUTPUT"
@@ -49,7 +49,7 @@ jobs:
       HOMEBREW_NO_ENV_HINTS: 1
       HOMEBREW_NO_INSTALL_CLEANUP: 1
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # The image's Homebrew has many packages installed, and some would join
       # the fixtures into one dependency component. Pinning its checkout, as
       # ci.yml does, is therefore not enough: start from an empty prefix at
