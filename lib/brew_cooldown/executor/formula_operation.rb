@@ -11,14 +11,18 @@ module BrewCooldown
       attr_reader :candidate
 
       def initialize(candidate, map:)
-        @candidate, @map = candidate, map
+        @candidate = candidate
+        @map = map
       end
 
       def formula = candidate.formula
       def name = formula.name
       def kind = "formula"
       def key = [kind, formula.full_name]
-      def dependencies = candidate.runtime_dependencies.map { |entry| [kind, entry.fetch("full_name").delete_prefix("homebrew/core/")] }
+
+      def dependencies
+        candidate.runtime_dependencies.map { |entry| [kind, entry.fetch("full_name").delete_prefix("homebrew/core/")] }
+      end
 
       def record
         verify_before!
@@ -30,8 +34,9 @@ module BrewCooldown
             raise Refused, "#{name}: selected version does not advance the active installation"
           end
         end
-        { "kind" => kind, "name" => name, "full_name" => formula.full_name, "version" => formula.pkg_version.to_s, "previous_keg" => previous,
-          "candidate" => candidate.identity, "keg_only" => formula.keg_only?, "status" => "pending" }
+        { "kind" => kind, "name" => name, "full_name" => formula.full_name, "version" => formula.pkg_version.to_s,
+          "previous_keg" => previous, "candidate" => candidate.identity, "keg_only" => formula.keg_only?,
+          "status" => "pending" }
       end
 
       def verify_before!
@@ -61,9 +66,11 @@ module BrewCooldown
           end
         end
         raise Refused, "Homebrew reported failure for #{name}" if Homebrew.failed?
+
         expected = HOMEBREW_CELLAR/name/formula.pkg_version.to_s
         raise Refused, "#{name}: selected keg is not active" unless formula.opt_prefix.realpath == expected
         raise Refused, "#{name}: installation receipt missing" unless (expected/"INSTALL_RECEIPT.json").file?
+
         if linked
           keg = Keg.new(expected)
           raise Refused, "#{name}: selected keg is not linked" unless keg.linked?
@@ -73,12 +80,16 @@ module BrewCooldown
 
         tab = Tab.for_keg(Keg.new(expected))
         raise Refused, "#{name}: installed receipt has a different tap identity" unless tab.tap == formula.tap.name
+
         if candidate.respond_to?(:release_archive?) && candidate.release_archive?
           recipe = expected/".brew/#{name}.rb"
           unless recipe.file? && Digest::SHA256.file(recipe).hexdigest == candidate.record.fetch("source_sha256")
             raise Refused, "#{name}: installed historical recipe differs from the selected source"
           end
-          raise Refused, "#{name}: installed receipt lost selected source provenance" unless tab.source["tap_git_head"] == candidate.record.fetch("commit")
+          unless tab.source["tap_git_head"] == candidate.record.fetch("commit")
+            raise Refused,
+                  "#{name}: installed receipt lost selected source provenance"
+          end
         end
         # Source receipts ask native linkage checks to expand declared runtime
         # edges. That traversal must use the already authorized formula object.

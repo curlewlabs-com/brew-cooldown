@@ -37,8 +37,10 @@ module BrewCooldown
     private
 
     def update(now:)
-      File.open(@directory/"run.lock", File::RDWR | File::CREAT, 0600) do |lock|
-        raise StateError, "another brew-cooldown invocation owns #{@directory}" unless lock.flock(File::LOCK_EX | File::LOCK_NB)
+      File.open(@directory/"run.lock", File::RDWR | File::CREAT, 0o600) do |lock|
+        unless lock.flock(File::LOCK_EX | File::LOCK_NB)
+          raise StateError, "another brew-cooldown invocation owns #{@directory}"
+        end
 
         state = load_state
         previous = state.fetch("last_seen")
@@ -47,6 +49,7 @@ module BrewCooldown
         if previous && current < previous
           raise StateError, "UTC clock moved backward: #{current.getutc.iso8601} precedes #{previous.getutc.iso8601(9)}"
         end
+
         # An overlapping invocation can record a later instant before this
         # invocation reaches the lock; its frozen timestamp is not a rollback.
         recorded_at = [now, previous].compact.max
@@ -65,6 +68,7 @@ module BrewCooldown
              state["observed"].is_a?(Hash) && state.key?("last_seen")
         raise StateError, "unsupported or mismatched observation state: #{@path}"
       end
+
       Time.iso8601(state["last_seen"]) if state["last_seen"]
       state.fetch("observed").each do |identity, timestamp|
         raise StateError, "invalid candidate identity in #{@path}" unless identity.match?(/\A[0-9a-f]{64}\z/)
@@ -72,8 +76,8 @@ module BrewCooldown
         Time.iso8601(timestamp)
       end
       state
-    rescue JSON::ParserError, ArgumentError, TypeError => error
-      raise StateError, "cannot read observation state #{@path}: #{error.message}"
+    rescue JSON::ParserError, ArgumentError, TypeError => e
+      raise StateError, "cannot read observation state #{@path}: #{e.message}"
     end
 
     def persist(state)

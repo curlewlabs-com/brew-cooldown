@@ -17,9 +17,11 @@ module BrewCooldown
 
     module InstalledInventory
       def self.package(name, kind: :formula, default_tap: "homebrew/core")
-        unless name.is_a?(String) && name.match?(/\A(?:[a-z0-9_-]+\/[a-z0-9_-]+\/)?[a-z0-9][a-z0-9+@._-]*\z/) && !name.include?("..")
+        unless name.is_a?(String) && name.match?(%r{\A(?:[a-z0-9_-]+/[a-z0-9_-]+/)?[a-z0-9][a-z0-9+@._-]*\z}) &&
+               !name.include?("..")
           raise ArgumentError, "Invalid package identity: #{name}"
         end
+
         pieces = name.split("/")
         case pieces.length
         when 1 then PackageId.new(kind:, tap: default_tap, name:)
@@ -36,12 +38,18 @@ module BrewCooldown
 
           name = row.fetch("full_name")
           version = row.fetch("pkg_version")
-          raise ArgumentError, "Invalid runtime dependency identity" unless name.is_a?(String) && version.is_a?(String) && !version.empty?
+          unless name.is_a?(String) && version.is_a?(String) && !version.empty?
+            raise ArgumentError,
+                  "Invalid runtime dependency identity"
+          end
 
           pkg = PkgVersion.parse(version)
           rebuild = row["bottle_rebuild"]
           cohort = row["compatibility_version"]
-          raise ArgumentError, "Invalid recorded bottle rebuild" unless rebuild.nil? || (rebuild.is_a?(Integer) && rebuild >= 0)
+          unless rebuild.nil? || (rebuild.is_a?(Integer) && rebuild >= 0)
+            raise ArgumentError,
+                  "Invalid recorded bottle rebuild"
+          end
           raise ArgumentError, "Invalid compatibility identifier" unless cohort.nil? || cohort.is_a?(Integer)
 
           # Older receipts can omit rebuild identity. Leaving it unknown avoids
@@ -59,25 +67,23 @@ module BrewCooldown
           begin
             record = formula(rack)
             records[record.installed.package] = record
-          rescue StandardError => error
-            details = { operation: "read_installed_formula", package: name, error: error.message,
-                        error_class: error.class.name, backtrace: error.backtrace,
+          rescue StandardError => e
+            details = { operation: "read_installed_formula", package: name, error: e.message,
+                        error_class: e.class.name, backtrace: e.backtrace,
                         recovery: Executor::Recovery.commands(name) }
             errors << details
             log.call(**details)
           end
         end
         Cask::Caskroom.tokens.sort.each do |name|
-          begin
-            record = cask(name)
-            records[record.installed.package] = record
-          rescue StandardError => error
-            details = { operation: "read_installed_cask", package: name, error: error.message,
-                        error_class: error.class.name, backtrace: error.backtrace,
-                        recovery: Executor::Recovery.commands(name, kind: "cask") }
-            errors << details
-            log.call(**details)
-          end
+          record = cask(name)
+          records[record.installed.package] = record
+        rescue StandardError => e
+          details = { operation: "read_installed_cask", package: name, error: e.message,
+                      error_class: e.class.name, backtrace: e.backtrace,
+                      recovery: Executor::Recovery.commands(name, kind: "cask") }
+          errors << details
+          log.call(**details)
         end
         fingerprint = Executor::Inventory.capture
         InventoryResult.new(records: records.freeze, errors: errors.freeze, fingerprint: fingerprint.sort.to_h.freeze)
@@ -86,14 +92,20 @@ module BrewCooldown
       def self.formula(rack)
         name = rack.basename.to_s
         opt = HOMEBREW_PREFIX/"opt"/name
-        raise ArgumentError, "#{name}: no active opt link; inspect retained kegs before choosing a baseline" unless opt.symlink? && opt.exist?
+        unless opt.symlink? && opt.exist?
+          raise ArgumentError,
+                "#{name}: no active opt link; inspect retained kegs before choosing a baseline"
+        end
 
         active_path = opt.realpath
         keg = Keg.new(active_path)
         raise ArgumentError, "#{name}: active link points outside its rack" unless active_path.parent == rack.realpath
 
         linked = HOMEBREW_LINKED_KEGS/name
-        raise ArgumentError, "#{name}: linked and opt kegs disagree" if linked.symlink? && (!linked.exist? || linked.realpath != active_path)
+        if linked.symlink? && (!linked.exist? || linked.realpath != active_path)
+          raise ArgumentError,
+                "#{name}: linked and opt kegs disagree"
+        end
 
         receipt = keg/"INSTALL_RECEIPT.json"
         raise ArgumentError, "#{name}: installed receipt is missing" unless receipt.file?
@@ -110,11 +122,17 @@ module BrewCooldown
                           rebuild: nil, scheme: keg.version_scheme)
         installed = Installed.new(package: identity, build:, pinned: (HOMEBREW_PINNED_KEGS/name).symlink?)
         dependencies = retained.runtime_dependencies.map do |row|
-          row["runtime_only"] == true ? RuntimeRequirement.new(package: package(row.fetch("full_name"))) : requirements([row]).first
+          if row["runtime_only"] == true
+            RuntimeRequirement.new(package: package(row.fetch("full_name")))
+          else
+            requirements([row]).first
+          end
         end
         InstalledRecord.new(installed:, dependencies:,
                             compatibility_version: retained&.compatibility_version, retained:, receipt: receipt.to_s,
-                            identity: Digest::SHA256.hexdigest([receipt.read, retained&.worker_record&.fetch("recipe_sha256")].join("\n")))
+                            identity: Digest::SHA256.hexdigest(
+                              [receipt.read, retained&.worker_record&.fetch("recipe_sha256")].join("\n")
+                            ))
       end
 
       def self.cask(name)
@@ -124,7 +142,11 @@ module BrewCooldown
         tab = Cask::Tab.from_file(receipt)
         tap = tab.source["tap"]
         version = tab.version
-        raise ArgumentError, "#{name}: cask receipt has no tap or version" unless tap.is_a?(String) && version.is_a?(String)
+        unless tap.is_a?(String) && version.is_a?(String)
+          raise ArgumentError,
+                "#{name}: cask receipt has no tap or version"
+        end
+
         runtime = tab.runtime_dependencies
         raise ArgumentError, "#{name}: cask dependency evidence is missing" unless runtime.is_a?(Hash)
 
@@ -145,9 +167,13 @@ module BrewCooldown
           raise ArgumentError, "Invalid cask #{field} requirements" unless rows.is_a?(Array)
 
           rows.map do |row|
-            raise ArgumentError, "Invalid cask dependency record" unless row.is_a?(Hash) && row["full_name"].is_a?(String)
+            unless row.is_a?(Hash) && row["full_name"].is_a?(String)
+              raise ArgumentError,
+                    "Invalid cask dependency record"
+            end
 
-            identity = package(row.fetch("full_name"), kind:, default_tap: kind == :cask ? "homebrew/cask" : "homebrew/core")
+            identity = package(row.fetch("full_name"), kind:,
+                                                       default_tap: kind == :cask ? "homebrew/cask" : "homebrew/core")
             RuntimeRequirement.new(package: identity)
           end
         end

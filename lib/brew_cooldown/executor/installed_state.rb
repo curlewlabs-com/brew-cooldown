@@ -62,6 +62,7 @@ module BrewCooldown
         unless opt.symlink? && opt.exist? && Keg.new(opt.realpath).name == name
           raise Refused, "#{name}: installed helper has no active keg"
         end
+
         executable = opt/relative_path
         raise Refused, "#{name}: installed helper is not executable: #{relative_path}" unless executable.executable?
 

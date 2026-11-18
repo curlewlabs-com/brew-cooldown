@@ -16,7 +16,7 @@ end
 # installer answered conflicts from the prefix.
 phase = ARGV.fetch(0)
 record = JSON.parse(File.read(File.join(__dir__, "conflict_candidates.json")))
-               .fetch(phase == "baseline" ? "baseline" : "upgrade")
+             .fetch(phase == "baseline" ? "baseline" : "upgrade")
 candidate = BrewCooldown::Executor::Candidate.new(record).prepare
 formula = candidate.formula
 assert(formula.conflicts.map(&:name).include?("tenv"), "Fixture recipe no longer conflicts with tenv")
@@ -39,8 +39,8 @@ map.activate
 begin
   Formulary.factory("tenv")
   raise "Conflict lookup was allowed outside the plan"
-rescue BrewCooldown::Executor::Refused => error
-  raise unless error.message.include?("unplanned formula lookup")
+rescue BrewCooldown::Executor::Refused => e
+  raise unless e.message.include?("unplanned formula lookup")
 end
 
 if phase == "linked"
@@ -48,8 +48,8 @@ if phase == "linked"
   begin
     FormulaInstaller.new(formula, link_keg: true).check_conflicts
     raise "Linked tenv was not reported as a conflict"
-  rescue FormulaConflictError => error
-    assert(error.conflicts.map(&:name) == ["tenv"], "Unexpected conflicts: #{error.conflicts.map(&:name)}")
+  rescue FormulaConflictError => e
+    assert(e.conflicts.map(&:name) == ["tenv"], "Unexpected conflicts: #{e.conflicts.map(&:name)}")
   end
   puts "PASS linked: refused #{formula.full_name} beside a linked tenv"
   exit
@@ -64,6 +64,6 @@ assert(result.fetch("status") == "completed", "Conflict-declaring operation fail
 keg = HOMEBREW_CELLAR/"opentofu"/record.fetch("version")
 assert((HOMEBREW_LINKED_KEGS/"opentofu").realpath == keg, "opentofu is not linked to the selected keg")
 output, status = Open3.capture2e((HOMEBREW_PREFIX/"bin/tofu").to_s, "version")
-assert(status.success? && output.include?("OpenTofu v#{record.fetch('version')}"), "Linked tofu failed: #{output}")
+assert(status.success? && output.include?("OpenTofu v#{record.fetch("version")}"), "Linked tofu failed: #{output}")
 assert(phase == "baseline" || !tenv_linked.exist?, "tenv was linked")
 puts "PASS #{phase}: installed #{formula.full_name} with its conflicts answered from the prefix"

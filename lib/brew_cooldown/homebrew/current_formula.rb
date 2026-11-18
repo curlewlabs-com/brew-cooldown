@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 # Reads current core-formula metadata to bound candidate builds.
 
 require "utils/curl"
@@ -27,9 +28,10 @@ module BrewCooldown
         unless result.success? && response && response[:status_code] == "200"
           raise RegistryError, "Current formula request failed for #{name}: HTTP #{response&.fetch(:status_code)}"
         end
+
         validate(JSON.parse(parsed.fetch(:body)), name:)
-      rescue JSON::ParserError => error
-        raise RegistryError, "Invalid current formula JSON for #{name}: #{error.message}"
+      rescue JSON::ParserError => e
+        raise RegistryError, "Invalid current formula JSON for #{name}: #{e.message}"
       end
 
       # One curl process reads the whole scope over shared connections. Read
@@ -39,12 +41,14 @@ module BrewCooldown
       def self.fetch_all(names, log:, transfer: method(:transfer))
         names = names.uniq
         invalid = names.reject { |name| name.is_a?(String) && name.match?(NAME) && !name.include?("..") }
-        raise RegistryError, "Expected unqualified core formula names: #{invalid.join(', ')}" unless invalid.empty?
+        raise RegistryError, "Expected unqualified core formula names: #{invalid.join(", ")}" unless invalid.empty?
         return {} if names.empty?
 
         log.call(operation: "read_current_formulae", packages: names.length, url: API)
         Dir.mktmpdir("brew-cooldown-current-") do |directory|
-          requests = names.to_h { |name| [name, ["#{API}/#{URI.encode_www_form_component(name)}.json", File.join(directory, "#{name}.json")]] }
+          requests = names.to_h do |name|
+            [name, ["#{API}/#{URI.encode_www_form_component(name)}.json", File.join(directory, "#{name}.json")]]
+          end
           statuses = transfer.call(requests.values)
           requests.to_h do |name, (_url, path)|
             [name, outcome(name, path, statuses[path])]
@@ -53,8 +57,9 @@ module BrewCooldown
       end
 
       def self.transfer(requests)
+        # The --write-out tokens are curl's variables, not a Ruby format string.
         arguments = ["--silent", "--show-error", "--parallel", "--parallel-max", "16",
-                     "--write-out", "%{filename_effective}\\t%{response_code}\\n"]
+                     "--write-out", "%{filename_effective}\\t%{response_code}\\n"] # rubocop:disable Style/FormatStringToken
         requests.each { |url, path| arguments.push("--output", path, url) }
         # Without --fail a missing formula still produces its status line, and
         # one failed transfer cannot discard the completed ones.
@@ -65,14 +70,14 @@ module BrewCooldown
 
       def self.outcome(name, path, status)
         unless status == "200"
-          return RegistryError.new("Current formula request failed for #{name}: HTTP #{status || 'no response'}")
+          return RegistryError.new("Current formula request failed for #{name}: HTTP #{status || "no response"}")
         end
 
         validate(JSON.parse(File.read(path)), name:)
-      rescue JSON::ParserError => error
-        RegistryError.new("Invalid current formula JSON for #{name}: #{error.message}")
-      rescue RegistryError, SystemCallError => error
-        error
+      rescue JSON::ParserError => e
+        RegistryError.new("Invalid current formula JSON for #{name}: #{e.message}")
+      rescue RegistryError, SystemCallError => e
+        e
       end
       private_class_method :outcome
 
@@ -83,7 +88,7 @@ module BrewCooldown
           raise RegistryError, "Current core identity or version scheme unavailable for #{name}"
         end
         if data.fetch("disabled")
-          raise RegistryError, "Homebrew has disabled #{name}: #{data['disable_reason'] || 'no reason supplied'}"
+          raise RegistryError, "Homebrew has disabled #{name}: #{data["disable_reason"] || "no reason supplied"}"
         end
         unless data.dig("versions", "stable").is_a?(String) && !data.dig("versions", "stable").empty? &&
                data["revision"].is_a?(Integer) && data["revision"] >= 0
@@ -116,19 +121,22 @@ module BrewCooldown
         return if scheme_order.zero? && comparison.negative?
 
         current_rebuild = current.dig("bottle", "stable", "rebuild")
-        return if scheme_order.zero? && comparison.zero? && current_rebuild.is_a?(Integer) && build.rebuild <= current_rebuild
+        if scheme_order.zero? && comparison.zero? && current_rebuild.is_a?(Integer) && build.rebuild <= current_rebuild
+          return
+        end
 
         published = { version: current.fetch("versions").fetch("stable"), revision: current.fetch("revision"),
                       rebuild: current_rebuild, scheme: current.fetch("version_scheme") }
-        url = "#{API}/#{URI.encode_www_form_component(current.fetch('name'))}.json"
-        reason = "candidate is not authorized by current formula metadata; possible publication lag, rollback or unavailable bottle evidence"
+        url = "#{API}/#{URI.encode_www_form_component(current.fetch("name"))}.json"
+        reason = "candidate is not authorized by current formula metadata; " \
+                 "possible publication lag, rollback or unavailable bottle evidence"
         log.call(operation: "reject_current_formula_candidate", package: current.fetch("name"), reason:,
                  candidate: build.to_h, current: published, url:, tap_git_head: current["tap_git_head"])
         ahead = scheme_order.positive? || (scheme_order.zero? && comparison.positive?) ||
                 (scheme_order.zero? && comparison.zero? && current_rebuild.is_a?(Integer) &&
                  current_rebuild >= 0 && build.rebuild > current_rebuild)
         error_class = ahead ? AheadOfCurrent : RegistryError
-        raise error_class, "#{current.fetch('name')}: #{reason}; candidate=#{JSON.generate(build.to_h)}; " \
+        raise error_class, "#{current.fetch("name")}: #{reason}; candidate=#{JSON.generate(build.to_h)}; " \
                            "current=#{JSON.generate(published)}; source=#{url}"
       end
     end

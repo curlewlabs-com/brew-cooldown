@@ -16,27 +16,38 @@ Dir.mktmpdir("cooldown-journal-") do |directory|
     formula, cask = report.fetch("operations")
     raise "Cask progress changed formula state" unless formula.fetch("status") == "pending"
     raise "Cask interruption was confirmed" unless cask.fetch("status") == "unconfirmed"
-    raise "Cask recovery targets a formula" unless cask.fetch("recovery").all? { |entry| Shellwords.split(entry.fetch("command")).include?("--cask") }
-    raise "Legacy journal lost formula recovery" unless formula.fetch("recovery").all? { |entry| Shellwords.split(entry.fetch("command")).include?("--formula") }
+    raise "Cask recovery targets a formula" unless cask.fetch("recovery").all? do |entry|
+      Shellwords.split(entry.fetch("command")).include?("--cask")
+    end
+    raise "Legacy journal lost formula recovery" unless formula.fetch("recovery").all? do |entry|
+      Shellwords.split(entry.fetch("command")).include?("--formula")
+    end
+
     journal.record("shared-token", "completed")
     report = BrewCooldown::Executor::Journal.new(directory).report(observed: {})
-    raise "Formula progress changed cask state" unless report.fetch("operations").map { |entry| entry.fetch("status") } == %w[completed unconfirmed]
+    raise "Formula progress changed cask state" unless report.fetch("operations").map do |entry|
+      entry.fetch("status")
+    end == %w[completed unconfirmed]
 
     # Repair must resolve the tap from the selected operation, rather than
     # let Homebrew choose a same-named package from a different publisher.
     bytes = JSON.parse(journal.path.read)
     bytes.fetch("operations").first["full_name"] = "openai/tools/shared-token"
     journal.path.write(JSON.generate(bytes))
-    choices = BrewCooldown::Executor::Journal.new(directory).report(observed: {}).fetch("operations").first.fetch("recovery")
-    raise "Recovery lost selected tap identity" unless choices.all? { |entry| Shellwords.split(entry.fetch("command")).include?("openai/tools/shared-token") }
+    choices = BrewCooldown::Executor::Journal.new(directory).report(observed: {})
+                                             .fetch("operations").first.fetch("recovery")
+    raise "Recovery lost selected tap identity" unless choices.all? do |entry|
+      Shellwords.split(entry.fetch("command")).include?("openai/tools/shared-token")
+    end
 
     bytes = JSON.parse(journal.path.read)
     bytes.fetch("operations") << base.dup
     journal.path.write(JSON.generate(bytes))
     begin
       BrewCooldown::Executor::Journal.new(directory).load
-    rescue BrewCooldown::Executor::Refused => error
-      raise unless error.message.include?("duplicate journal operation")
+    rescue BrewCooldown::Executor::Refused => e
+      raise unless e.message.include?("duplicate journal operation")
+
       rejected = true
     end
     raise "Ambiguous journal accepted" unless rejected

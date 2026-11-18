@@ -14,9 +14,9 @@ def refuses(description)
   before = BrewCooldown::Executor::Inventory.capture
   begin
     yield
-  rescue BrewCooldown::Executor::Refused => error
+  rescue BrewCooldown::Executor::Refused => e
     assert(BrewCooldown::Executor::Inventory.capture == before, "#{description} changed packages")
-    puts "PASS refused #{description}: #{error.message}"
+    puts "PASS refused #{description}: #{e.message}"
     return
   end
   raise "Accepted #{description}"

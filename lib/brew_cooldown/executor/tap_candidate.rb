@@ -11,15 +11,23 @@ module BrewCooldown
     # A trusted recipe's release archive uses Homebrew's native install method,
     # not a Core bottle. Its exact source, URL and checksum authorize that path.
     class TapCandidate
+      RELEASE_ARCHIVE_PATH = %r{
+        \A/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/releases/download/[a-zA-Z0-9_.+-]+/
+        [a-zA-Z0-9_.+-]+\.(?:tar\.gz|tgz|zip)\z
+      }x
+
       attr_reader :formula, :record, :runtime_dependencies
 
       def initialize(record)
         @record = record.freeze
-        name, tap, repository, commit, path, digest = record.values_at("name", "tap", "repository", "commit", "source_path", "source_sha256")
+        name, tap, repository, commit, path, digest = record.values_at("name", "tap", "repository", "commit",
+                                                                       "source_path", "source_sha256")
         unless name.is_a?(String) && name.match?(/\A[a-z0-9][a-z0-9+@._-]*\z/) && !name.include?("..") &&
-               tap.is_a?(String) && tap.match?(/\A[a-z0-9_-]+\/[a-z0-9_-]+\z/) && !%w[homebrew/core homebrew/cask].include?(tap)
+               tap.is_a?(String) && tap.match?(%r{\A[a-z0-9_-]+/[a-z0-9_-]+\z}) && !%w[homebrew/core
+                                                                                       homebrew/cask].include?(tap)
           raise Refused, "invalid trusted formula identity"
         end
+
         owner, token = tap.split("/")
         raise Refused, "trusted tap repository differs" unless repository == "#{owner}/homebrew-#{token}"
         raise Refused, "invalid trusted source commit" unless commit.is_a?(String) && commit.match?(/\A[0-9a-f]{40}\z/)
@@ -27,12 +35,15 @@ module BrewCooldown
                path.split("/").all? { |piece| piece.match?(/\A[a-zA-Z0-9+@._-]+\z/) && !%w[. ..].include?(piece) }
           raise Refused, "invalid trusted formula path"
         end
-        raise Refused, "invalid trusted source checksum" unless digest.is_a?(String) && digest.match?(/\A[0-9a-f]{64}\z/)
+        return if digest.is_a?(String) && digest.match?(/\A[0-9a-f]{64}\z/)
+
+        raise Refused,
+              "invalid trusted source checksum"
       end
 
       def load_recipe
-        source = Resource.new("cooldown-tap-source-#{record.fetch('name')}")
-        source.url("https://raw.githubusercontent.com/#{record.fetch('repository')}/#{record.fetch('commit')}/#{record.fetch('source_path')}")
+        source = Resource.new("cooldown-tap-source-#{record.fetch("name")}")
+        source.url("https://raw.githubusercontent.com/#{record.fetch("repository")}/#{record.fetch("commit")}/#{record.fetch("source_path")}")
         source.sha256(record.fetch("source_sha256"))
         source.fetch
         source.verify_download_integrity(source.cached_download)
@@ -62,16 +73,24 @@ module BrewCooldown
         resource = formula.resource
         uri = URI(formula.resource.url)
         unless uri.scheme == "https" && uri.host == "github.com" && uri.query.nil? && uri.fragment.nil? &&
-               uri.path.match?(%r{\A/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/releases/download/[a-zA-Z0-9_.+-]+/[a-zA-Z0-9_.+-]+\.(?:tar\.gz|tgz|zip)\z}) &&
+               uri.path.match?(RELEASE_ARCHIVE_PATH) &&
                resource.checksum&.hexdigest&.match?(/\A[0-9a-f]{64}\z/)
           raise Refused, "#{formula.full_name}: needs a checksum-bound versioned GitHub release archive"
         end
-        unless formula.stable && !formula.head? && formula.local_bottle_path.nil? && formula.bottle.nil? && formula.resources.empty? && formula.patchlist.empty? &&
-               formula.options.empty? && !formula.fetch_defined? && formula.deps.none? { |dependency| dependency.build? || dependency.optional? || dependency.recommended? }
-          raise Refused, "#{formula.full_name}: unsupported release installer (bottles, resources, patches, options, fetch hooks or build dependencies)"
+        unless formula.stable && !formula.head? && formula.local_bottle_path.nil? && formula.bottle.nil? &&
+               formula.resources.empty? && formula.patchlist.empty? &&
+               formula.options.empty? && !formula.fetch_defined? &&
+               formula.deps.none? { |dependency| dependency.build? || dependency.optional? || dependency.recommended? }
+          raise Refused,
+                "#{formula.full_name}: unsupported release installer " \
+                "(bottles, resources, patches, options, fetch hooks or build dependencies)"
         end
+
         formula.requirements.reject(&:test?).each do |requirement|
-          raise Refused, "#{formula.full_name}: platform requirement is unsatisfied: #{requirement.name}" unless requirement.satisfied?
+          unless requirement.satisfied?
+            raise Refused,
+                  "#{formula.full_name}: platform requirement is unsatisfied: #{requirement.name}"
+          end
         end
       end
 
@@ -84,18 +103,31 @@ module BrewCooldown
 
             binary = BinaryPathname.wrap(path)
             next unless binary.dylib? || binary.binary_executable? || binary.mach_o_bundle?
-            raise Refused, "#{formula.full_name}: archive binary is incompatible with this architecture" unless binary.arch_compatible?(Hardware::CPU.arch)
-            if binary.dynamically_linked_libraries.any? { |library| library.start_with?("#{HOMEBREW_PREFIX}/", "#{HOMEBREW_CELLAR}/") }
-              raise Refused, "#{formula.full_name}: release binary needs Homebrew ABI evidence; release archive adapter cannot establish it"
+            unless binary.arch_compatible?(Hardware::CPU.arch)
+              raise Refused,
+                    "#{formula.full_name}: archive binary is incompatible with this architecture"
             end
+            if binary.dynamically_linked_libraries.any? do |library|
+              library.start_with?("#{HOMEBREW_PREFIX}/", "#{HOMEBREW_CELLAR}/")
+            end
+              raise Refused,
+                    "#{formula.full_name}: release binary needs Homebrew ABI evidence; " \
+                    "release archive adapter cannot establish it"
+            end
+
             found = true if binary.binary_executable? || binary.dylib?
           end
         end
-        raise Refused, "#{formula.full_name}: archive contains no compatible macOS binary; source-only installation is unsupported" unless found
+        return if found
+
+        raise Refused,
+              "#{formula.full_name}: archive contains no compatible macOS binary; " \
+              "source-only installation is unsupported"
       end
 
       def build
-        BrewCooldown::Build.new(version: formula.version.to_s, revision: formula.revision, rebuild: 0, scheme: formula.version_scheme)
+        BrewCooldown::Build.new(version: formula.version.to_s, revision: formula.revision, rebuild: 0,
+                                scheme: formula.version_scheme)
       end
 
       def identity
@@ -117,14 +149,20 @@ module BrewCooldown
       private
 
       def evaluate_recipe(contents, path:)
-        raise Refused, "trusted source changed before evaluation" unless Digest::SHA256.hexdigest(contents) == record.fetch("source_sha256")
+        unless Digest::SHA256.hexdigest(contents) == record.fetch("source_sha256")
+          raise Refused,
+                "trusted source changed before evaluation"
+        end
 
         @contents = contents
         tap = Tap.fetch(record.fetch("tap"))
         # The immutable cache path prevents a later historical evaluation from
         # reusing a class cached for today's live tap path.
         @formula = Formulary.from_contents(record.fetch("name"), path, @contents, tap:)
-        raise Refused, "trusted formula identity differs" unless formula.full_name == "#{record.fetch('tap')}/#{record.fetch('name')}"
+        unless formula.full_name == "#{record.fetch("tap")}/#{record.fetch("name")}"
+          raise Refused,
+                "trusted formula identity differs"
+        end
 
         commit = record.fetch("commit")
         formula.define_singleton_method(:tap_git_head) { commit }

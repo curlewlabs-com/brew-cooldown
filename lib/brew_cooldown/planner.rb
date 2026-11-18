@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "set"
 require_relative "policy"
 
 module BrewCooldown
@@ -30,7 +29,11 @@ module BrewCooldown
     end
 
     def plan(domains:, roots:)
-      eligible = domains.transform_values { |options| options.select { |option| option.retained || option.decision.eligible? } }
+      eligible = domains.transform_values do |options|
+        options.select do |option|
+          option.retained || option.decision.eligible?
+        end
+      end
       components(eligible, roots).map do |component|
         component_roots = roots.select { |root| component.include?(root) }
         resolve(eligible.slice(*component), component_roots)
@@ -120,6 +123,7 @@ module BrewCooldown
       signature = selected.sort_by { |package, _option| key(package) }
                           .map { |package, option| [package, option.release.identity] }
       return if @rejected.include?(signature)
+
       if required.all? { |package| selected.key?(package) }
         return selected unless installation_cycle?(selected)
 
@@ -131,14 +135,14 @@ module BrewCooldown
       unassigned = required.reject { |package| selected.key?(package) }
       package = @priority.find { |root| unassigned.include?(root) } || unassigned.min_by { |entry| key(entry) }
       options = @domains.fetch(package, [])
-      @last_conflict = "No eligible option for #{key(package).join('/')}" if options.empty?
+      @last_conflict = "No eligible option for #{key(package).join("/")}" if options.empty?
       options.each do |option|
         raise SearchLimit if @attempts >= @max_assignments
 
         @attempts += 1
         assignment = selected.merge(package => option)
         if consistent?(assignment)
-          needed = required | option.dependencies.map(&:package).to_set
+          needed = required | option.dependencies.to_set(&:package)
           result = search(assignment, needed)
           return result if result
         end
@@ -151,13 +155,19 @@ module BrewCooldown
     def consistent?(selected)
       selected.all? do |package, option|
         option.dependencies.all? do |requirement|
-          targets = selected.key?(requirement.package) ? [selected.fetch(requirement.package)] : @domains.fetch(requirement.package, [])
+          targets = if selected.key?(requirement.package)
+                      [selected.fetch(requirement.package)]
+                    else
+                      @domains.fetch(
+                        requirement.package, []
+                      )
+                    end
           compatible = targets.any? do |target|
             (option.retained && target.retained) || @compatible.call(requirement, target)
           end
           unless compatible
-            @last_conflict = "#{key(package).join('/')} #{option.release.build.version} requires " \
-                             "#{key(requirement.package).join('/')} #{requirement.description}"
+            @last_conflict = "#{key(package).join("/")} #{option.release.build.version} requires " \
+                             "#{key(requirement.package).join("/")} #{requirement.description}"
           end
           compatible
         end

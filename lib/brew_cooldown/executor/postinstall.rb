@@ -9,7 +9,7 @@ module BrewCooldown
     # The parent owns this temporary handoff until the synchronous worker exits.
     # Nothing in it survives as history or grants permission to a later run.
     module Postinstall
-      def self.with_map(map)
+      def self.with_map(map, &block)
         raise Refused, "post-install map already active" if Executor.worker_plan
 
         Dir.mktmpdir("brew-cooldown-worker-") do |directory|
@@ -32,7 +32,10 @@ module BrewCooldown
               downloader = resource.downloader
               %i[cached_location fetch].each { |method| originals << [downloader, method, downloader.method(method)] }
               downloader.define_singleton_method(:cached_location) { archive }
-              downloader.define_singleton_method(:fetch) { |timeout: nil| resource.verify_download_integrity(archive) }
+              # Homebrew passes the download a timeout; the snapshot is already here.
+              downloader.define_singleton_method(:fetch) do |timeout: nil| # rubocop:disable Lint/UnusedBlockArgument
+                resource.verify_download_integrity(archive)
+              end
               record = record.merge("path" => path.to_s, "archive_path" => archive.to_s,
                                     "archive_sha256" => resource.checksum.hexdigest)
             end
@@ -49,9 +52,7 @@ module BrewCooldown
           FileUtils.copy_file(File.join(__dir__, "installed_state.rb"), stage/"installed_state.rb")
           Executor.worker_plan = stage
           with_env(HOMEBREW_COOLDOWN_WORKER_PLAN: (stage/"recipes.json").to_s,
-                   HOMEBREW_COOLDOWN_WORKER_DIGEST: Digest::SHA256.hexdigest(contents)) do
-            yield
-          end
+                   HOMEBREW_COOLDOWN_WORKER_DIGEST: Digest::SHA256.hexdigest(contents), &block)
         ensure
           originals&.each do |formula, method, original|
             formula.define_singleton_method(method, original)
@@ -69,9 +70,7 @@ module BrewCooldown
         script = step == "building" ? "build.rb" : "postinstall.rb"
         expected = (HOMEBREW_LIBRARY_PATH/script).to_s
         separator = args.index("--")
-        unless stage && separator && args[separator + 1].to_s == expected
-          raise Refused, "unexpected #{step} subprocess"
-        end
+        raise Refused, "unexpected #{step} subprocess" unless stage && separator && args[separator + 1].to_s == expected
         raise Refused, "#{step} requires the native sandbox" unless use_for?(step)
 
         worker_args = args.dup.insert(separator, "-r", (stage/"worker.rb").to_s)
@@ -84,7 +83,8 @@ module BrewCooldown
       rescue StandardError => e
         # Homebrew suppresses hook exceptions outside developer mode. Keep the
         # worker's refusal visible before its caller sets a generic failure flag.
-        warn JSON.generate(operation: "sandbox_worker", step:, error: "#{e.class}: #{e.message}", backtrace: e.backtrace)
+        warn JSON.generate(operation: "sandbox_worker", step:, error: "#{e.class}: #{e.message}",
+                           backtrace: e.backtrace)
         raise
       end
     end

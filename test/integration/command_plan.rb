@@ -4,15 +4,19 @@ require "open3"
 require "tmpdir"
 require_relative "../../lib/brew_cooldown/homebrew/installed_inventory"
 
-abort "Run only in an expendable VM with the historical installer fixtures" unless ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] == "1"
+unless ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] == "1"
+  abort "Run only in an expendable VM with the historical installer fixtures"
+end
 names = %w[pcre2 ripgrep]
 baseline = { "pcre2" => "10.46", "ripgrep" => "15.0.0" }
 previous = names.to_h { |name| [name, (HOMEBREW_PREFIX/"opt"/name).realpath] }
 abort "Planning fixture packages must be unpinned" if names.any? { |name| (HOMEBREW_PINNED_KEGS/name).symlink? }
-baseline.each { |name, version| raise "Missing historical #{name} keg" unless (HOMEBREW_CELLAR/name/version).directory? }
+baseline.each do |name, version|
+  raise "Missing historical #{name} keg" unless (HOMEBREW_CELLAR/name/version).directory?
+end
 
 def brew!(*arguments)
-  raise "Homebrew command failed: #{arguments.join(' ')}" unless system(HOMEBREW_BREW_FILE.to_s, *arguments)
+  raise "Homebrew command failed: #{arguments.join(" ")}" unless system(HOMEBREW_BREW_FILE.to_s, *arguments)
 end
 
 def run_plan(brewfile)
@@ -20,6 +24,7 @@ def run_plan(brewfile)
   before = BrewCooldown::Executor::Inventory.capture
   stdout, stderr, status = Open3.capture3(command, "plan", "--brewfile", brewfile.to_s, "--json")
   raise "Planning changed installed packages or pins" unless BrewCooldown::Executor::Inventory.capture == before
+
   if stdout.empty?
     warn stderr
     raise "Plan command returned no JSON (exit #{status.exitstatus})"
@@ -42,10 +47,13 @@ begin
     selected = result.fetch("components").flat_map { |component| component.fetch("selected") }
     names.each do |name|
       option = selected.find { |entry| entry.fetch("package").fetch("name") == name }
-      raise "No advancing #{name} selected: #{result.inspect}" unless option && option["operation"] == "upgrade" &&
-        Version.new(option.fetch("build").fetch("version")) > Version.new(baseline.fetch(name))
+      unless option && option["operation"] == "upgrade" &&
+             Version.new(option.fetch("build").fetch("version")) > Version.new(baseline.fetch(name))
+        raise "No advancing #{name} selected: #{result.inspect}"
+      end
     end
     raise "Candidate decisions missing" if result.fetch("candidates").empty?
+
     result.fetch("candidates").each do |entry|
       boundary = entry.fetch("decision")["eligible_at"]
       Time.iso8601(boundary) if boundary
@@ -53,10 +61,15 @@ begin
 
     brew!("pin", "pcre2")
     pinned = run_plan(brewfile)
-    raise "Pin not visible in scope" unless pinned.fetch("scope").any? { |entry| entry["requested"] == "pcre2" && entry["status"] == "pinned" }
-    raise "Pinned root selected for mutation" if pinned.fetch("components").flat_map { |component| component.fetch("selected") }.any? do |entry|
-      entry.fetch("package").fetch("name") == "pcre2" && entry["operation"] != "retain"
+    raise "Pin not visible in scope" unless pinned.fetch("scope").any? do |entry|
+      entry["requested"] == "pcre2" && entry["status"] == "pinned"
     end
+
+    selections = pinned.fetch("components").flat_map { |component| component.fetch("selected") }
+    if selections.any? { |entry| entry.fetch("package").fetch("name") == "pcre2" && entry["operation"] != "retain" }
+      raise "Pinned root selected for mutation"
+    end
+
     brew!("unpin", "pcre2")
     puts "PASS: live historical planning, clean JSON, pins and unchanged installed state"
   end

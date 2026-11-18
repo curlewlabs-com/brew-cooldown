@@ -15,6 +15,7 @@ release = BrewCooldown::Release.new(package:, build: before.with(version: "2.55.
 assessment = adapter.assess(release:, installed:)
 raise "Live refresh failed: #{assessment.diagnostics.inspect}" unless assessment.evidence.validated_at == started
 raise "Live advisory assessment failed: #{assessment.inspect}" unless assessment.coverage == :assessed_records
+
 puts JSON.pretty_generate(source: assessment.source, coverage: assessment.coverage,
                           evidence: assessment.evidence.to_h, advisories: assessment.advisories.map(&:to_h))
 puts "PASS: live native advisory refresh and exact-version assessment (no package changes)"

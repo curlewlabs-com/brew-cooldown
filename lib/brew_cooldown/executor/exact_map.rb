@@ -79,8 +79,12 @@ module BrewCooldown
     end
 
     module ResolverGuard
+      # Homebrew's signature for this method, so every option a caller can
+      # pass is named and checked; `warn` changes nothing a plan depends on.
+      # rubocop:disable Lint/UnusedMethodArgument
       def factory(reference, spec = :stable, alias_path: nil, from: nil,
                   warn: false, force_bottle: false, flags: [], ignore_errors: false)
+        # rubocop:enable Lint/UnusedMethodArgument
         unless spec == :stable && alias_path.nil? && [nil, :rack, :keg].include?(from) &&
                !force_bottle && flags.empty? && !ignore_errors
           raise Refused, "unplanned formula loading options: #{reference}"
@@ -100,16 +104,16 @@ module BrewCooldown
     end
 
     module BottleDependencyGraph
-      def expand(dependent, deps = dependent.deps, **options, &block)
+      def expand(dependent, deps = dependent.deps, **, &)
         Executor.active_map.validate(dependent)
         runtime_names = Executor.active_map.candidates.fetch(dependent.full_name)
-                                 .runtime_dependencies.map { |dependency| dependency.fetch("full_name") }
+                                .runtime_dependencies.map { |dependency| dependency.fetch("full_name") }
         # Homebrew's requirement traversal otherwise loads the source-build
         # toolchain even for bottles. Runtime edges keep their native checks.
         runtime = deps.reject do |dependency|
           (dependency.build? || dependency.test?) && !runtime_names.include?(dependency.name)
         end
-        super(dependent, runtime, **options, &block)
+        super(dependent, runtime, **, &)
       end
     end
 
@@ -119,6 +123,7 @@ module BrewCooldown
         unless Executor.active_map.candidates.fetch(formula.full_name).install?
           raise Refused, "#{formula.full_name}: retained consumer cannot be installed outside the plan"
         end
+
         super
         Executor.active_map.validate(self.formula)
       end
@@ -164,7 +169,8 @@ module BrewCooldown
 
       def install_dependency(dependency, dependency_formula = dependency.to_formula)
         if Executor.executing_name
-          raise Refused, "#{Executor.executing_name}: dependency #{dependency.name} was not completed before installation"
+          raise Refused,
+                "#{Executor.executing_name}: dependency #{dependency.name} was not completed before installation"
         end
 
         super
@@ -248,7 +254,7 @@ module BrewCooldown
           return if candidate&.install?
         end
 
-        raise Refused, "#{Executor.executing_name || 'exact map'}: unplanned #{operation} of #{name}"
+        raise Refused, "#{Executor.executing_name || "exact map"}: unplanned #{operation} of #{name}"
       end
     end
   end

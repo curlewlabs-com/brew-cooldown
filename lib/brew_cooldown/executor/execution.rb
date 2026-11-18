@@ -13,7 +13,9 @@ module BrewCooldown
 
       def initialize(map, state_directory:, casks: [])
         @map = map
-        @operations = map.candidates.values.select(&:install?).map { |candidate| FormulaOperation.new(candidate, map:) } + casks
+        @operations = map.candidates.values.select(&:install?).map do |candidate|
+          FormulaOperation.new(candidate, map:)
+        end + casks
         @journal = Journal.new(state_directory)
       end
 
@@ -27,6 +29,7 @@ module BrewCooldown
       def self.check_checkout!(repository, validated: VALIDATED_HOMEBREW_COMMIT)
         head, status = Open3.capture2("git", "-C", repository, "rev-parse", "HEAD")
         raise Refused, "Homebrew checkout identity unavailable" unless status.success?
+
         head = head.strip
         raise Refused, unqualified_checkout(repository, head, validated) unless head == validated
 
@@ -96,9 +99,9 @@ module BrewCooldown
             locks.reverse_each(&:unlock)
           end
         end
-      rescue StandardError => error
+      rescue StandardError => e
         details = journal.path.file? ? journal.safe_report : { "status" => "error" }
-        details.merge("error" => "#{error.class}: #{error.message}",
+        details.merge("error" => "#{e.class}: #{e.message}",
                       "recovery" => recovery_commands)
       end
 
@@ -124,7 +127,7 @@ module BrewCooldown
           # Traversing their edges would invent installation cycles.
           return unless operations.key?(key)
           return if visited.include?(key)
-          raise Refused, "dependency cycle at #{key.join('/')}" if visiting.include?(key)
+          raise Refused, "dependency cycle at #{key.join("/")}" if visiting.include?(key)
 
           visiting << key
           operation = operations.fetch(key)
@@ -141,10 +144,12 @@ module BrewCooldown
         operations = ordered_operations
         journal.start(operations.map(&:record), inventory)
         operations.each do |operation|
-          name, kind = operation.name, operation.kind
+          name = operation.name
+          kind = operation.kind
           self.class.check_homebrew!
           current = Inventory.capture
           raise Refused, "inventory changed before #{kind}/#{name}" unless current == inventory
+
           operation.verify_before!
           before_install&.call(operation.candidate)
           raise Refused, "inventory changed during #{kind}/#{name} revalidation" unless Inventory.capture == inventory
@@ -161,10 +166,10 @@ module BrewCooldown
 
             inventory = after
             journal.record(name, "completed", kind:, inventory:)
-          rescue StandardError => error
+          rescue StandardError => e
             warn JSON.generate("operation" => "install", "kind" => kind, "package" => name,
-                               "error" => "#{error.class}: #{error.message}", "backtrace" => error.backtrace)
-            journal.record(name, "failed", kind:, error: "#{error.class}: #{error.message}")
+                               "error" => "#{e.class}: #{e.message}", "backtrace" => e.backtrace)
+            journal.record(name, "failed", kind:, error: "#{e.class}: #{e.message}")
             return journal.report
           end
           progress&.call(name, "completed")

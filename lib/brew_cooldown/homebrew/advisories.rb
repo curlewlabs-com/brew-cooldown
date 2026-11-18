@@ -28,9 +28,9 @@ module BrewCooldown
         log.call(operation: "refresh_advisories", source: SOURCE)
         begin
           feed = fetch.call(path)
-        rescue ErrorDuringExecution, Homebrew::Vulns::CachedFeed::Error, SystemCallError => error
-          diagnostic = { operation: "refresh_advisories", error: error.message, error_class: error.class.name,
-                         backtrace: error.backtrace }
+        rescue ErrorDuringExecution, Homebrew::Vulns::CachedFeed::Error, SystemCallError => e
+          diagnostic = { operation: "refresh_advisories", error: e.message, error_class: e.class.name,
+                         backtrace: e.backtrace }
           log.call(**diagnostic)
           return cached(path, diagnostic:, log:)
         end
@@ -43,9 +43,9 @@ module BrewCooldown
 
         begin
           feed = AdvisoryFeed.from_file(path)
-        rescue Homebrew::Vulns::CachedFeed::Error, SystemCallError => error
-          failure = { operation: "read_cached_advisories", error: error.message, error_class: error.class.name,
-                      backtrace: error.backtrace }
+        rescue Homebrew::Vulns::CachedFeed::Error, SystemCallError => e
+          failure = { operation: "read_cached_advisories", error: e.message, error_class: e.class.name,
+                      backtrace: e.backtrace }
           log.call(**failure)
           return new(records: {}, validated_at: nil, diagnostics: [diagnostic, failure])
         end
@@ -73,23 +73,24 @@ module BrewCooldown
         results = records.map do |record|
           AdvisoryRecord.new(record, name: package.name).assess(
             installed_version: installed && pkg_version(installed.build), candidate_version: pkg_version(release.build),
-            candidate_patches:, installed_patches:,
+            candidate_patches:, installed_patches:
           )
-        end.reject { |entry| entry.candidate_state == :withdrawn }
+        end
+        results = results.reject { |entry| entry.candidate_state == :withdrawn }
         before = affected(results.map(&:installed_state))
         after = affected(results.map(&:candidate_state))
         evidence = SecurityEvidence.new(installed_affected: before, candidate_affected: after,
                                         fixed_advisories: results.select(&:fixed).map(&:id).uniq.freeze,
                                         validated_at: @validated_at)
         coverage = if !supported
-          :unsupported_package
-        elsif results.empty?
-          :no_records
-        elsif results.any? { |entry| entry.reason || entry.candidate_state == :unknown }
-          :incomplete
-        else
-          :assessed_records
-        end
+                     :unsupported_package
+                   elsif results.empty?
+                     :no_records
+                   elsif results.any? { |entry| entry.reason || entry.candidate_state == :unknown }
+                     :incomplete
+                   else
+                     :assessed_records
+                   end
         SecurityAssessment.new(evidence:, coverage:, advisories: results.freeze,
                                diagnostics: @diagnostics.freeze, source: SOURCE)
       end

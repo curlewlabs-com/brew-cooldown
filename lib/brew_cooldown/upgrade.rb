@@ -10,7 +10,11 @@ module BrewCooldown
   class Upgrade
     def initialize(config:, scope:, state_directory:, log:, clock:, security_only: false,
                    runtime_check: Executor::Execution.method(:check_homebrew!))
-      @config, @scope, @directory, @log, @clock = config, scope, state_directory, log, clock
+      @config = config
+      @scope = scope
+      @directory = state_directory
+      @log = log
+      @clock = clock
       @security_only = security_only
       @runtime_check = runtime_check
     end
@@ -27,12 +31,13 @@ module BrewCooldown
         # refusal per component would bury the single fact the operator needs.
         begin
           @runtime_check.call
-        rescue Executor::Refused => error
-          @log.call(operation: "check_runtime", error: error.message, error_class: error.class.name)
+        rescue Executor::Refused => e
+          @log.call(operation: "check_runtime", error: e.message, error_class: e.class.name)
           return { schema: 1, command: "upgrade", status: "unsupported_runtime", components: [],
-                   errors: [{ operation: "check_runtime", error: error.message }] }
+                   errors: [{ operation: "check_runtime", error: e.message }] }
         end
-        planning = Planning.new(config: @config, scope: @scope, now: @clock.call, log: @log, state_directory: @directory)
+        planning = Planning.new(config: @config, scope: @scope, now: @clock.call, log: @log,
+                                state_directory: @directory)
         plan = planning.call
         results = []
         errors = plan.fetch(:errors).dup
@@ -41,24 +46,26 @@ module BrewCooldown
         if !planning.inventory.errors.empty? || errors.any? { |entry| entry[:operation] == "inventory_drift" }
           return plan.merge(command: "upgrade", status: "incomplete", execution: [])
         end
+
         expected = planning.inventory.fingerprint
         planning.resolutions.each do |resolution|
           next unless resolution.status == :resolved
-          next if @security_only && resolution.selected.values.none? { |option| option.decision.status == :security_fix }
+          next if @security_only && resolution.selected.values.none? do |option|
+            option.decision.status == :security_fix
+          end
 
           directory = journals.component_directory(resolution.selected.keys)
           @log.call(operation: "phase", phase: "execute_component", roots: resolution.roots.map(&:to_h))
           result = ForkedComponent.call(log: @log) do
             execute_component(planning, resolution, directory, expected)
           end
-          unless result["status"] == "completed"
-            result["recovery"] = recovery_commands(resolution)
-          end
+          result["recovery"] = recovery_commands(resolution) unless result["status"] == "completed"
           results << result.merge("roots" => resolution.roots.map(&:to_h))
           observed = Executor::Inventory.capture
           changes = Executor::Inventory.differences(expected, observed)
           unless changes.all? { |change| owned_change?(change, resolution, planning.discovery.prepared) }
-            errors << { operation: "inventory_drift", error: "Unexpected installed-state change; remaining selections need a fresh plan",
+            errors << { operation: "inventory_drift",
+                        error: "Unexpected installed-state change; remaining selections need a fresh plan",
                         changes:, recovery: recovery_commands(resolution) }
             break
           end
@@ -87,11 +94,15 @@ module BrewCooldown
       end
       candidates = resolution.selected.to_h do |package, option|
         candidate = planning.discovery.prepared[option.release.identity]
-        raise Executor::Refused, "#{package.name}: native execution cannot validate this installed consumer" unless candidate
+        unless candidate
+          raise Executor::Refused,
+                "#{package.name}: native execution cannot validate this installed consumer"
+        end
 
         [package, candidate]
       end
-      revalidation = HomebrewAdapter::Revalidation.new(config: @config, inventory: planning.inventory, prepared: planning.discovery.prepared,
+      revalidation = HomebrewAdapter::Revalidation.new(config: @config, inventory: planning.inventory,
+                                                       prepared: planning.discovery.prepared,
                                                        state_directory: @directory, log: @log, clock: @clock)
       revalidation.check!(resolution.selected)
       map = Executor::ExactMap.new(candidates.select { |package, _candidate| package.kind == :formula }.values)
@@ -108,10 +119,13 @@ module BrewCooldown
       map.activate
       Executor::CaskMap.new(candidates: casks.values, predecessors:).activate
       before_install = lambda do |candidate|
-        selection = resolution.selected.select { |_package, option| planning.discovery.prepared[option.release.identity].equal?(candidate) }
+        selection = resolution.selected.select do |_package, option|
+          planning.discovery.prepared[option.release.identity].equal?(candidate)
+        end
         revalidation.check!(selection, verify_payload: false)
       end
-      Executor::Execution.new(map, state_directory: directory, casks: operations).apply(expected_inventory: expected, before_install:)
+      Executor::Execution.new(map, state_directory: directory, casks: operations).apply(expected_inventory: expected,
+                                                                                        before_install:)
     end
 
     # The component's executor has already accepted each of its changes. A

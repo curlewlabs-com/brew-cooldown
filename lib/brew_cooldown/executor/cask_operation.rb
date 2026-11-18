@@ -11,7 +11,8 @@ module BrewCooldown
       attr_reader :candidate
 
       def initialize(candidate, predecessor: nil)
-        @candidate, @predecessor = candidate, predecessor
+        @candidate = candidate
+        @predecessor = predecessor
       end
 
       def cask = candidate.cask
@@ -29,6 +30,7 @@ module BrewCooldown
         if @predecessor && Version.new(cask.version.to_s) <= Version.new(@predecessor.version.to_s)
           raise Refused, "#{name}: selected version does not advance the installed cask"
         end
+
         { "kind" => kind, "name" => name, "version" => cask.version.to_s,
           "previous_version" => @predecessor&.version&.to_s, "candidate" => candidate.record,
           "keg_only" => false, "status" => "pending" }
@@ -40,8 +42,9 @@ module BrewCooldown
         if @predecessor
           installer = Cask::Installer.new(cask, upgrade: true, require_sha: true)
           Cask::Upgrade.upgrade_cask(@predecessor, cask, binaries: true, force: false, require_sha: true,
-                                    quit: false, skip_cask_deps: false, verbose: false,
-                                    download_queue: Homebrew::DownloadQueue.default, new_cask_installer: installer)
+                                                         quit: false, skip_cask_deps: false, verbose: false,
+                                                         download_queue: Homebrew::DownloadQueue.default,
+                                                         new_cask_installer: installer)
         else
           Cask::Installer.new(cask, require_sha: true).install
         end
@@ -55,18 +58,22 @@ module BrewCooldown
                receipt.source.fetch("tap_git_head") == candidate.record.fetch("commit")
           raise Refused, "#{name}: installed cask receipt differs from the selected source"
         end
+
         cask.artifacts.each do |artifact|
           paths = case artifact
-          when Cask::Artifact::Binary
-            raise Refused, "#{name}: installed binary does not point to the selected cask: #{artifact.target}" unless artifact.target_links_to_source?
+                  when Cask::Artifact::Binary
+                    unless artifact.target_links_to_source?
+                      raise Refused,
+                            "#{name}: installed binary does not point to the selected cask: #{artifact.target}"
+                    end
 
-            [artifact.target]
-          when Cask::Artifact::GeneratedCompletion
-            # Homebrew owns completion naming and destinations. Its installer
-            # only warns on generation failures, so verify those native paths.
-            artifact.shells.map { |shell| artifact.send(:completion_script_path, shell) }
-          else []
-          end
+                    [artifact.target]
+                  when Cask::Artifact::GeneratedCompletion
+                    # Homebrew owns completion naming and destinations. Its installer
+                    # only warns on generation failures, so verify those native paths.
+                    artifact.shells.map { |shell| artifact.send(:completion_script_path, shell) }
+                  else []
+                  end
           paths.each do |path|
             raise Refused, "#{name}: installed artifact is missing: #{path}" unless path.file? && path.size.positive?
           end

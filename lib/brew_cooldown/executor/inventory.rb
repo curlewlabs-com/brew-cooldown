@@ -45,7 +45,9 @@ module BrewCooldown
             resolved = Utils::Path.resolved_path(source)
             # Native linking skips links back into the prefix and split-package
             # links into another keg at the same relative path.
-            next if resolved == destination || resolved.fnmatch?("#{HOMEBREW_PREFIX}/opt/*/#{relative}", File::FNM_PATHNAME)
+            if resolved == destination || resolved.fnmatch?("#{HOMEBREW_PREFIX}/opt/*/#{relative}", File::FNM_PATHNAME)
+              next
+            end
             next if destination.symlink? && Utils::Path.resolved_path(destination) == source && destination.exist?
 
             raise Refused, "#{keg.name}: linked command missing or redirected: #{destination}"
@@ -60,8 +62,10 @@ module BrewCooldown
 
         brew = HOMEBREW_BREW_FILE.to_s
         commands = [
-          { "purpose" => "Inspect installed versions", "command" => Shellwords.join([brew, "list", "--#{kind}", "--versions", name]) },
-          { "purpose" => "Inspect package details and pin state", "command" => Shellwords.join([brew, "info", "--#{kind}", "--json=v2", name]) }
+          { "purpose" => "Inspect installed versions",
+            "command" => Shellwords.join([brew, "list", "--#{kind}", "--versions", name]) },
+          { "purpose" => "Inspect package details and pin state",
+            "command" => Shellwords.join([brew, "info", "--#{kind}", "--json=v2", name]) }
         ]
         if kind == "formula" && previous_keg && Pathname(previous_keg).directory?
           method = keg_only ? "optlink" : "link"
@@ -71,8 +75,9 @@ module BrewCooldown
           # the next `brew update` would leave the qualified release.
           commands << {
             "purpose" => "Restore retained keg links; does not undo post-install configuration changes",
-            "command" => Shellwords.join([brew, "unlink", "--formula", name]) + " && " +
-                         Shellwords.join(["env", "HOMEBREW_DEVELOPER=1", brew, "ruby", "-e", code])
+            "command" => "#{Shellwords.join([brew, "unlink", "--formula",
+                                             name])} && #{Shellwords.join(["env", "HOMEBREW_DEVELOPER=1", brew, "ruby",
+                                                                           "-e", code])}"
           }
         end
         commands << {

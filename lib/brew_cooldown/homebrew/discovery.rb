@@ -22,17 +22,29 @@ module BrewCooldown
 
       def initialize(inventory:, config:, advisories:, observations:, now:, log:,
                      registry: Registry.new(transport: RegistryTransport.new(log:)), current_formulae: CurrentFormula)
-        @inventory, @config, @advisories, @observations, @now, @log = inventory, config, advisories, observations, now, log
-        @registry, @current_formulae, @current = registry, current_formulae, {}
-        @domains, @prepared, @decisions, @errors, @diagnostics = {}, {}, [], [], []
-        @self_managed, @installed_security = {}, {}
+        @inventory = inventory
+        @config = config
+        @advisories = advisories
+        @observations = observations
+        @now = now
+        @log = log
+        @registry = registry
+        @current_formulae = current_formulae
+        @current = {}
+        @domains = {}
+        @prepared = {}
+        @decisions = []
+        @errors = []
+        @diagnostics = []
+        @self_managed = {}
+        @installed_security = {}
         inventory.records.each do |package, record|
           release = Release.new(package:, build: record.installed.build, identity: record.identity, verified: true,
                                 published_at: nil, publication_source: nil)
           decision = Decision.new(status: :retained, reason: "Keep the active installation", eligible_at: nil,
                                   delay_kind: nil, age_source: nil, fixed_advisories: [])
           @domains[package] = [Option.new(release:, decision:, dependencies: record.dependencies,
-                                        compatibility_version: record.compatibility_version, retained: true)]
+                                          compatibility_version: record.compatibility_version, retained: true)]
           @prepared[release.identity] = record.retained if record.retained
         end
       end
@@ -57,7 +69,8 @@ module BrewCooldown
             next
           end
           unless core_formula?(package)
-            record_error(package, "discover", ArgumentError.new("Exact bottled core execution is unavailable for this package"))
+            record_error(package, "discover",
+                         ArgumentError.new("Exact bottled core execution is unavailable for this package"))
             next
           end
           baseline = @inventory.records[package]&.installed
@@ -73,8 +86,8 @@ module BrewCooldown
               next
             end
             tags = @registry.tags(package.name)
-          rescue StandardError => error
-            record_error(package, "discover_history", error)
+          rescue StandardError => e
+            record_error(package, "discover_history", e)
             next
           end
           scheme_floor = nil
@@ -103,19 +116,20 @@ module BrewCooldown
                 retained = @domains.fetch(requirement.package, []).find(&:retained)
                 pending << requirement.package unless retained && Compatibility.call(requirement, retained)
               end
-            rescue UnknownInstalledBuild => error
-              note_unknown_build(package, tag:, reason: error.message)
-            rescue CurrentFormula::AheadOfCurrent => error
+            rescue UnknownInstalledBuild => e
+              note_unknown_build(package, tag:, reason: e.message)
+            rescue CurrentFormula::AheadOfCurrent => e
               details = { operation: "exclude_candidate", status: "ahead_of_current", package: package.to_h,
-                          tag:, reason: error.message }
+                          tag:, reason: e.message }
               @diagnostics << details
               @log.call(**details)
-            rescue StandardError => error
-              record_error(package, "prepare_candidate", error, tag:)
+            rescue StandardError => e
+              record_error(package, "prepare_candidate", e, tag:)
             end
           end
         end
-        DiscoveryResult.new(domains: @domains, prepared: @prepared, decisions: @decisions, errors: @errors, diagnostics: @diagnostics, self_managed: @self_managed)
+        DiscoveryResult.new(domains: @domains, prepared: @prepared, decisions: @decisions, errors: @errors,
+                            diagnostics: @diagnostics, self_managed: @self_managed)
       end
 
       private
@@ -128,12 +142,14 @@ module BrewCooldown
       # be read together. Dependencies that only a candidate introduces are
       # read when the walk reaches them.
       def read_current_formulae(roots)
-        names = roots.select { |package| core_formula?(package) && !@inventory.records[package]&.installed&.pinned }.map(&:name)
+        names = roots.select do |package|
+          core_formula?(package) && !@inventory.records[package]&.installed&.pinned
+        end.map(&:name)
         @current = @current_formulae.fetch_all(names, log: @log)
-      rescue StandardError => error
+      rescue StandardError => e
         # Each package then reports its own failed read instead of the whole
         # assessment failing for a reason that names none of them.
-        @log.call(operation: "read_current_formulae", error: error.message, error_class: error.class.name)
+        @log.call(operation: "read_current_formulae", error: e.message, error_class: e.class.name)
         @current = {}
       end
 
@@ -151,7 +167,8 @@ module BrewCooldown
         return if rebuild.zero?
 
         version = PkgVersion.new(Version.new(current.fetch("versions").fetch("stable")), current.fetch("revision")).to_s
-        note_unknown_build(package, tag: "#{version}-#{rebuild}", reason: unknown_build_reason(package.name, version, rebuild))
+        note_unknown_build(package, tag: "#{version}-#{rebuild}",
+                                    reason: unknown_build_reason(package.name, version, rebuild))
       end
 
       def note_unknown_build(package, tag:, reason:)
@@ -187,39 +204,43 @@ module BrewCooldown
         end
         history = CaskHistory.new(current:, log: @log)
         history.entries.each do |entry|
-          begin
-            candidate = history.candidate(entry)
-            version = Version.new(candidate.cask.version.to_s)
-            # History is newest first, so everything older was superseded
-            # before this installation. A higher version further back is one
-            # Homebrew later rolled back, and must not return as a candidate.
-            break if baseline && version <= Version.new(baseline.build.version)
+          candidate = history.candidate(entry)
+          version = Version.new(candidate.cask.version.to_s)
+          # History is newest first, so everything older was superseded
+          # before this installation. A higher version further back is one
+          # Homebrew later rolled back, and must not return as a candidate.
+          break if baseline && version <= Version.new(baseline.build.version)
 
-            CurrentCask.verify_candidate!(current, version.to_s)
+          CurrentCask.verify_candidate!(current, version.to_s)
 
-            candidate.prepare
-            release = CaskEvidence.release(package, candidate, published_at: entry.published_at)
-            first_seen = @observations.first_seen(release, now: @now) unless release.published_at
-            assessment = @advisories.assess(release:, installed: baseline)
-            decision = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
-                             .evaluate(release:, installed: baseline, now: @now, security: assessment.evidence, first_seen:)
-            dependencies = CaskEvidence.requirements(candidate.cask)
-            @domains[package] ||= []
-            @domains[package] << Option.new(release:, decision:, dependencies:, compatibility_version: nil, retained: false)
-            @prepared[release.identity] = candidate
-            @decisions << { package: package.to_h, build: release.build.to_h, identity: release.identity, decision: decision.to_h,
-              security: { coverage: assessment.coverage, evidence: assessment.evidence.to_h, advisories: [] } }
-            next unless decision.eligible?
+          candidate.prepare
+          release = CaskEvidence.release(package, candidate, published_at: entry.published_at)
+          first_seen = @observations.first_seen(release, now: @now) unless release.published_at
+          assessment = @advisories.assess(release:, installed: baseline)
+          decision = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
+                           .evaluate(release:, installed: baseline, now: @now, security: assessment.evidence,
+                                     first_seen:)
+          dependencies = CaskEvidence.requirements(candidate.cask)
+          @domains[package] ||= []
+          @domains[package] << Option.new(release:, decision:, dependencies:, compatibility_version: nil,
+                                          retained: false)
+          @prepared[release.identity] = candidate
+          @decisions << { package: package.to_h, build: release.build.to_h, identity: release.identity,
+                          decision: decision.to_h,
+                          security: { coverage: assessment.coverage, evidence: assessment.evidence.to_h,
+                                      advisories: [] } }
+          next unless decision.eligible?
 
-            dependencies.each { |requirement| pending << requirement.package unless @domains.fetch(requirement.package, []).any?(&:retained) }
-          rescue GitHub::API::RateLimitExceededError, GitHub::API::AuthenticationFailedError, GitHub::API::MissingAuthenticationError
-            raise
-          rescue StandardError => error
-            record_error(package, "prepare_cask_candidate", error, commit: entry.commit)
+          dependencies.each do |requirement|
+            pending << requirement.package unless @domains.fetch(requirement.package, []).any?(&:retained)
           end
+        rescue GitHub::API::RateLimitExceededError, GitHub::API::AuthenticationFailedError, GitHub::API::MissingAuthenticationError
+          raise
+        rescue StandardError => e
+          record_error(package, "prepare_cask_candidate", e, commit: entry.commit)
         end
-      rescue StandardError => error
-        record_error(package, "discover_cask_history", error)
+      rescue StandardError => e
+        record_error(package, "discover_cask_history", e)
       end
 
       def collect_tap(package, pending)
@@ -230,42 +251,44 @@ module BrewCooldown
 
         identities = Set.new
         history.entries.each do |entry|
-          begin
-            candidate = history.candidate(entry)
-            # Earlier superseded recipes cannot justify advancing this retained
-            # build, and their availability cannot invalidate its assessment.
-            break if installed_build && BuildOrder.call(candidate.build, installed_build) <= 0
+          candidate = history.candidate(entry)
+          # Earlier superseded recipes cannot justify advancing this retained
+          # build, and their availability cannot invalidate its assessment.
+          break if installed_build && BuildOrder.call(candidate.build, installed_build) <= 0
 
-            history.verify_candidate!(candidate)
-            candidate.prepare
-            release = TapEvidence.release(package, candidate, published_at: history.publication(candidate, entry))
-            next unless identities.add?(release.identity)
+          history.verify_candidate!(candidate)
+          candidate.prepare
+          release = TapEvidence.release(package, candidate, published_at: history.publication(candidate, entry))
+          next unless identities.add?(release.identity)
 
-            first_seen = @observations.first_seen(release, now: @now) unless release.published_at
-            assessment = @advisories.assess(release:, installed: baseline)
-            decision = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
-                             .evaluate(release:, installed: baseline, now: @now, security: assessment.evidence, first_seen:)
-            dependencies = candidate.runtime_dependencies.map do |row|
-              RuntimeRequirement.new(package: InstalledInventory.package(row.fetch("full_name")))
-            end
-            @domains[package] ||= []
-            @domains[package] << Option.new(release:, decision:, dependencies:, compatibility_version: nil, retained: false)
-            @prepared[release.identity] = candidate
-            @decisions << { package: package.to_h, build: release.build.to_h, identity: release.identity, decision: decision.to_h,
-                            security: { coverage: assessment.coverage, evidence: assessment.evidence.to_h, advisories: [] } }
-            next unless decision.eligible?
-
-            dependencies.each do |requirement|
-              pending << requirement.package unless @domains.fetch(requirement.package, []).any?(&:retained)
-            end
-          rescue GitHub::API::RateLimitExceededError, GitHub::API::AuthenticationFailedError, GitHub::API::MissingAuthenticationError
-            raise
-          rescue StandardError => error
-            record_error(package, "prepare_tap_candidate", error, commit: entry.commit)
+          first_seen = @observations.first_seen(release, now: @now) unless release.published_at
+          assessment = @advisories.assess(release:, installed: baseline)
+          decision = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
+                           .evaluate(release:, installed: baseline, now: @now, security: assessment.evidence,
+                                     first_seen:)
+          dependencies = candidate.runtime_dependencies.map do |row|
+            RuntimeRequirement.new(package: InstalledInventory.package(row.fetch("full_name")))
           end
+          @domains[package] ||= []
+          @domains[package] << Option.new(release:, decision:, dependencies:, compatibility_version: nil,
+                                          retained: false)
+          @prepared[release.identity] = candidate
+          @decisions << { package: package.to_h, build: release.build.to_h, identity: release.identity,
+                          decision: decision.to_h,
+                          security: { coverage: assessment.coverage, evidence: assessment.evidence.to_h,
+                                      advisories: [] } }
+          next unless decision.eligible?
+
+          dependencies.each do |requirement|
+            pending << requirement.package unless @domains.fetch(requirement.package, []).any?(&:retained)
+          end
+        rescue GitHub::API::RateLimitExceededError, GitHub::API::AuthenticationFailedError, GitHub::API::MissingAuthenticationError
+          raise
+        rescue StandardError => e
+          record_error(package, "prepare_tap_candidate", e, commit: entry.commit)
         end
-      rescue StandardError => error
-        record_error(package, "discover_tap_history", error)
+      rescue StandardError => e
+        record_error(package, "discover_tap_history", e)
       end
 
       def possible_advance?(tag, baseline, current_scheme)
@@ -304,7 +327,9 @@ module BrewCooldown
       # whole history, and bottles older than Homebrew's attestations fail
       # verification on every run.
       def next_scheme_floor(floor, candidate, metadata, baseline)
-        return floor unless baseline && metadata.published_at && candidate.formula.version_scheme <= baseline.build.scheme
+        unless baseline && metadata.published_at && candidate.formula.version_scheme <= baseline.build.scheme
+          return floor
+        end
 
         [floor, metadata.published_at].compact.max
       end
@@ -314,7 +339,9 @@ module BrewCooldown
       # holds those from registry metadata alone, and the run that could select
       # one prepares it. Only version-ordered history qualifies: across a scheme
       # change, ordering needs each recipe's own scheme.
-      def defer(package, metadata, baseline, current)
+      # A command that records the deferral and reports whether it made one,
+      # not a question, so it keeps a command's name.
+      def defer(package, metadata, baseline, current) # rubocop:disable Naming/PredicateMethod
         return false unless baseline && current.fetch("version_scheme") == baseline.build.scheme
 
         version = PkgVersion.parse(metadata.pkg_version)
@@ -337,14 +364,15 @@ module BrewCooldown
           formula = @inventory.records[package]&.retained&.formula
           patches = formula ? Advisories.patch_identifiers(formula) : []
           release = @domains.fetch(package).find(&:retained).release
-          @advisories.assess(release:, installed: baseline, candidate_patches: patches, installed_patches: patches).evidence
+          @advisories.assess(release:, installed: baseline, candidate_patches: patches,
+                             installed_patches: patches).evidence
         end
       end
 
       def prepare(metadata)
         candidate = Executor::Candidate.new("name" => metadata.name, "version" => metadata.pkg_version,
-                                              "index_sha256" => metadata.index_sha256, "rebuild" => metadata.rebuild,
-                                              "platform" => metadata.platform).prepare(allow_hooks: true)
+                                            "index_sha256" => metadata.index_sha256, "rebuild" => metadata.rebuild,
+                                            "platform" => metadata.platform).prepare(allow_hooks: true)
         unless candidate.bottle.resource.checksum.hexdigest == metadata.bottle_sha256 &&
                candidate.runtime_dependencies == metadata.runtime_dependencies
           raise Executor::Refused, "Prepared artifact differs from discovered metadata"
@@ -359,12 +387,13 @@ module BrewCooldown
         CurrentFormula.verify_candidate!(current, release.build, log: @log)
         first_seen = @observations.first_seen(release, now: @now) unless metadata.published_at
         installed_formula = @inventory.records[package]&.retained&.formula
+        installed_patches = installed_formula ? Advisories.patch_identifiers(installed_formula) : []
         assessment = @advisories.assess(release:, installed: baseline,
-                                        candidate_patches: Advisories.patch_identifiers(formula),
-                                        installed_patches: installed_formula ? Advisories.patch_identifiers(installed_formula) : [])
+                                        candidate_patches: Advisories.patch_identifiers(formula), installed_patches:)
         policy = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
         decision = policy.evaluate(release:, installed: baseline, now: @now, security: assessment.evidence, first_seen:)
-        @decisions << { package: package.to_h, build: release.build.to_h, identity: release.identity, decision: decision.to_h,
+        @decisions << { package: package.to_h, build: release.build.to_h, identity: release.identity,
+                        decision: decision.to_h,
                         security: { coverage: assessment.coverage, evidence: assessment.evidence.to_h,
                                     advisories: assessment.advisories.map(&:to_h) } }
         Option.new(release:, decision:, dependencies: InstalledInventory.requirements(candidate.runtime_dependencies),

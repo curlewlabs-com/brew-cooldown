@@ -7,24 +7,36 @@ require_relative "../../lib/brew_cooldown/homebrew/scope"
 def invalid(fragment)
   yield
   raise "Expected configuration error containing #{fragment}"
-rescue BrewCooldown::ConfigurationError => error
-  raise unless error.message.include?(fragment)
+rescue BrewCooldown::ConfigurationError => e
+  raise unless e.message.include?(fragment)
 end
 
 Dir.mktmpdir("cooldown-config-") do |directory|
   root = Pathname(directory)
-  config = BrewCooldown::Config.new({ "scope" => { "brewfile" => "toolchain/Brewfile" },
-                                     "cooldown" => { "patch_days" => 9 },
-                                     "packages" => { "formula:homebrew/core/python@3.14" => { "patch_days" => 20 } } }, directory: root)
+  settings = { "scope" => { "brewfile" => "toolchain/Brewfile" }, "cooldown" => { "patch_days" => 9 },
+               "packages" => { "formula:homebrew/core/python@3.14" => { "patch_days" => 20 } } }
+  config = BrewCooldown::Config.new(settings, directory: root)
   package = BrewCooldown::PackageId.new(kind: :formula, tap: "homebrew/core", name: "python@3.14")
   raise "Package override ignored" unless config.delays(package) == { patch: 20 }
   raise "Global override ignored" unless config.delays(package.with(name: "git")) == { patch: 9 }
-  raise "Configured relative path uses wrong base" unless config.selected_scope.fetch(:brewfile) == root/"toolchain/Brewfile"
-  raise "CLI relative path uses wrong base" unless config.selected_scope(brewfile: "Brewfile", directory: root/"elsewhere").fetch(:brewfile) == root/"elsewhere/Brewfile"
-  raise "Explicit installed scope did not override config" unless config.selected_scope(installed: true) == { installed: true }
+  unless config.selected_scope.fetch(:brewfile) == root/"toolchain/Brewfile"
+    raise "Configured relative path uses wrong base"
+  end
+  unless config.selected_scope(brewfile: "Brewfile", directory: root/"elsewhere")
+               .fetch(:brewfile) == root/"elsewhere/Brewfile"
+    raise "CLI relative path uses wrong base"
+  end
+  unless config.selected_scope(installed: true) == { installed: true }
+    raise "Explicit installed scope did not override config"
+  end
+
   trusted = BrewCooldown::Config.new({ "trusted_taps" => ["openai/tools"] }, directory: root)
-  raise "Trust did not bind the canonical tap" unless trusted.trusted_tap?("openai/tools") && !trusted.trusted_tap?("elsewhere/tools")
-  [nil, "openai/tools", ["OpenAI/tools"], ["openai/tools", "openai/tools"], ["homebrew/core"], ["openai/../tools"]].each do |value|
+  unless trusted.trusted_tap?("openai/tools") && !trusted.trusted_tap?("elsewhere/tools")
+    raise "Trust did not bind the canonical tap"
+  end
+
+  [nil, "openai/tools", ["OpenAI/tools"], ["openai/tools", "openai/tools"], ["homebrew/core"],
+   ["openai/../tools"]].each do |value|
     invalid("trusted_taps") { BrewCooldown::Config.new({ "trusted_taps" => value }, directory: root) }
   end
   invalid("Choose") { config.selected_scope(brewfile: "Brewfile", installed: true) }
@@ -58,7 +70,8 @@ Dir.mktmpdir("cooldown-config-") do |directory|
   RUBY
   entries = BrewCooldown::HomebrewAdapter::Scope.read({ brewfile: }, installed: [])
   raise "Brewfile conditions or identities changed" unless entries.map { |entry| [entry.kind, entry.name] } ==
-    [[:formula, "homebrew/core/python@3.14"], [:cask, "homebrew/cask/codex"], [:tap, "example/tap"]]
+                                                           [[:formula, "homebrew/core/python@3.14"],
+                                                            [:cask, "homebrew/cask/codex"], [:tap, "example/tap"]]
   raise "Scope evaluation invoked an install hook" if hook_marker.exist?
 end
 puts "PASS: strict configuration, canonical overrides, scope precedence, relative paths and native Brewfile evaluation"

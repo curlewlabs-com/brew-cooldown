@@ -10,9 +10,10 @@ module BrewCooldown
         reader.close
         begin
           result = yield
-        rescue StandardError => error
-          log.call(operation: "execute_component", error: error.message, error_class: error.class.name, backtrace: error.backtrace)
-          result = { "status" => "error", "error" => "#{error.class}: #{error.message}" }
+        rescue StandardError => e
+          log.call(operation: "execute_component", error: e.message, error_class: e.class.name,
+                   backtrace: e.backtrace)
+          result = { "status" => "error", "error" => "#{e.class}: #{e.message}" }
         end
         writer.write(JSON.generate(result))
         writer.close
@@ -24,6 +25,7 @@ module BrewCooldown
       unless status.success? && !contents.empty?
         return { "status" => "interrupted", "error" => "Component worker exited without a confirmed result: #{status}" }
       end
+
       JSON.parse(contents)
     ensure
       reader&.close unless reader&.closed?

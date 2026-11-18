@@ -44,5 +44,5 @@ assert(!moved.symlink?, "The replaced keg's recorded alias link survived")
 assert(renamed.symlink? && renamed.realpath == keg, "The link into the rack was not moved to the new keg")
 assert((HOMEBREW_LINKED_KEGS/"lua").realpath == keg, "lua is not linked to the selected keg")
 output, status = Open3.capture2e((HOMEBREW_PREFIX/"bin/lua").to_s, "-v")
-assert(status.success? && output.include?("Lua #{record.fetch('version')}"), "Linked lua failed: #{output}")
+assert(status.success? && output.include?("Lua #{record.fetch("version")}"), "Linked lua failed: #{output}")
 puts "PASS: the upgrade removed and moved only links that pointed into its own rack"

@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "set"
-
 module BrewCooldown
   # Installed receipt edges define proactive upgrade scope. Reverse consumers
   # belong to compatibility planning, so this traversal follows outgoing edges.

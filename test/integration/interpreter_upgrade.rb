@@ -12,6 +12,7 @@ fixtures = JSON.parse(File.read(File.join(__dir__, "interpreter_candidates.json"
 record = fixtures.fetch(phase)
 candidate = BrewCooldown::Executor::Candidate.new(record).prepare(allow_hooks: true)
 raise "Baseline requires ruby@3.3 absent" if phase == "baseline" && candidate.formula.opt_prefix.exist?
+
 candidates = [candidate]
 if phase == "baseline"
   candidates.concat(fixtures.fetch("dependencies").map do |dependency|
@@ -20,7 +21,8 @@ if phase == "baseline"
 end
 selected_names = candidates.map { |selected| selected.formula.full_name }
 dependencies = candidates.flat_map(&:runtime_dependencies).uniq { |dependency| dependency.fetch("full_name") }
-retained = dependencies.reject { |dependency| selected_names.include?(dependency.fetch("full_name")) }.map do |dependency|
+unselected = dependencies.reject { |dependency| selected_names.include?(dependency.fetch("full_name")) }
+retained = unselected.map do |dependency|
   path = HOMEBREW_PREFIX/"opt"/dependency.fetch("full_name")
   raise "Prepare installed dependency #{path}" unless path.exist?
 
@@ -37,15 +39,15 @@ begin
   begin
     retained.first.keg.unlink
     raise "Unplanned dependency unlink was allowed"
-  rescue BrewCooldown::Executor::Refused => error
-    raise unless error.message.include?("unplanned unlink")
+  rescue BrewCooldown::Executor::Refused => e
+    raise unless e.message.include?("unplanned unlink")
   end
   begin
     installer = FormulaInstaller.new(candidate.formula)
     installer.install_dependency(Dependency.new(retained.first.formula.name))
     raise "Implicit dependency installation was allowed"
-  rescue BrewCooldown::Executor::Refused => error
-    raise unless error.message.include?("was not completed before installation")
+  rescue BrewCooldown::Executor::Refused => e
+    raise unless e.message.include?("was not completed before installation")
   end
   raise "Guard probe changed inventory" unless inventory == BrewCooldown::Executor::Inventory.capture
 ensure
@@ -54,6 +56,7 @@ end
 
 runtime_path = Pathname(RbConfig.ruby).realpath
 raise "Tool is running from a formula-managed interpreter" if runtime_path.to_s.start_with?(HOMEBREW_CELLAR.to_s)
+
 runtime_identity = Digest::SHA256.file(runtime_path).hexdigest
 pid = Process.pid
 
@@ -61,9 +64,15 @@ execution = BrewCooldown::Executor::Execution.new(map, state_directory: ENV.fetc
 result = execution.apply(expected_inventory: inventory)
 puts JSON.pretty_generate(result)
 raise "Interpreter operation failed" unless result.fetch("status") == "completed"
-raise "Tool runtime changed during upgrade" unless Process.pid == pid &&
-  Pathname(RbConfig.ruby).realpath == runtime_path && Digest::SHA256.file(runtime_path).hexdigest == runtime_identity
+unless Process.pid == pid && Pathname(RbConfig.ruby).realpath == runtime_path &&
+       Digest::SHA256.file(runtime_path).hexdigest == runtime_identity
+  raise "Tool runtime changed during upgrade"
+end
+
 output, status = Open3.capture2((candidate.formula.opt_prefix/"bin/ruby").to_s,
-                              "-ropenssl", "-rpsych", "-e", "puts RUBY_VERSION; puts Psych.dump(OpenSSL::OPENSSL_VERSION)")
-raise "Installed interpreter or native dependencies failed" unless status.success? && output.lines.first.chomp == record.fetch("version")
+                                "-ropenssl", "-rpsych", "-e", "puts RUBY_VERSION; puts Psych.dump(OpenSSL::OPENSSL_VERSION)")
+unless status.success? && output.lines.first.chomp == record.fetch("version")
+  raise "Installed interpreter or native dependencies failed"
+end
+
 puts "PASS #{phase}: formula-managed Ruby works and Homebrew's running interpreter remains intact"

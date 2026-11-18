@@ -16,34 +16,47 @@ module BrewCooldown
       def initialize(record)
         @record = record
         name, commit, path = record.values_at("name", "commit", "source_path")
-        raise Refused, "invalid cask name" unless name.is_a?(String) && name.match?(/\A[a-z0-9][a-z0-9+@._-]*\z/) && !name.include?("..")
+        unless name.is_a?(String) && name.match?(/\A[a-z0-9][a-z0-9+@._-]*\z/) && !name.include?("..")
+          raise Refused,
+                "invalid cask name"
+        end
         raise Refused, "invalid cask commit" unless commit.is_a?(String) && commit.match?(/\A[0-9a-f]{40}\z/)
         raise Refused, "invalid official cask path" unless path == "Casks/#{name[0]}/#{name}.rb"
         raise Refused, "invalid cask source checksum" unless record.fetch("source_sha256").match?(/\A[0-9a-f]{64}\z/)
       end
 
       def load_recipe
-        source = Resource.new("cooldown-cask-source-#{record.fetch('name')}")
-        source.url("https://raw.githubusercontent.com/Homebrew/homebrew-cask/#{record.fetch('commit')}/#{record.fetch('source_path')}")
+        source = Resource.new("cooldown-cask-source-#{record.fetch("name")}")
+        source.url("https://raw.githubusercontent.com/Homebrew/homebrew-cask/#{record.fetch("commit")}/#{record.fetch("source_path")}")
         source.sha256(record.fetch("source_sha256"))
         source.fetch
         source.verify_download_integrity(source.cached_download)
-        @cask = SourceLoader.new(source.cached_download, name: record.fetch("name"), commit: record.fetch("commit")).load(config: nil)
+        @cask = SourceLoader.new(source.cached_download, name: record.fetch("name"),
+                                                         commit: record.fetch("commit")).load(config: nil)
         unless cask.token == record.fetch("name") && cask.tap&.name == "homebrew/cask" &&
                (!record.key?("version") || cask.version.to_s == record.fetch("version"))
           raise Refused, "historical cask identity differs"
         end
+
         @record = record.merge("version" => cask.version.to_s).freeze
         self
       end
 
       def prepare
         load_recipe unless @cask
-        raise Refused, "cask needs a concrete version and checksum" if cask.version.latest? || !cask.sha256.is_a?(Checksum)
+        if cask.version.latest? || !cask.sha256.is_a?(Checksum)
+          raise Refused,
+                "cask needs a concrete version and checksum"
+        end
         raise Refused, "self-updating cask is outside cooldown control" if cask.auto_updates
+
         allowed = [Cask::Artifact::Binary, Cask::Artifact::GeneratedCompletion, Cask::Artifact::Zap]
         unsupported = cask.artifacts.reject { |artifact| allowed.include?(artifact.class) }
-        raise Refused, "unvalidated cask artifacts: #{unsupported.map { |artifact| artifact.class.name }.join(', ')}" unless unsupported.empty?
+        unless unsupported.empty?
+          raise Refused, "unvalidated cask artifacts: #{unsupported.map do |artifact|
+            artifact.class.name
+          end.join(", ")}"
+        end
 
         @download = Cask::Download.new(cask, require_sha: true)
         cask.download = download.fetch
@@ -52,7 +65,10 @@ module BrewCooldown
       end
 
       def verify!
-        raise Refused, "#{cask.token}: evaluated cask changed after preparation" unless installation_contract == @contract
+        unless installation_contract == @contract
+          raise Refused,
+                "#{cask.token}: evaluated cask changed after preparation"
+        end
 
         download.verify_download_integrity(cask.download)
         raise Refused, "#{cask.token}: cask is pinned" if cask.pinned?
@@ -73,7 +89,8 @@ module BrewCooldown
           # Native cached-file evaluation preserves historical DSL support and
           # accurate source locations. The cache filename is not a cask token.
           super(path)
-          @name, @commit = name, commit
+          @name = name
+          @commit = commit
         end
 
         def token = @name
@@ -81,8 +98,8 @@ module BrewCooldown
 
         private
 
-        def cask(token, **options, &block)
-          loaded = super(token, **options, &block)
+        def cask(token, **, &)
+          loaded = super
           # The official tap may be API-only on this machine. Bind native
           # receipt provenance to the verified source commit, not a local tap.
           commit = @commit

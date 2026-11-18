@@ -10,15 +10,18 @@ PAGE = JSON.parse((FIXTURES/"page.json").read)
 def expect_error(fragment)
   yield
   raise "Expected registry error containing #{fragment}"
-rescue BrewCooldown::HomebrewAdapter::RegistryError => error
-  raise unless error.message.include?(fragment)
+rescue BrewCooldown::HomebrewAdapter::RegistryError => e
+  raise unless e.message.include?(fragment)
 end
 
 class RecordedRegistry
   attr_reader :requests
 
   def initialize(responses: [], immutable: {}, name: "pcre2")
-    @responses, @immutable, @requests, @name = responses, immutable, [], name
+    @responses = responses
+    @immutable = immutable
+    @requests = []
+    @name = name
   end
 
   def fresh(url)
@@ -51,7 +54,7 @@ transport = RecordedRegistry.new(responses: [first, last])
 tags = registry(transport).tags("pcre2", page_size: 5)
 raise "History lost paginated entries" unless tags == [*PAGE.fetch("body").fetch("tags"), "10.47"]
 raise "Relative pagination was resolved incorrectly" unless transport.requests.last ==
-  "https://ghcr.io/v2/homebrew/core/pcre2/tags/list?last=10.38_1&n=5"
+                                                            "https://ghcr.io/v2/homebrew/core/pcre2/tags/list?last=10.38_1&n=5"
 
 # No prefix of the history is a successful answer after a later page fails.
 transport = RecordedRegistry.new(responses: [first, BrewCooldown::HomebrewAdapter::RegistryError.new("network failed")])
@@ -60,13 +63,14 @@ expect_error("network failed") { registry(transport).tags("pcre2", page_size: 5)
   '<https://elsewhere.example/v2/homebrew/core/pcre2/tags/list>; rel="next"',
   '</v2/homebrew/core/another/tags/list>; rel="next"',
   '<https://credentials@ghcr.io/v2/homebrew/core/pcre2/tags/list>; rel="next"',
-  '<http://ghcr.io/v2/homebrew/core/pcre2/tags/list>; rel="next"',
+  '<http://ghcr.io/v2/homebrew/core/pcre2/tags/list>; rel="next"'
 ].each do |link|
   transport = RecordedRegistry.new(responses: [first.with(headers: { "link" => link })])
   expect_error("left the package") { registry(transport).tags("pcre2") }
   raise "Unexpected origin was requested" unless transport.requests.length == 1
 end
-transport = RecordedRegistry.new(responses: [first.with(headers: { "link" => '</v2/homebrew/core/pcre2/tags/list?n=5>; rel="next"' })])
+repeated_link = '</v2/homebrew/core/pcre2/tags/list?n=5>; rel="next"'
+transport = RecordedRegistry.new(responses: [first.with(headers: { "link" => repeated_link })])
 expect_error("repeated a page") { registry(transport).tags("pcre2", page_size: 5) }
 transport = RecordedRegistry.new(responses: [first.with(headers: { "link" => "unrecognized" })])
 expect_error("Unsupported registry pagination") { registry(transport).tags("pcre2") }
@@ -80,10 +84,12 @@ index_digest = Digest::SHA256.hexdigest(INDEX_BODY)
 platform_digest = Digest::SHA256.hexdigest(PLATFORM_BODY)
 transport = RecordedRegistry.new(
   responses: [response(INDEX_BODY, "docker-content-digest" => "sha256:#{index_digest}")],
-  immutable: { index_digest => index, platform_digest => platform },
+  immutable: { index_digest => index, platform_digest => platform }
 )
 metadata = registry(transport).resolve("pcre2", "10.47", platform: :arm64_tahoe)
-raise "Wrong historical bottle" unless metadata.bottle_sha256 == "10bd8c1cf3784ab8a736f01b7f85d091276d69c5a8d48bd022b01209fb4eb870"
+unless metadata.bottle_sha256 == "10bd8c1cf3784ab8a736f01b7f85d091276d69c5a8d48bd022b01209fb4eb870"
+  raise "Wrong historical bottle"
+end
 raise "Wrong platform publication" unless metadata.published_at == Time.iso8601("2025-10-21T11:24:29Z")
 
 # Old index annotations survive platform additions. Real official responses
@@ -92,15 +98,17 @@ raise "Wrong platform publication" unless metadata.published_at == Time.iso8601(
   # lz4 records only 2024-08-05. That date can have ended as late as the next
   # midnight twelve hours behind UTC, which is all a calendar date can bound.
   ["lz4", "1.10.0", :arm64_sonoma, nil, Time.iso8601("2024-08-06T12:00:00Z")],
-  ["libyaml", "0.2.5", :arm64_tahoe, Time.iso8601("2025-09-10T18:51:04Z"), Time.iso8601("2025-09-10T18:51:04Z")],
+  ["libyaml", "0.2.5", :arm64_tahoe, Time.iso8601("2025-09-10T18:51:04Z"), Time.iso8601("2025-09-10T18:51:04Z")]
 ].each do |name, tag, platform_tag, publication, latest|
   index_body = (FIXTURES/"#{name}-index.json").read
   platform_body = (FIXTURES/"#{name}-platform.json").read
   index_sha = Digest::SHA256.hexdigest(index_body)
   platform_sha = Digest::SHA256.hexdigest(platform_body)
   source = RecordedRegistry.new(name:,
-    responses: [response(index_body, "docker-content-digest" => "sha256:#{index_sha}")],
-    immutable: { index_sha => JSON.parse(index_body), platform_sha => JSON.parse(platform_body) })
+                                responses: [response(index_body,
+                                                     "docker-content-digest" => "sha256:#{index_sha}")],
+                                immutable: { index_sha => JSON.parse(index_body),
+                                             platform_sha => JSON.parse(platform_body) })
   historical = registry(source).resolve(name, tag, platform: platform_tag)
   raise "Historical formula identity changed" unless historical.name == name && historical.pkg_version == tag
   raise "Historical platform clock was invented or lost" unless historical.published_at == publication
@@ -109,42 +117,55 @@ raise "Wrong platform publication" unless metadata.published_at == Time.iso8601(
 end
 
 # A moving tag cannot substitute other bytes under a previously claimed digest.
-transport = RecordedRegistry.new(responses: [response(INDEX_BODY + " ", "docker-content-digest" => "sha256:#{index_digest}")])
+transport = RecordedRegistry.new(responses: [response("#{INDEX_BODY} ",
+                                                      "docker-content-digest" => "sha256:#{index_digest}")])
 expect_error("no matching immutable digest") { registry(transport).resolve("pcre2", "10.47", platform: :arm64_tahoe) }
 
 def metadata_reader(index = JSON.parse(INDEX_BODY))
   BrewCooldown::HomebrewAdapter::RegistryMetadata.new(name: "pcre2", tag: "10.47", platform: :arm64_tahoe,
-                                                     index:, index_sha256: Digest::SHA256.hexdigest(INDEX_BODY))
+                                                      index:, index_sha256: Digest::SHA256.hexdigest(INDEX_BODY))
 end
 
 # Native selection, including older-OS fallback, must decide which platform
 # to evaluate. Merely matching the host's current tag would strand old bottles.
 if Utils::Bottles.tag.to_sym == :arm64_tahoe
   automatic = BrewCooldown::HomebrewAdapter::RegistryMetadata.new(name: "pcre2", tag: "10.47", platform: nil,
-                                                                index:, index_sha256: index_digest)
+                                                                  index:, index_sha256: index_digest)
   raise "Native platform selection changed" unless automatic.complete(platform).platform == "arm64_tahoe"
+
   older = Marshal.load(Marshal.dump(index))
-  older["manifests"].reject! { |entry| entry.dig("annotations", "org.opencontainers.image.ref.name") == "10.47.arm64_tahoe" }
+  older["manifests"].reject! do |entry|
+    entry.dig("annotations", "org.opencontainers.image.ref.name") == "10.47.arm64_tahoe"
+  end
   fallback = BrewCooldown::HomebrewAdapter::RegistryMetadata.new(name: "pcre2", tag: "10.47", platform: nil,
-                                                               index: older, index_sha256: index_digest)
-  expected = older.fetch("manifests").find { |entry| entry.dig("annotations", "org.opencontainers.image.ref.name") == "10.47.arm64_sequoia" }
-  raise "Native older-platform fallback failed" unless fallback.platform_sha256 == expected.fetch("digest").delete_prefix("sha256:")
+                                                                 index: older, index_sha256: index_digest)
+  expected = older.fetch("manifests").find do |entry|
+    entry.dig("annotations", "org.opencontainers.image.ref.name") == "10.47.arm64_sequoia"
+  end
+  unless fallback.platform_sha256 == expected.fetch("digest").delete_prefix("sha256:")
+    raise "Native older-platform fallback failed"
+  end
 end
 
 changed_index = Marshal.load(Marshal.dump(index))
 changed_index["annotations"]["org.opencontainers.image.created"] = "2026-09-19T00:00:00Z"
-raise "Index clock displaced platform publication" unless metadata_reader(changed_index).complete(platform).published_at == metadata.published_at
+unless metadata_reader(changed_index).complete(platform).published_at == metadata.published_at
+  raise "Index clock displaced platform publication"
+end
+
 without_date = Marshal.load(Marshal.dump(platform))
 without_date["annotations"].delete("org.opencontainers.image.created")
 raise "Missing platform clock inherited another date" unless metadata_reader.complete(without_date).published_at.nil?
-raise "Missing platform clock gained a publication bound" unless metadata_reader.complete(without_date).latest_publication.nil?
+unless metadata_reader.complete(without_date).latest_publication.nil?
+  raise "Missing platform clock gained a publication bound"
+end
 
 [
   ["Index identity", ->(row) { row["annotations"]["org.opencontainers.image.title"] = "another" }],
   ["Index identity", ->(row) { row["annotations"]["org.opencontainers.image.vendor"] = "another" }],
   ["version and rebuild", ->(row) { row["annotations"]["org.opencontainers.image.version"] = "10.48" }],
   ["Missing or ambiguous", ->(row) { row["manifests"] = [] }],
-  ["Missing or ambiguous", ->(row) { row["manifests"] *= 2 }],
+  ["Missing or ambiguous", ->(row) { row["manifests"] *= 2 }]
 ].each do |fragment, mutate|
   changed = Marshal.load(Marshal.dump(index))
   mutate.call(changed)
@@ -155,9 +176,11 @@ end
   ["identity differs", ->(row) { row["annotations"]["org.opencontainers.image.vendor"] = "another" }],
   ["annotations disagree", ->(row) { row["annotations"]["sh.brew.bottle.digest"] = "0" * 64 }],
   ["Unexpected bottle layers", ->(row) { row["layers"] *= 2 }],
-  ["Invalid platform metadata", ->(row) { row["annotations"]["org.opencontainers.image.created"] = "2026-02-31T00:00:00Z" }],
+  ["Invalid platform metadata", lambda { |row|
+    row["annotations"]["org.opencontainers.image.created"] = "2026-02-31T00:00:00Z"
+  }],
   ["Invalid platform metadata", ->(row) { row["annotations"]["org.opencontainers.image.created"] = "2026-02-31" }],
-  ["runtime receipts differ", ->(row) { row["annotations"]["sh.brew.tab"] = '{"runtime_dependencies":[{}]}' }],
+  ["runtime receipts differ", ->(row) { row["annotations"]["sh.brew.tab"] = '{"runtime_dependencies":[{}]}' }]
 ].each do |fragment, mutate|
   changed = Marshal.load(Marshal.dump(platform))
   mutate.call(changed)

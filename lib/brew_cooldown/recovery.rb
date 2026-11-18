@@ -8,7 +8,8 @@ module BrewCooldown
   class Recovery
     def initialize(state_directory:, log:)
       @journals = Journals.new(state_directory)
-      @directory, @log = state_directory, log
+      @directory = state_directory
+      @log = log
     end
 
     def call(accept_current: nil)
@@ -30,14 +31,17 @@ module BrewCooldown
           # identity, so replacement or newly unfinished work needs inspection.
           digest = Digest::SHA256.hexdigest(JSON.generate([evidence, inventory]))
           if accept_current
-            raise Executor::Refused, "Journal or inventory changed; run recover again before accepting current state" unless
-              accept_current == digest
+            unless accept_current == digest
+              raise Executor::Refused,
+                    "Journal or inventory changed; run recover again before accepting current state"
+            end
 
             accepted = pending.map { |journal| journal.accept_current(expected_inventory: inventory) }
             @log.call(operation: "accept_recovery", status: "accepted_current")
             return { schema: 1, command: "recover", status: "accepted_current",
                      operations: accepted.flat_map { |entry| entry.fetch("operations") },
-                     message: "Current inventory accepted; the next upgrade must compute a fresh plan. Hook completion remains unverified." }
+                     message: "Current inventory accepted; the next upgrade must compute a fresh plan. " \
+                              "Hook completion remains unverified." }
           end
           reports = pending.map { |journal| journal.report(observed: inventory) }
           launcher = File.expand_path("../../bin/brew-cooldown", __dir__)
@@ -49,15 +53,16 @@ module BrewCooldown
             operations: reports.flat_map { |entry| entry.fetch("operations") },
             accept_current: {
               "digest" => digest,
-              "purpose" => "Acknowledge the reviewed inventory and clear these journals; hook completion remains unverified",
-              "command" => Shellwords.join([launcher, "recover", "--accept-current", digest]),
+              "purpose" => "Acknowledge the reviewed inventory and clear these journals; " \
+                           "hook completion remains unverified",
+              "command" => Shellwords.join([launcher, "recover", "--accept-current", digest])
             } }
         end
       end
-    rescue StandardError => error
-      @log.call(operation: "recover", error: error.message, error_class: error.class.name, backtrace: error.backtrace)
+    rescue StandardError => e
+      @log.call(operation: "recover", error: e.message, error_class: e.class.name, backtrace: e.backtrace)
       { schema: 1, command: "recover", status: "error", journal: @directory.to_s,
-        error: error.message, message: "Preserve the journals and inspect installed state before retrying." }
+        error: e.message, message: "Preserve the journals and inspect installed state before retrying." }
     end
 
     private

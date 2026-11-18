@@ -12,19 +12,23 @@ module BrewCooldown
       if (baseline = explanation[:installed])
         build = baseline.fetch(:build).to_h
         label = explanation[:version_source] == :homebrew_receipt ? "Homebrew-recorded version" : "Installed"
-        output.puts("#{label}: #{build.fetch(:version)} (revision #{build.fetch(:revision)}, rebuild #{build[:rebuild] || 'unknown'})")
+        output.puts("#{label}: #{build.fetch(:version)} " \
+                    "(revision #{build.fetch(:revision)}, rebuild #{build[:rebuild] || "unknown"})")
       end
       result.fetch(:candidates).select { |entry| entry.fetch(:package) == package }.each do |candidate|
         decision = candidate.fetch(:decision)
-        output.puts("Candidate #{candidate.fetch(:build).fetch(:version)} [#{candidate.fetch(:identity)}]: #{decision.fetch(:status)} - #{decision.fetch(:reason)}")
+        output.puts("Candidate #{candidate.fetch(:build).fetch(:version)} [#{candidate.fetch(:identity)}]: " \
+                    "#{decision.fetch(:status)} - #{decision.fetch(:reason)}")
         output.puts("  Cooldown class: #{decision[:delay_kind]}; age source: #{decision[:age_source]}")
         output.puts("  Eligible at: #{decision[:eligible_at].getutc.iso8601}") if decision[:eligible_at]
         fixes = decision.fetch(:fixed_advisories)
-        output.puts("  Fixed advisories: #{fixes.join(', ')}") unless fixes.empty?
+        output.puts("  Fixed advisories: #{fixes.join(", ")}") unless fixes.empty?
         output.puts("  Security coverage: #{candidate.fetch(:security).fetch(:coverage)}")
       end
       components = result.fetch(:components).select do |component|
-        component.fetch(:roots).include?(package) || component.fetch(:selected).any? { |entry| entry.fetch(:package) == package }
+        component.fetch(:roots).include?(package) || component.fetch(:selected).any? do |entry|
+          entry.fetch(:package) == package
+        end
       end
       components.each do |component|
         reason = component[:reason] ? " - #{component[:reason]}" : ""
@@ -39,7 +43,7 @@ module BrewCooldown
         candidates: result.fetch(:candidates).select { |entry| identities.include?(entry.fetch(:identity)) },
         installed_security: result.fetch(:installed_security).select { |entry| entry.fetch(:package) == package },
         diagnostics: Array(result[:diagnostics]).select { |entry| !entry[:package] || entry[:package] == package },
-        warnings: Array(result[:warnings]).select { |entry| entry[:package] == package },
+        warnings: Array(result[:warnings]).select { |entry| entry[:package] == package }
       )
       print_human(focused, output, heading: "Scope assessment")
     end
@@ -51,16 +55,18 @@ module BrewCooldown
         output.puts("Homebrew cooldown upgrade: #{result.fetch(:status)}")
       end
       Array(result[:execution]).each do |component|
-        output.puts("Component: #{component.fetch('status')}")
+        output.puts("Component: #{component.fetch("status")}")
         # A component reuses the journal's operation layout. Its status line
         # is already printed, and a completed upgrade is not a recovery.
         print_recovery(component.transform_keys(&:to_sym), output, heading: nil)
         component.fetch("recovery", {}).each_value do |choices|
-          choices.each { |choice| output.puts("#{choice.fetch('purpose')}:\n  #{choice.fetch('command')}") }
+          choices.each { |choice| output.puts("#{choice.fetch("purpose")}:\n  #{choice.fetch("command")}") }
         end
       end
       Array(result[:errors]).each { |error| output.puts(error_line(error)) } unless result[:scope]
-      if Array(result[:execution]).any? { |component| component["status"] != "completed" } || result[:status] == "needs_reconciliation"
+      if Array(result[:execution]).any? do |component|
+        component["status"] != "completed"
+      end || result[:status] == "needs_reconciliation"
         output.puts("Inspect unfinished work with brew-cooldown recover.")
       end
     end
@@ -73,26 +79,28 @@ module BrewCooldown
       Array(result[:journals]).each { |path| output.puts("Journal: #{path}") }
       Array(result[:unverified]).each { |message| output.puts("Unverified: #{message}") }
       Array(result[:drift] || result[:changes]).each do |change|
-        output.puts("Changed #{change.fetch('path')}: expected #{change['expected'].inspect}, observed #{change['observed'].inspect}")
+        output.puts("Changed #{change.fetch("path")}: expected #{change["expected"].inspect}, " \
+                    "observed #{change["observed"].inspect}")
       end
       Array(result[:operations]).each do |operation|
-        output.puts("#{operation.fetch('kind', 'formula')}/#{operation.fetch('name')} #{operation.fetch('version')}: #{operation.fetch('status')}")
-        output.puts("  Previous keg: #{operation['previous_keg']}") if operation['previous_keg']
-        output.puts("  Previous version: #{operation['previous_version']}") if operation['previous_version']
-        output.puts("  Error: #{operation['error']}") if operation['error']
-        Array(operation['recovery']).each do |choice|
-          output.puts("  #{choice.fetch('purpose')}:\n    #{choice.fetch('command')}")
+        output.puts("#{operation.fetch("kind", "formula")}/#{operation.fetch("name")} " \
+                    "#{operation.fetch("version")}: #{operation.fetch("status")}")
+        output.puts("  Previous keg: #{operation["previous_keg"]}") if operation["previous_keg"]
+        output.puts("  Previous version: #{operation["previous_version"]}") if operation["previous_version"]
+        output.puts("  Error: #{operation["error"]}") if operation["error"]
+        Array(operation["recovery"]).each do |choice|
+          output.puts("  #{choice.fetch("purpose")}:\n    #{choice.fetch("command")}")
         end
       end
       if (choice = result[:accept_current])
-        output.puts("#{choice.fetch('purpose')}:\n  #{choice.fetch('command')}")
+        output.puts("#{choice.fetch("purpose")}:\n  #{choice.fetch("command")}")
       end
     end
 
     def self.print_human(result, output, heading: "Homebrew cooldown plan", show_proposals: true)
       output.puts("#{heading}: #{result.fetch(:status)}")
       result.fetch(:scope).each do |entry|
-        output.puts("#{entry.fetch(:requested)}: #{entry.fetch(:status)}#{entry[:reason] ? " - #{entry[:reason]}" : ''}")
+        output.puts("#{entry.fetch(:requested)}: #{entry.fetch(:status)}#{" - #{entry[:reason]}" if entry[:reason]}")
         output.puts("  Homebrew-recorded version: #{entry[:recorded_version]}") if entry[:recorded_version]
       end
       result.fetch(:components).each do |component|
@@ -101,18 +109,27 @@ module BrewCooldown
 
           build = selection.fetch(:build)
           output.puts("Upgrade #{selection.fetch(:package).fetch(:name)} to #{build.fetch(:version)} " \
-                      "(revision #{build.fetch(:revision)}, rebuild #{build.fetch(:rebuild)}): #{selection.fetch(:decision).fetch(:reason)}")
+                      "(revision #{build.fetch(:revision)}, rebuild #{build.fetch(:rebuild)}): " \
+                      "#{selection.fetch(:decision).fetch(:reason)}")
         end
         component.fetch(:rejected_options).each do |identity, reason|
           candidate = result.fetch(:candidates).find { |entry| entry.fetch(:identity) == identity }
-          label = candidate ? "#{candidate.fetch(:package).fetch(:name)} #{candidate.fetch(:build).fetch(:version)}" : identity
+          label = if candidate
+                    "#{candidate.fetch(:package).fetch(:name)} #{candidate.fetch(:build).fetch(:version)}"
+                  else
+                    identity
+                  end
           output.puts("#{label}: #{reason}")
         end
       end
-      result.fetch(:candidates).reject { |entry| %i[eligible security_fix].include?(entry.fetch(:decision).fetch(:status)) }.each do |entry|
+      held = result.fetch(:candidates).reject do |entry|
+        %i[eligible security_fix].include?(entry.fetch(:decision).fetch(:status))
+      end
+      held.each do |entry|
         decision = entry.fetch(:decision)
-        output.puts("#{entry.fetch(:package).fetch(:name)} #{entry.fetch(:build).fetch(:version)}: #{decision.fetch(:reason)}" \
-                    "#{decision[:eligible_at] ? " (eligible #{decision[:eligible_at].utc.iso8601})" : ''}")
+        output.puts("#{entry.fetch(:package).fetch(:name)} #{entry.fetch(:build).fetch(:version)}: " \
+                    "#{decision.fetch(:reason)}" \
+                    "#{" (eligible #{decision[:eligible_at].utc.iso8601})" if decision[:eligible_at]}")
       end
       result.fetch(:installed_security).each do |assessment|
         output.puts("Security coverage for #{assessment.fetch(:package).fetch(:name)}: #{assessment.fetch(:coverage)}")
@@ -134,12 +151,12 @@ module BrewCooldown
 
         output.puts("Note: #{entry.fetch(:reason)}")
         Array(entry[:recovery]).each do |choice|
-          output.puts("  #{choice.fetch('purpose')}:\n    #{choice.fetch('command')}")
+          output.puts("  #{choice.fetch("purpose")}:\n    #{choice.fetch("command")}")
         end
       end
       if summarize
         output.puts("Note: Homebrew does not record which bottle rebuild is installed, so no rebuild-only " \
-                    "replacement is selected for #{names.join(', ')}")
+                    "replacement is selected for #{names.join(", ")}")
         output.puts("  Inspect one package and its repair commands:\n    brew-cooldown explain #{names.first}")
       end
       Array(result[:warnings]).each { |entry| output.puts(error_line(entry, label: "Warning")) }
@@ -150,7 +167,7 @@ module BrewCooldown
         Array(recoveries).each do |recovery|
           next unless recovery.is_a?(Hash) && recovery["command"]
 
-          output.puts("  #{recovery.fetch('purpose')}:\n    #{recovery.fetch('command')}")
+          output.puts("  #{recovery.fetch("purpose")}:\n    #{recovery.fetch("command")}")
         end
       end
     end
@@ -168,7 +185,7 @@ module BrewCooldown
                                   when Hash, Data then package.to_h[:name]
                                   end
       message = entry[:error] || entry[:warning] || entry[:reason]
-      name ? "#{label}: #{[name, entry[:tag]].compact.join(' ')}: #{message}" : "#{label}: #{message}"
+      name ? "#{label}: #{[name, entry[:tag]].compact.join(" ")}: #{message}" : "#{label}: #{message}"
     end
 
     def self.json_value(value)

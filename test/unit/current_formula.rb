@@ -11,17 +11,16 @@ raise "Enabled core identity rejected" unless adapter.validate(current, name: "p
 # A valid old bottle cannot bypass a current provider withdrawal.
 [
   current.merge("disabled" => true, "disable_reason" => "upstream security withdrawal"),
-  current.reject { |key, _| key == "disabled" },
+  current.except("disabled"),
   current.merge("name" => "other"),
   current.merge("tap" => "other/tap"),
-  current.merge("version_scheme" => -1),
+  current.merge("version_scheme" => -1)
 ].each do |data|
   begin
     adapter.validate(data, name: "pcre2")
-  rescue BrewCooldown::HomebrewAdapter::RegistryError => error
-    if data["disabled"] == true && !error.message.include?("upstream security withdrawal")
-      raise "Withdrawal reason missing"
-    end
+  rescue BrewCooldown::HomebrewAdapter::RegistryError => e
+    raise "Withdrawal reason missing" if data["disabled"] == true && !e.message.include?("upstream security withdrawal")
+
     next
   end
   raise "Invalid or withdrawn identity accepted: #{data.inspect}"
@@ -35,44 +34,53 @@ adapter.verify_candidate!(current, build, log:)
 adapter.verify_candidate!(current, build.with(version: "10.47"), log:)
 adapter.verify_candidate!(current.merge("version_scheme" => 1), build.with(version: "99.0"), log:)
 raise "An accepted candidate emitted a rejection" unless events.empty?
+
 [build.with(version: "10.49"), build.with(revision: 1), build.with(rebuild: 1), build.with(scheme: 1),
  build.with(version: "1.0", scheme: 1)].each do |candidate|
   begin
     adapter.verify_candidate!(current, candidate, log:)
-  rescue BrewCooldown::HomebrewAdapter::RegistryError => error
+  rescue BrewCooldown::HomebrewAdapter::RegistryError => e
     raise "A conclusive comparison was not distinguished from missing evidence" unless
-      error.is_a?(BrewCooldown::HomebrewAdapter::CurrentFormula::AheadOfCurrent)
+      e.is_a?(BrewCooldown::HomebrewAdapter::CurrentFormula::AheadOfCurrent)
+
     # A later API query can disagree with the failed run. Preserve the actual
     # comparison so identical version strings still expose revision or scheme
     # differences, and the terminal error remains useful without the full log.
     event = events.pop
     raise "Rejected build identity lost" unless event.fetch(:candidate) == candidate.to_h
     raise "Published build identity lost" unless event.fetch(:current) ==
-      { version: "10.48", revision: 0, rebuild: 0, scheme: 0 }
+                                                 { version: "10.48", revision: 0, rebuild: 0, scheme: 0 }
     raise "Rejected package or source lost" unless event.fetch(:package) == "pcre2" &&
-      event.fetch(:url) == "https://formulae.brew.sh/api/formula/pcre2.json"
+                                                   event.fetch(:url) == "https://formulae.brew.sh/api/formula/pcre2.json"
     raise "Terminal error omitted comparison evidence" unless
-      ["candidate=", "current=", candidate.version, "10.48", "revision", "rebuild", "scheme", event.fetch(:url)].all? do |value|
-        error.message.include?(value)
+      ["candidate=", "current=", candidate.version, "10.48", "revision", "rebuild", "scheme",
+       event.fetch(:url)].all? do |value|
+        e.message.include?(value)
       end
+
     next
   end
   raise "Candidate ahead of current Homebrew source was accepted"
 end
 # Missing rebuild evidence is different from a confirmed initial bottle. The
 # diagnostic must not manufacture a zero and make this refusal look arbitrary.
-missing_bottle = current.reject { |key, _| key == "bottle" }.merge("tap_git_head" => "6e7a287063de930a0519930d1bf8c1d3ef161e20")
+missing_bottle = current.except("bottle").merge("tap_git_head" => "6e7a287063de930a0519930d1bf8c1d3ef161e20")
 begin
   adapter.verify_candidate!(missing_bottle, build, log:)
-rescue BrewCooldown::HomebrewAdapter::RegistryError => error
-  raise "Missing evidence became an expected exclusion" if error.is_a?(BrewCooldown::HomebrewAdapter::CurrentFormula::AheadOfCurrent)
+rescue BrewCooldown::HomebrewAdapter::RegistryError => e
+  if e.is_a?(BrewCooldown::HomebrewAdapter::CurrentFormula::AheadOfCurrent)
+    raise "Missing evidence became an expected exclusion"
+  end
+
   event = JSON.parse(JSON.generate(events.pop))
   raise "Missing rebuild was presented as known" unless event.fetch("current").fetch("rebuild").nil?
   raise "Formula source commit lost" unless event.fetch("tap_git_head") == "6e7a287063de930a0519930d1bf8c1d3ef161e20"
-  raise "Terminal error concealed missing evidence" unless error.message.include?('"rebuild":null')
+  raise "Terminal error concealed missing evidence" unless e.message.include?('"rebuild":null')
+
   missing_rebuild_rejected = true
 end
 raise "Missing rebuild evidence was accepted" unless missing_rebuild_rejected
+
 # Invalid rebuild metadata cannot provide an authoritative upper bound.
 [-1, "0"].each do |rebuild|
   begin
@@ -88,12 +96,17 @@ end
 # registry can advance the package. Anything less than equality must still be
 # examined: a revision, a scheme change or a newer release is an upgrade.
 raise "Installed current build not recognized" unless adapter.installed?(current, build)
-[build.with(version: "10.47"), build.with(revision: 1), build.with(scheme: 1), build.with(version: "10.49")].each do |installed|
+
+[build.with(version: "10.47"), build.with(revision: 1), build.with(scheme: 1),
+ build.with(version: "10.49")].each do |installed|
   raise "A differing installation skipped discovery: #{installed}" if adapter.installed?(current, installed)
 end
-raise "Installed rebuild identity influenced the comparison" unless adapter.installed?(current, build.with(rebuild: nil))
-raise "Absent rebuild metadata became a rebuild" unless adapter.rebuild(current.reject { |key, _| key == "bottle" }).zero?
-raise "Published rebuild lost" unless adapter.rebuild(current.merge("bottle" => { "stable" => { "rebuild" => 3 } })) == 3
+raise "Installed rebuild identity influenced the comparison" unless adapter.installed?(current,
+                                                                                       build.with(rebuild: nil))
+raise "Absent rebuild metadata became a rebuild" unless adapter.rebuild(current.except("bottle")).zero?
+unless adapter.rebuild(current.merge("bottle" => { "stable" => { "rebuild" => 3 } })) == 3
+  raise "Published rebuild lost"
+end
 
 # The batched read replaces one process per formula. Each package keeps its
 # own outcome: one withdrawn, missing or malformed response must neither fail
@@ -102,11 +115,13 @@ events = []
 log = ->(**event) { events << event }
 bodies = {
   "pcre2" => ["200", JSON.generate(current)],
-  "withdrawn" => ["200", JSON.generate(current.merge("name" => "withdrawn", "disabled" => true, "disable_reason" => "upstream security withdrawal"))],
+  "withdrawn" => ["200",
+                  JSON.generate(current.merge("name" => "withdrawn", "disabled" => true,
+                                              "disable_reason" => "upstream security withdrawal"))],
   "impostor" => ["200", JSON.generate(current)],
   "missing" => ["404", "<html>not found</html>"],
   "garbled" => ["200", "{"],
-  "silent" => [nil, nil],
+  "silent" => [nil, nil]
 }
 requested = nil
 transfer = lambda do |requests|
@@ -123,19 +138,27 @@ end
 results = adapter.fetch_all(bodies.keys + ["pcre2"], log:, transfer:)
 raise "Repeated names were requested twice" unless requested.length == bodies.length
 raise "Valid current metadata lost" unless results.fetch("pcre2") == current
+
 { "withdrawn" => "upstream security withdrawal", "impostor" => "identity", "missing" => "HTTP 404",
   "garbled" => "Invalid current formula JSON", "silent" => "no response" }.each do |name, fragment|
   outcome = results.fetch(name)
   raise "#{name} was accepted: #{outcome.inspect}" unless outcome.is_a?(BrewCooldown::HomebrewAdapter::RegistryError) &&
-    outcome.message.include?(fragment)
+                                                          outcome.message.include?(fragment)
 end
-raise "Batched read was not logged" unless events.any? { |event| event[:operation] == "read_current_formulae" && event[:packages] == bodies.length }
-raise "Empty scope made a request" unless adapter.fetch_all([], log:, transfer: ->(_requests) { raise "requested" }).empty?
+raise "Batched read was not logged" unless events.any? do |event|
+  event[:operation] == "read_current_formulae" && event[:packages] == bodies.length
+end
+raise "Empty scope made a request" unless adapter.fetch_all([], log:, transfer: lambda { |_requests|
+  raise "requested"
+}).empty?
+
 begin
   adapter.fetch_all(["../escape"], log:, transfer: ->(_requests) { raise "requested" })
-rescue BrewCooldown::HomebrewAdapter::RegistryError => error
-  raise unless error.message.include?("unqualified core formula")
+rescue BrewCooldown::HomebrewAdapter::RegistryError => e
+  raise unless e.message.include?("unqualified core formula")
+
   escaped = true
 end
 raise "A path-like name reached the request" unless escaped
+
 puts "PASS: current formula identity, withdrawal, installed-current detection and batched reads"

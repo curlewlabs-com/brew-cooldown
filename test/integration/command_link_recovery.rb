@@ -38,7 +38,7 @@ before = BrewCooldown::Executor::Inventory.capture
 output, status = Open3.capture2e(HOMEBREW_BREW_FILE.to_s, "ruby", "--", __FILE__, "interrupt")
 puts output
 assert(status.signaled? && status.termsig == Signal.list.fetch("KILL"), "Child was not killed during unlink")
-assert(!((HOMEBREW_PREFIX/"bin/gtimeout").symlink?), "Unlink did not remove gtimeout")
+assert(!(HOMEBREW_PREFIX/"bin/gtimeout").symlink?, "Unlink did not remove gtimeout")
 assert(keg.linked? && keg.optlinked?, "Fixture did not retain misleading linked/opt records")
 assert((keg/"INSTALL_RECEIPT.json").file?, "Unlink removed the retained keg")
 
@@ -56,8 +56,8 @@ digest = report.fetch(:accept_current).fetch("digest")
 begin
   BrewCooldown::Executor::Inventory.verify_commands!(keg)
   raise "Receipt and linked-keg record concealed missing commands"
-rescue BrewCooldown::Executor::Refused => error
-  assert(error.message.include?("linked command missing or redirected"), "Wrong command verification error")
+rescue BrewCooldown::Executor::Refused => e
+  assert(e.message.include?("linked command missing or redirected"), "Wrong command verification error")
 end
 
 # Legacy journals remain readable, but their absent baseline must not be
@@ -73,7 +73,8 @@ begin
   assert(old_report.fetch(:drift).empty?, "Legacy journal invented a command-link baseline")
   human = StringIO.new
   BrewCooldown::Report.print_recovery(old_report, human)
-  assert(human.string.include?("pre-upgrade command links were not recorded"), "Human recovery concealed legacy coverage")
+  assert(human.string.include?("pre-upgrade command links were not recorded"),
+         "Human recovery concealed legacy coverage")
 ensure
   journal.path.write(original)
 end
@@ -100,7 +101,8 @@ end
 BrewCooldown::Executor::Inventory.verify_commands!(keg)
 assert(BrewCooldown::Executor::Inventory.capture == before, "Recovery did not restore the original inventory")
 rejected = recovery.call(accept_current: digest)
-assert(rejected.fetch(:status) == "error" && journal.path.exist?, "Restored command links accepted stale acknowledgment")
+assert(rejected.fetch(:status) == "error" && journal.path.exist?,
+       "Restored command links accepted stale acknowledgment")
 fresh = recovery.call
 assert(fresh.fetch(:drift).empty?, "Restored links still differ from baseline")
 assert(fresh.fetch(:accept_current).fetch("digest") != digest, "Acknowledgment omitted command links")

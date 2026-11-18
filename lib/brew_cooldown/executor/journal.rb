@@ -8,6 +8,8 @@ require_relative "errors"
 module BrewCooldown
   module Executor
     class Journal
+      LEGACY_JOURNAL = "This journal predates command-link baselines; pre-upgrade command links were not recorded."
+
       attr_reader :path, :data
 
       def initialize(directory)
@@ -18,8 +20,10 @@ module BrewCooldown
       end
 
       def with_lock
-        File.open(@directory/"run.lock", File::RDWR | File::CREAT, 0600) do |lock|
-          raise Refused, "another brew-cooldown invocation owns #{@directory}" unless lock.flock(File::LOCK_EX | File::LOCK_NB)
+        File.open(@directory/"run.lock", File::RDWR | File::CREAT, 0o600) do |lock|
+          unless lock.flock(File::LOCK_EX | File::LOCK_NB)
+            raise Refused, "another brew-cooldown invocation owns #{@directory}"
+          end
 
           yield
         end
@@ -29,30 +33,42 @@ module BrewCooldown
         return unless path.file?
 
         parsed = JSON.parse(path.read)
-        raise Refused, "unsupported execution journal schema" unless parsed.is_a?(Hash) && [1, 2].include?(parsed["schema"])
-        raise Refused, "journal belongs to a different Homebrew prefix" unless parsed.fetch("prefix") == HOMEBREW_PREFIX.realpath.to_s
-        unless parsed.fetch("inventory").is_a?(Hash) && parsed.fetch("inventory").all? { |key, value| key.is_a?(String) && value.is_a?(String) } &&
+        unless parsed.is_a?(Hash) && [1, 2].include?(parsed["schema"])
+          raise Refused, "unsupported execution journal schema"
+        end
+        unless parsed.fetch("prefix") == HOMEBREW_PREFIX.realpath.to_s
+          raise Refused,
+                "journal belongs to a different Homebrew prefix"
+        end
+        unless parsed.fetch("inventory").is_a?(Hash) && parsed.fetch("inventory").all? do |key, value|
+          key.is_a?(String) && value.is_a?(String)
+        end &&
                parsed.fetch("operations").is_a?(Array)
           raise Refused, "invalid execution journal contents"
         end
+
         parsed.fetch("operations").each do |entry|
-          unless entry.is_a?(Hash) && entry.fetch("name").is_a?(String) && entry.fetch("name").match?(/\A[a-z0-9][a-z0-9+@._-]*\z/) &&
-                 entry.fetch("version").is_a?(String) && !entry.fetch("version").empty? &&
-                 (entry["previous_keg"].nil? || entry["previous_keg"].is_a?(String)) &&
-                 %w[formula cask].include?(entry.fetch("kind", "formula")) &&
-                 %w[pending started completed failed].include?(entry.fetch("status")) &&
-                 [true, false].include?(entry.fetch("keg_only"))
-            raise Refused, "invalid journal operation"
-          end
+          next if entry.is_a?(Hash) && entry.fetch("name").is_a?(String) &&
+                  entry.fetch("name").match?(/\A[a-z0-9][a-z0-9+@._-]*\z/) &&
+                  entry.fetch("version").is_a?(String) && !entry.fetch("version").empty? &&
+                  (entry["previous_keg"].nil? || entry["previous_keg"].is_a?(String)) &&
+                  %w[formula cask].include?(entry.fetch("kind", "formula")) &&
+                  %w[pending started completed failed].include?(entry.fetch("status")) &&
+                  [true, false].include?(entry.fetch("keg_only"))
+
+          raise Refused, "invalid journal operation"
         end
-        parsed.fetch("operations").each do |entry|
+        # Every operation's shape is checked before any identity is, so a
+        # journal with both kinds of damage is refused for its shape.
+        parsed.fetch("operations").each do |entry| # rubocop:disable Style/CombinableLoops
           full_name = entry["full_name"]
           next if full_name.nil?
 
-          unless full_name.is_a?(String) && full_name.match?(/\A(?:[a-z0-9_-]+\/[a-z0-9_-]+\/)?[a-z0-9][a-z0-9+@._-]*\z/) &&
-                 full_name.split("/").last == entry.fetch("name") && !full_name.include?("..")
-            raise Refused, "invalid journal canonical package identity"
-          end
+          next if full_name.is_a?(String) &&
+                  full_name.match?(%r{\A(?:[a-z0-9_-]+/[a-z0-9_-]+/)?[a-z0-9][a-z0-9+@._-]*\z}) &&
+                  full_name.split("/").last == entry.fetch("name") && !full_name.include?("..")
+
+          raise Refused, "invalid journal canonical package identity"
         end
         keys = parsed.fetch("operations").map { |entry| [entry.fetch("kind", "formula"), entry.fetch("name")] }
         raise Refused, "duplicate journal operation identity" unless keys.uniq.length == keys.length
@@ -71,7 +87,9 @@ module BrewCooldown
       end
 
       def record(name, status, kind: "formula", inventory: nil, error: nil)
-        operation = data.fetch("operations").find { |entry| entry.fetch("name") == name && entry.fetch("kind", "formula") == kind }
+        operation = data.fetch("operations").find do |entry|
+          entry.fetch("name") == name && entry.fetch("kind", "formula") == kind
+        end
         raise Refused, "unplanned journal operation #{name}" unless operation
 
         operation["status"] = status
@@ -105,7 +123,7 @@ module BrewCooldown
           "status" => "needs_reconciliation",
           "journal" => path.to_s,
           "drift" => Inventory.differences(data.fetch("inventory"), compared),
-          "unverified" => legacy ? ["This journal predates command-link baselines; pre-upgrade command links were not recorded."] : [],
+          "unverified" => legacy ? [LEGACY_JOURNAL] : [],
           "operations" => data.fetch("operations").map do |entry|
             entry.merge("status" => entry.fetch("status") == "started" ? "unconfirmed" : entry.fetch("status"),
                         "recovery" => Recovery.commands(entry.fetch("full_name", entry.fetch("name")),
@@ -118,9 +136,9 @@ module BrewCooldown
 
       def safe_report
         report
-      rescue StandardError => error
+      rescue StandardError => e
         { "status" => "journal_error", "journal" => path.to_s,
-          "journal_error" => "#{error.class}: #{error.message}",
+          "journal_error" => "#{e.class}: #{e.message}",
           "message" => "Preserve this journal for inspection; package completion could not be determined." }
       end
 

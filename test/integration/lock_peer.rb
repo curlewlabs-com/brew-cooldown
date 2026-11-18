@@ -16,7 +16,8 @@ when "reinstall"
     def lock
       if formula.name == "fish"
         keg = HOMEBREW_CELLAR/"fish/4.0.6"
-        puts "LOCK_OBSERVATION #{JSON.generate(keg_exists: keg.directory?, executable_exists: (keg/"bin/fish").executable?)}"
+        puts "LOCK_OBSERVATION #{JSON.generate(keg_exists: keg.directory?,
+                                               executable_exists: (keg/"bin/fish").executable?)}"
         $stdout.flush
       end
       super

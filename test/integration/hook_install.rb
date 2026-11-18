@@ -25,6 +25,7 @@ map = BrewCooldown::Executor::ExactMap.new(candidates)
 map.activate
 fish = map.resolve("fish")
 raise "Expected a real Ruby post-install hook" unless fish.post_install_defined?
+
 hook_directories = %w[vendor_functions.d vendor_completions.d vendor_conf.d]
 
 # These paths must originate in the hook, not make the assertion pass just
@@ -52,4 +53,5 @@ end
 output, status = Open3.capture2((fish.opt_bin/"fish").to_s, "-c", "string match -r 'a(?=b)' ab")
 raise "Fish or its shared library failed" unless status.success? && output == "a\n"
 raise "Wrong hook recipe version" unless fish.opt_prefix.realpath == HOMEBREW_CELLAR/"fish/4.0.6"
+
 puts "PASS: native sandboxed historical hook and PCRE-backed fish execution"

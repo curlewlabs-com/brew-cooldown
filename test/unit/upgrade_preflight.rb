@@ -15,8 +15,11 @@ Dir.mktmpdir("cooldown-upgrade-preflight-") do |directory|
   upgrade = BrewCooldown::Upgrade.new(config: nil, scope: nil, state_directory: directory, log:,
                                       clock: planning_started, runtime_check: unqualified)
   result = upgrade.call
-  raise "Unqualified runtime was not reported: #{result}" unless result.fetch(:status) == "unsupported_runtime" &&
-    result.fetch(:errors).first.fetch(:error).include?("not the qualified commit")
+  unless result.fetch(:status) == "unsupported_runtime" &&
+         result.fetch(:errors).first.fetch(:error).include?("not the qualified commit")
+    raise "Unqualified runtime was not reported: #{result}"
+  end
+
   output = StringIO.new
   BrewCooldown::Report.print_upgrade(result, output)
   raise "Terminal output hid the runtime refusal" unless output.string.include?("not the qualified commit")
@@ -29,6 +32,8 @@ Dir.mktmpdir("cooldown-upgrade-preflight-") do |directory|
   operation = { "name" => "example", "version" => "1.0", "status" => "pending", "keg_only" => false }
   journal.with_lock { journal.start([operation], {}) }
   result = upgrade.call
-  raise "Unfinished journal was hidden behind the runtime refusal" unless result.fetch(:status) == "needs_reconciliation"
+  unless result.fetch(:status) == "needs_reconciliation"
+    raise "Unfinished journal was hidden behind the runtime refusal"
+  end
 end
 puts "PASS: unqualified runtime refused before planning, after unfinished journals"

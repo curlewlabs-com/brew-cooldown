@@ -34,9 +34,11 @@ end
 
 probes = {
   "unplanned lookup" => ['Formula["zlib"]', "BrewCooldownWorker::Refused", "unplanned post-install lookup"],
-  "recursive installer" => ['FormulaInstaller.new(Formula["fish"])', "BrewCooldownWorker::Refused", "package installation"],
+  "recursive installer" => ['FormulaInstaller.new(Formula["fish"])', "BrewCooldownWorker::Refused",
+                            "package installation"],
   "recursive brew" => ['system HOMEBREW_BREW_FILE.to_s, "--version"', "BuildError", "Failed executing"],
-  "worker handoff write" => ['File.write(ENV.fetch("HOMEBREW_COOLDOWN_WORKER_PLAN"), "[]")', "Errno::EPERM", "Operation not permitted"]
+  "worker handoff write" => ['File.write(ENV.fetch("HOMEBREW_COOLDOWN_WORKER_PLAN"), "[]")', "Errno::EPERM",
+                             "Operation not permitted"]
 }
 
 probes.each do |description, (body, error_class, message)|
@@ -44,6 +46,7 @@ probes.each do |description, (body, error_class, message)|
   before = inventory
   report = fish.logs/"cooldown-refusal.json"
   raise "Probe report already exists" if report.exist?
+
   owns_report = true
   BrewCooldown::Executor::Postinstall.with_map(map) do
     path = BrewCooldown::Executor.worker_plan/"recipes.json"
@@ -76,6 +79,7 @@ probes.each do |description, (body, error_class, message)|
     raise "#{description} failed for an unrelated reason: #{failure}"
   end
   raise "#{description} changed package inventory" unless inventory == before
+
   puts "PASS: refused #{description} in native sandboxed worker"
 ensure
   report.unlink if owns_report && report.file?
@@ -90,9 +94,11 @@ BrewCooldown::Executor::Postinstall.with_map(map) do
   raise "Worker accepted altered recipe map" unless Homebrew.failed?
 end
 raise "Altered map changed package inventory" unless inventory == before
+
 Homebrew.failed = false
 puts "PASS: refused changed recipe map before evaluation"
 
 BrewCooldown::Executor::Postinstall.with_map(map) { FormulaInstaller.new(fish).post_install }
 raise "Worker also rejected the original official hook" if Homebrew.failed?
+
 puts "PASS: original official hook still succeeds after refusal probes"

@@ -15,12 +15,13 @@ def installed(name, version, revision: 0, scheme: 0, pinned: false)
   build = BrewCooldown::Build.new(version:, revision:, rebuild: nil, scheme:)
   baseline = BrewCooldown::Installed.new(package: package(name), build:, pinned:)
   BrewCooldown::HomebrewAdapter::InstalledRecord.new(installed: baseline, dependencies: [], compatibility_version: nil,
-                                                    retained: nil, receipt: "receipt", identity: Digest::SHA256.hexdigest(name))
+                                                     retained: nil, receipt: "receipt", identity: Digest::SHA256.hexdigest(name))
 end
 
 def published(name, version, revision: 0, scheme: 0, rebuild: 0)
   { "name" => name, "tap" => "homebrew/core", "version_scheme" => scheme, "disabled" => false,
-    "versions" => { "stable" => version }, "revision" => revision, "bottle" => { "stable" => { "rebuild" => rebuild } } }
+    "versions" => { "stable" => version }, "revision" => revision,
+    "bottle" => { "stable" => { "rebuild" => rebuild } } }
 end
 
 # The registry answers with no tags, so a walk that does begin ends without
@@ -42,9 +43,15 @@ class RecordedMetadata
   attr_reader :batches, :single
 
   def initialize(current, batch_omits:)
-    @current, @batch_omits, @batches, @single = current, batch_omits, [], []
+    @current = current
+    @batch_omits = batch_omits
+    @batches = []
+    @single = []
   end
 
+  # Each fake takes the real method's `log:` keyword, so a caller that
+  # stopped passing it would fail here too.
+  # rubocop:disable Lint/UnusedMethodArgument
   def fetch_all(names, log:)
     @batches << names
     (names - @batch_omits).to_h { |name| [name, @current.fetch(name)] }
@@ -54,6 +61,7 @@ class RecordedMetadata
     @single << name
     @current.fetch(name)
   end
+  # rubocop:enable Lint/UnusedMethodArgument
 end
 
 def discover(records, current, roots: records.keys, batch_omits: [])
@@ -64,7 +72,8 @@ def discover(records, current, roots: records.keys, batch_omits: [])
     discovery = BrewCooldown::HomebrewAdapter::Discovery.new(
       inventory:, config: BrewCooldown::Config.new({}, directory: Pathname(directory)),
       advisories: BrewCooldown::HomebrewAdapter::Advisories.new(records: {}, validated_at: nil),
-      observations: BrewCooldown::Observations.new(directory, prefix: directory, clock: -> { NOW }), now: NOW, log: ->(**_event) {},
+      observations: BrewCooldown::Observations.new(directory, prefix: directory, clock: -> { NOW }),
+      now: NOW, log: ->(**_event) {},
       registry:, current_formulae: metadata
     )
     [discovery.collect(roots), registry, metadata]
@@ -78,7 +87,7 @@ records = {
   package("revised") => installed("revised", "1.2.3"),
   package("rescheme") => installed("rescheme", "1.2.3"),
   package("ahead") => installed("ahead", "1.2.4"),
-  package("held") => installed("held", "1.0.0", pinned: true),
+  package("held") => installed("held", "1.0.0", pinned: true)
 }
 current = {
   "current" => published("current", "1.2.3"),
@@ -86,7 +95,7 @@ current = {
   "behind" => published("behind", "1.2.3"),
   "revised" => published("revised", "1.2.3", revision: 1),
   "rescheme" => published("rescheme", "1.2.3", scheme: 1),
-  "ahead" => published("ahead", "1.2.3"),
+  "ahead" => published("ahead", "1.2.3")
 }
 result, registry, metadata = discover(records, current)
 
@@ -94,7 +103,9 @@ result, registry, metadata = discover(records, current)
 # Only a difference from Homebrew's current build earns a registry walk.
 raise "Registry walked for an installed current build: #{registry.walked}" unless
   registry.walked.sort == %w[ahead behind rescheme revised]
-raise "Scope was not read in one batch: #{metadata.batches}" unless metadata.batches.length == 1 && metadata.single.empty?
+unless metadata.batches.length == 1 && metadata.single.empty?
+  raise "Scope was not read in one batch: #{metadata.batches}"
+end
 raise "A pinned package was read" if metadata.batches.first.include?("held")
 raise "Discovery reported an error: #{result.errors}" unless result.errors.empty?
 raise "An up-to-date package gained an option" unless result.domains.fetch(package("current")).map(&:retained) == [true]
@@ -102,17 +113,26 @@ raise "An up-to-date package gained an option" unless result.domains.fetch(packa
 # The walk reported a rebuild-only tag of the installed version. Skipping the
 # walk must not hide that the installed bottle's rebuild is unknown.
 notes = result.diagnostics.select { |entry| entry.fetch(:status) == "unknown_installed_build" }
-raise "Rebuild uncertainty was lost or invented: #{notes}" unless notes.map { |entry| entry.fetch(:package).fetch(:name) } == ["repackaged"]
+raise "Rebuild uncertainty was lost or invented: #{notes}" unless notes.map do |entry|
+  entry.fetch(:package).fetch(:name)
+end == ["repackaged"]
+
 note = notes.first
-raise "Rebuild diagnostic lost its evidence" unless note.fetch(:tag) == "2.0.0_1-2" && note.fetch(:reason).include?("registry rebuild 2") &&
-  note.fetch(:recovery).any?
+unless note.fetch(:tag) == "2.0.0_1-2" && note.fetch(:reason).include?("registry rebuild 2") &&
+       note.fetch(:recovery).any?
+  raise "Rebuild diagnostic lost its evidence"
+end
 
 # A withdrawal or a failed read belongs to its own package. The rest of the
 # scope is still assessed, and the failed package never reaches the registry.
-withdrawn = BrewCooldown::HomebrewAdapter::RegistryError.new("Homebrew has disabled current: upstream security withdrawal")
+withdrawn = BrewCooldown::HomebrewAdapter::RegistryError.new(
+  "Homebrew has disabled current: upstream security withdrawal"
+)
 result, registry, = discover(records, current.merge("current" => withdrawn))
-raise "Withdrawal was not reported for its package" unless result.errors.length == 1 &&
-  result.errors.first.fetch(:package).fetch(:name) == "current" && result.errors.first.fetch(:error).include?("security withdrawal")
+unless result.errors.length == 1 && result.errors.first.fetch(:package).fetch(:name) == "current" &&
+       result.errors.first.fetch(:error).include?("security withdrawal")
+  raise "Withdrawal was not reported for its package"
+end
 raise "A withdrawn formula reached the registry" if registry.walked.include?("current")
 raise "One failed read stopped the other packages" unless registry.walked.sort == %w[ahead behind rescheme revised]
 
@@ -120,5 +140,8 @@ raise "One failed read stopped the other packages" unless registry.walked.sort =
 # read on its own when the walk reaches it instead of being skipped or guessed.
 result, registry, metadata = discover(records, current, batch_omits: ["behind"])
 raise "A package outside the batch was not read individually: #{metadata.single}" unless metadata.single == ["behind"]
-raise "A package outside the batch skipped its registry walk" unless registry.walked.include?("behind") && result.errors.empty?
+unless registry.walked.include?("behind") && result.errors.empty?
+  raise "A package outside the batch skipped its registry walk"
+end
+
 puts "PASS: installed current builds skip the registry, keep rebuild diagnostics and isolate failed reads"

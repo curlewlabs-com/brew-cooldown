@@ -4,7 +4,6 @@ require "utils/github"
 require "digest"
 require "time"
 require "uri"
-require "set"
 require_relative "registry"
 require_relative "build_order"
 require_relative "../policy"
@@ -20,7 +19,10 @@ module BrewCooldown
       attr_reader :package, :head, :path, :current
 
       def initialize(package:, log:, now:, request: GitHub::API.method(:open_rest))
-        @package, @log, @now, @request = package, log, now, request
+        @package = package
+        @log = log
+        @now = now
+        @request = request
         owner, tap = package.tap.split("/")
         @repository = "#{owner}/homebrew-#{tap}"
         @api = "https://api.github.com/repos/#{@repository}"
@@ -32,12 +34,14 @@ module BrewCooldown
                repository["default_branch"].is_a?(String) && !repository["default_branch"].empty?
           raise RegistryError, "Trusted tap repository identity differs: #{@repository}"
         end
+
         branch = URI.encode_www_form_component(repository.fetch("default_branch"))
         @head = commit!(request("#{@api}/commits/#{branch}").fetch("sha"))
         tree = request("#{@api}/git/trees/#{head}?recursive=1")
         unless tree.is_a?(Hash) && tree["truncated"] == false && tree["tree"].is_a?(Array)
           raise RegistryError, "Trusted tap tree is incomplete: #{@repository}"
         end
+
         paths = tree.fetch("tree").select do |row|
           row.is_a?(Hash) && row["type"] == "blob" && row["mode"] == "100644" &&
             row["path"].is_a?(String) && row["path"].start_with?("Formula/") &&
@@ -65,7 +69,10 @@ module BrewCooldown
               commit = commit!(row.fetch("sha"))
               raise RegistryError, "Repeated trusted tap commit" unless seen.add?(commit)
 
-              results << TapHistoryEntry.new(commit:, published_at: publication_time(row.dig("commit", "committer", "date")))
+              results << TapHistoryEntry.new(commit:,
+                                             published_at: publication_time(row.dig(
+                                                                              "commit", "committer", "date"
+                                                                            )))
             end
             break if rows.length < 100
 
@@ -80,6 +87,7 @@ module BrewCooldown
                content["encoding"] == "base64" && content["content"].is_a?(String)
           raise RegistryError, "Historical trusted formula source is unavailable: #{entry.commit}"
         end
+
         bytes = content.fetch("content").delete("\n").unpack1("m0")
         blob = Digest::SHA1.hexdigest("blob #{bytes.bytesize}\0" + bytes)
         raise RegistryError, "Historical trusted source blob differs" unless content["sha"] == blob
@@ -94,20 +102,26 @@ module BrewCooldown
 
       def verify_candidate!(candidate)
         verify_current!
-        if BuildOrder.call(candidate.build, current.build).positive?
-          raise RegistryError, "#{package.name}: historical release is ahead of current trusted tap build; possible rollback"
-        end
+        return unless BuildOrder.call(candidate.build, current.build).positive?
+
+        raise RegistryError,
+              "#{package.name}: historical release is ahead of current trusted tap build; possible rollback"
       end
 
       def publication(candidate, entry)
         uri = URI(candidate.formula.resource.url)
         pieces = uri.path.split("/")
         owner, repository, tag = pieces.values_at(1, 2, 5)
-        release = request("https://api.github.com/repos/#{owner}/#{repository}/releases/tags/#{URI.encode_www_form_component(tag)}")
-        unless release.is_a?(Hash) && release["tag_name"] == tag && release["draft"] == false && release["assets"].is_a?(Array)
+        release = request("https://api.github.com/repos/#{owner}/#{repository}/releases/tags/" \
+                          "#{URI.encode_www_form_component(tag)}")
+        unless release.is_a?(Hash) && release["tag_name"] == tag && release["draft"] == false &&
+               release["assets"].is_a?(Array)
           raise RegistryError, "Release identity is unavailable: #{candidate.formula.resource.url}"
         end
-        assets = release.fetch("assets").select { |asset| asset.is_a?(Hash) && asset["browser_download_url"] == uri.to_s }
+
+        assets = release.fetch("assets").select do |asset|
+          asset.is_a?(Hash) && asset["browser_download_url"] == uri.to_s
+        end
         raise RegistryError, "Release archive is missing or ambiguous: #{uri}" unless assets.length == 1
 
         asset = assets.first
@@ -127,10 +141,10 @@ module BrewCooldown
       def verify_current!
         formula = current.formula
         disabled = formula.disable_date ? formula.disable_date <= @now.utc.to_date : formula.disabled?
-        if disabled
-          reason = formula.disable_reason || formula.deprecation_reason
-          raise RegistryError, "#{package.name}: trusted tap currently disables this formula: #{reason}"
-        end
+        return unless disabled
+
+        reason = formula.disable_reason || formula.deprecation_reason
+        raise RegistryError, "#{package.name}: trusted tap currently disables this formula: #{reason}"
       end
 
       def commit!(value)
@@ -146,10 +160,11 @@ module BrewCooldown
           return Time.iso8601(value).utc
         end
 
-        @log.call(operation: "tap_publication_fallback", package: package.to_h, reason: "Publication timestamp is missing")
+        @log.call(operation: "tap_publication_fallback", package: package.to_h,
+                  reason: "Publication timestamp is missing")
         nil
-      rescue ArgumentError => error
-        @log.call(operation: "tap_publication_fallback", package: package.to_h, reason: error.message)
+      rescue ArgumentError => e
+        @log.call(operation: "tap_publication_fallback", package: package.to_h, reason: e.message)
         nil
       end
 

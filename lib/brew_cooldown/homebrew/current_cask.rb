@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 # Reads current official-cask metadata to bound candidate releases.
 
 require "utils/curl"
@@ -17,9 +18,10 @@ module BrewCooldown
         unless result.success? && response && response[:status_code] == "200"
           raise RegistryError, "Current cask request failed for #{name}: HTTP #{response&.fetch(:status_code)}"
         end
+
         validate(JSON.parse(parsed.fetch(:body)), name:)
-      rescue JSON::ParserError => error
-        raise RegistryError, "Invalid current cask JSON for #{name}: #{error.message}"
+      rescue JSON::ParserError => e
+        raise RegistryError, "Invalid current cask JSON for #{name}: #{e.message}"
       end
 
       def self.validate(data, name:)
@@ -28,7 +30,10 @@ module BrewCooldown
                [true, false, nil].include?(data["auto_updates"])
           raise RegistryError, "Current official cask identity or update capability unavailable for #{name}"
         end
-        raise RegistryError, "Homebrew has disabled #{name}: #{data['disable_reason'] || 'no reason supplied'}" if data.fetch("disabled")
+        if data.fetch("disabled")
+          raise RegistryError,
+                "Homebrew has disabled #{name}: #{data["disable_reason"] || "no reason supplied"}"
+        end
 
         # Self-managed casks are not historical execution targets. Homebrew's
         # API emits null when the optional auto_updates stanza is unset.
@@ -39,6 +44,7 @@ module BrewCooldown
                data["ruby_source_path"] == "Casks/#{name[0]}/#{name}.rb"
           raise RegistryError, "Current official cask immutable source unavailable for #{name}"
         end
+
         data
       end
 
@@ -48,11 +54,15 @@ module BrewCooldown
       end
 
       def self.verify_candidate!(current, version)
-        raise RegistryError, "#{current.fetch('token')}: #{self_managed_reason}" if current.fetch("auto_updates") == true
-
-        if Version.new(version) > Version.new(current.fetch("version"))
-          raise RegistryError, "#{current.fetch('token')}: historical candidate exceeds current cask version; possible rollback"
+        if current.fetch("auto_updates") == true
+          raise RegistryError,
+                "#{current.fetch("token")}: #{self_managed_reason}"
         end
+
+        return unless Version.new(version) > Version.new(current.fetch("version"))
+
+        raise RegistryError,
+              "#{current.fetch("token")}: historical candidate exceeds current cask version; possible rollback"
       end
     end
   end
