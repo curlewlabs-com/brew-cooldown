@@ -147,3 +147,9 @@ minor release until 1.0.
    gh release create v0.3.1 --verify-tag --notes-file notes.md \
      --title "v0.3.1 - <summary>"
    ```
+
+## License
+
+By submitting a contribution for inclusion in this project, you agree that it
+is licensed under the MIT and Apache-2.0 licenses, as the README's License
+section describes, without any additional terms or conditions.
