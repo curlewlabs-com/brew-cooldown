@@ -85,7 +85,7 @@ while read -r number branch head draft <&3; do
   case $verdict in
   none)
     # A run held for approval, or one that finished without a verdict, is a
-    # failure to look at, not a reason to start another one every hour.
+    # failure to look at, not a reason to start another one every run.
     held=$(jq '[.workflow_runs[] | select(.conclusion == "action_required")] | length' "$work/runs.json")
     if [ "$held" != 0 ]; then
       echo "#$number: Qualify on $head is waiting for approval by someone with write access; leaving it for a person"
