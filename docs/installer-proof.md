@@ -15,9 +15,9 @@ macOS 26.6.2 VM at the standard Homebrew prefix. The Homebrew commit was
 `edb70f031e4170c780799633a1226ff73e1077f4`.
 
 | Formula | Baseline | Selected upgrade | Current API version during test |
-| --- | --- | --- | --- |
-| pcre2 | 10.46 | 10.47 | 10.48 |
-| ripgrep | 15.0.0 | 15.1.0 | 15.2.0 |
+| ------- | -------- | ---------------- | ------------------------------- |
+| pcre2   | 10.46    | 10.47            | 10.48                           |
+| ripgrep | 15.0.0   | 15.1.0           | 15.2.0                          |
 
 The run verified official bottle attestations and digests, installed through
 the native dependency installer, and checked receipts, canonical `opt` links,

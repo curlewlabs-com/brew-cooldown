@@ -1,0 +1,8 @@
+# Registry manifests as GitHub Packages served them. A manifest is addressed
+# by the SHA-256 of its exact bytes: each index names its platform manifest
+# that way, test/integration/candidates.json names index.json, and the
+# registry tests recompute both, so a reformat would break the chain.
+test/fixtures/registry/*-index.json
+test/fixtures/registry/*-platform.json
+test/fixtures/registry/index.json
+test/fixtures/registry/platform.json
