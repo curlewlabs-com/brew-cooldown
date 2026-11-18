@@ -1,8 +1,8 @@
 name: CI
 
 # Gate every PR (and post-merge main) on the checks a contributor runs locally:
-# shellcheck on Linux, and the syntax pass plus unit suite under real Homebrew
-# on macOS. See CONTRIBUTING.md.
+# the syntax pass and unit suite under real Homebrew on macOS, and the shared
+# baseline checks, shellcheck included, on Linux. See CONTRIBUTING.md.
 on:
   push:
     branches: [main]
@@ -18,24 +18,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      # Pin shellcheck to an exact release rather than ubuntu's preinstalled,
-      # floating version, so a new finding means a script changed.
-      - name: shellcheck
-        run: |
-          # renovate: datasource=github-releases depName=koalaman/shellcheck extractVersion=^v(?<version>.+)$
-          ver=0.11.0
-          url="https://github.com/koalaman/shellcheck/releases/download/v${ver}/shellcheck-v${ver}.linux.x86_64.tar.xz"
-          curl -fsSL "$url" | tar -xJ
-          "shellcheck-v${ver}/shellcheck" --version
-          "shellcheck-v${ver}/shellcheck" bin/brew-cooldown script/unit-tests script/qualify script/propose-homebrew-release \
-            script/merge-homebrew-release
-
   unit:
     # Apple Silicon Tahoe is the platform the executor supports, and the
     # registry tests exercise native bottle selection only on that tag.
@@ -71,4 +53,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: curlewlabs-com/ci-baseline@c82082df9a3c5e6dab047d9ddb92f130f1537d8e # v0.1.1
+      - uses: curlewlabs-com/ci-baseline@f05f17a38ba2dfbaf0cde130a375b346e9a923a2 # v0.2.0
+
+  conclusion:
+    # The one check branch protection requires, so adding or renaming a job
+    # above needs no settings change - only this list.
+    needs: [unit, baseline]
+    runs-on: ubuntu-24.04
+    if: always()
+    steps:
+      - name: Require every job to pass
+        env:
+          UNIT: ${{ needs.unit.result }}
+          BASELINE: ${{ needs.baseline.result }}
+        run: test "$UNIT" = success && test "$BASELINE" = success

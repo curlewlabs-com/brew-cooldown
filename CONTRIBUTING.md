@@ -19,12 +19,13 @@ short discussion up front saves rework.
 
 ```sh
 script/unit-tests
-shellcheck bin/brew-cooldown script/unit-tests script/qualify \
-  script/propose-homebrew-release script/merge-homebrew-release
 ```
 
-CI runs both on every pull request, the suite on Apple Silicon macOS with
-Homebrew pinned to the qualified commit. `script/unit-tests` parses every Ruby
+CI runs it on every pull request on Apple Silicon macOS with Homebrew pinned to
+the qualified commit, beside the shared
+[ci-baseline](https://github.com/curlewlabs-com/ci-baseline) checks: shellcheck
+and shfmt on the scripts, prettier on the Markdown, YAML and JSON, and the
+workflow lints. `script/unit-tests` parses every Ruby
 source and runs `test/unit` through Homebrew's own Ruby, so locally it needs
 only a Homebrew installation. The unit tests
 use fixed timestamps and recorded upstream responses; they install nothing and

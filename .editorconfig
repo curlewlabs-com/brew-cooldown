@@ -1,0 +1,7 @@
+# shfmt reads its style from here: the shell scripts keep the two-space
+# indent they were written with.
+root = true
+
+[{bin/brew-cooldown,script/*}]
+indent_style = space
+indent_size = 2

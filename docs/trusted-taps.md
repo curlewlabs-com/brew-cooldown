@@ -46,20 +46,20 @@ and keep their own trust, pin and cooldown decisions.
 
 ## Guard and identity audit
 
-| Boundary | Release archive path |
-| --- | --- |
-| Scope and trust | Canonical configured tap; pins retained before adapter checks |
-| Source provenance | Current GitHub head, path-scoped history and verified blob |
-| Current bound | Native build ordering and current disabled state |
-| Artifact authority | Exact release URL and recipe SHA-256; vendor digest checked when present |
-| Age | Later recipe/asset evidence or verified observation fallback |
-| Dependency graph | Native runtime edges; every replacement independently evaluated |
-| Execution runtime | Existing qualified Homebrew commit and Apple Silicon prefix checks |
-| Resolver | Existing exact map in coordinator and sandbox workers |
-| Installation | Release-only branch in installer guard; Core keeps bottle-only guard |
-| Hooks | Native sandbox with exact recipe map; no hook-owned installer |
-| Pins and drift | Existing inventory fingerprint and before-install revalidation |
-| Journal and recovery | Existing package operation boundaries, receipts and link checks |
+| Boundary             | Release archive path                                                     |
+| -------------------- | ------------------------------------------------------------------------ |
+| Scope and trust      | Canonical configured tap; pins retained before adapter checks            |
+| Source provenance    | Current GitHub head, path-scoped history and verified blob               |
+| Current bound        | Native build ordering and current disabled state                         |
+| Artifact authority   | Exact release URL and recipe SHA-256; vendor digest checked when present |
+| Age                  | Later recipe/asset evidence or verified observation fallback             |
+| Dependency graph     | Native runtime edges; every replacement independently evaluated          |
+| Execution runtime    | Existing qualified Homebrew commit and Apple Silicon prefix checks       |
+| Resolver             | Existing exact map in coordinator and sandbox workers                    |
+| Installation         | Release-only branch in installer guard; Core keeps bottle-only guard     |
+| Hooks                | Native sandbox with exact recipe map; no hook-owned installer            |
+| Pins and drift       | Existing inventory fingerprint and before-install revalidation           |
+| Journal and recovery | Existing package operation boundaries, receipts and link checks          |
 
 JSON and native Homebrew evaluators parse inputs; no Ruby text parser is added.
 URI parsing selects versioned GitHub release URLs. Unknown field shapes, missing

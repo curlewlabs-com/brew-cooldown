@@ -8,9 +8,7 @@
         "id": "BREW-git-CVE-2025-40918",
         "published": "2026-08-13T09:29:00Z",
         "modified": "2026-08-13T09:29:00Z",
-        "upstream": [
-          "CVE-2025-40918"
-        ],
+        "upstream": ["CVE-2025-40918"],
         "affected": [
           {
             "package": {
@@ -113,11 +111,7 @@
         "id": "BREW-python@3.14-CVE-2025-8869",
         "published": "2026-08-13T17:29:58Z",
         "modified": "2026-09-17T18:42:34Z",
-        "upstream": [
-          "GHSA-4xh5-x5gv-qwph",
-          "CVE-2025-8869",
-          "PYSEC-2026-1795"
-        ],
+        "upstream": ["GHSA-4xh5-x5gv-qwph", "CVE-2025-8869", "PYSEC-2026-1795"],
         "affected": [
           {
             "package": {
