@@ -24,8 +24,8 @@ script/unit-tests
 CI runs it on every pull request on Apple Silicon macOS with Homebrew pinned to
 the qualified commit, beside the shared
 [ci-baseline](https://github.com/curlewlabs-com/ci-baseline) checks: shellcheck
-and shfmt on the scripts, prettier on the Markdown, YAML and JSON, and the
-workflow lints. `script/unit-tests` parses every Ruby
+and shfmt on the scripts, RuboCop on the Ruby, prettier on the Markdown, YAML
+and JSON, and the workflow lints. `script/unit-tests` parses every Ruby
 source and runs `test/unit` through Homebrew's own Ruby, so locally it needs
 only a Homebrew installation. The unit tests
 use fixed timestamps and recorded upstream responses; they install nothing and
