@@ -256,6 +256,5 @@ vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 [MIT license](LICENSE-MIT), at your option. Releases published under the MIT
 license alone may also be used under either license.
 
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in this project by you, as defined in the Apache-2.0 license,
-shall be dual licensed as above, without any additional terms or conditions.
+By submitting a contribution for inclusion in this project, you agree that it
+is dual licensed as above, without any additional terms or conditions.
