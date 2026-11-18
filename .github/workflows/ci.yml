@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  unit:
+  unit-test:
     # Apple Silicon Tahoe is the platform the executor supports, and the
     # registry tests exercise native bottle selection only on that tag.
     runs-on: macos-26
@@ -58,12 +58,12 @@ jobs:
   conclusion:
     # The one check branch protection requires, so adding or renaming a job
     # above needs no settings change - only this list.
-    needs: [unit, baseline]
+    needs: [unit-test, baseline]
     runs-on: ubuntu-24.04
     if: always()
     steps:
       - name: Require every job to pass
         env:
-          UNIT: ${{ needs.unit.result }}
+          UNIT_TEST: ${{ needs.unit-test.result }}
           BASELINE: ${{ needs.baseline.result }}
-        run: test "$UNIT" = success && test "$BASELINE" = success
+        run: test "$UNIT_TEST" = success && test "$BASELINE" = success
