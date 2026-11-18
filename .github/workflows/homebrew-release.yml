@@ -7,30 +7,25 @@ name: Homebrew release
 # release if it is not yet qualified (script/propose-homebrew-release).
 on:
   schedule:
-    # Homebrew tags releases at any time of day, and this hourly line is what
-    # finds a new one. GitHub starts a scheduled run only when its queue
-    # allows, which has left this line running hours apart, so the slots arrive
-    # on time through the repository_dispatch below instead, and this schedule
-    # stays as the backstop for when that clock is down. It is still too slow to
-    # wait on for the merge.
-    - cron: "17 * * * *"
+    # Homebrew tags releases at any time of day, and this line is what finds a
+    # new one and merges a proposal whose qualification passed. It runs every
+    # 15 minutes so a qualified release merges soon after its last gating run
+    # finishes; until it does, every scheduled upgrade that brew update moved
+    # to the release refuses. GitHub starts a scheduled run only when its queue
+    # allows, which has left a line running hours apart, so the slots arrive on
+    # time through the repository_dispatch below instead, and this schedule
+    # stays as the backstop for when that clock is down.
+    - cron: "2,17,32,47 * * * *"
   # Each slot of the line above, sent on time by a github-cron-trigger clock
   # (https://github.com/curlewlabs-com/github-cron-trigger). Both passes read
   # the current state and a repeated run changes nothing, so a slot delivered
   # by the clock and again by the schedule needs no deduplication, and the
-  # project's slot action and ledger are not used.
+  # project's slot action and ledger are not used. A workflow_run trigger
+  # would merge sooner, but it runs with this repository's write token on the
+  # word of another run, which a fork's pull request can start; the line above
+  # needs no such trust.
   repository_dispatch:
     types: [github-cron-trigger/homebrew-release.yml]
-  # A proposal can merge as soon as the last of its gating runs finishes:
-  # Qualify for the verdict, CI for the required checks. Until it does, every
-  # scheduled upgrade that brew update moved to the release refuses. The branch
-  # filter matches a fork's branch of the same name too; that is harmless,
-  # because the pass checks out main, reads each proposal's state itself rather
-  # than the run that started it, and skips a fork's pull request.
-  workflow_run:
-    workflows: [Qualify, CI]
-    types: [completed]
-    branches: ["homebrew/**"]
   workflow_dispatch:
 
 # GitHub does not run a pull request's workflows unattended when the job token
@@ -40,10 +35,7 @@ on:
 # PROPOSAL_TOKEN, a fine-grained token limited to this repository's pull
 # requests (CONTRIBUTING.md). It can neither push nor merge; the job token does
 # both.
-permissions:
-  contents: write # push proposal branches, merge qualified ones
-  pull-requests: write # merge and close proposals
-  actions: read # find the Qualify runs on a proposal's head
+permissions: {}
 
 concurrency:
   group: homebrew-release
@@ -51,8 +43,14 @@ concurrency:
 jobs:
   merge:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write # push proposal branches, merge qualified ones
+      pull-requests: write # merge and close proposals
+      actions: read # find the Qualify runs on a proposal's head
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - run: script/merge-homebrew-release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,12 +61,19 @@ jobs:
     # A failed merge pass must not keep a newer release from being proposed.
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write # push proposal branches, merge qualified ones
+      pull-requests: write # merge and close proposals
+      actions: read # find the Qualify runs on a proposal's head
     steps:
       # main as it is now, not the commit this run started on: the merge job
       # may have moved it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
+          # script/propose-homebrew-release pushes the proposal branch with
+          # this checkout's token.
+          persist-credentials: true
       - run: script/propose-homebrew-release
         env:
           GH_TOKEN: ${{ github.token }}

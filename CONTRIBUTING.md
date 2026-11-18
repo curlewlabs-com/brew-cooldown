@@ -83,9 +83,8 @@ Its passing `qualified` check is the evidence, so merge only after it. A version
 range is never a substitute for that run.
 
 The [Homebrew release workflow](.github/workflows/homebrew-release.yml) opens
-that pull request itself when Homebrew tags a release, and merges it once
-`qualified` passes: it runs again when the proposal's CI or Qualify run
-finishes, with its hourly schedule as the backstop. A
+that pull request itself when Homebrew tags a release, and merges it on its
+first run after `qualified` passes: it runs every 15 minutes. A
 [github-cron-trigger](https://github.com/curlewlabs-com/github-cron-trigger)
 clock delivers that schedule on time, and GitHub's own schedule still runs it,
 later, when the clock is down. The workflow merges only a branch that still
