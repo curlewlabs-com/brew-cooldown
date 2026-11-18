@@ -17,7 +17,7 @@ def changed_record
 end
 
 def assess(records: FIXTURE, name: "git", before: "2.54.0", after: "2.55.0", revision: 0,
-           fresh: true, kind: :formula, tap: "homebrew/core", **options)
+           fresh: true, kind: :formula, tap: "homebrew/core", **)
   package = BrewCooldown::PackageId.new(kind:, tap:, name:)
   build = BrewCooldown::Build.new(version: before, revision: 0, rebuild: 0, scheme: 0)
   installed = BrewCooldown::Installed.new(package:, build:, pinned: false)
@@ -25,9 +25,9 @@ def assess(records: FIXTURE, name: "git", before: "2.54.0", after: "2.55.0", rev
                                       verified: true, identity: Digest::SHA256.hexdigest(after),
                                       published_at: NOW, publication_source: :platform_manifest)
   adapter = BrewCooldown::HomebrewAdapter::Advisories.new(records:, validated_at: fresh ? NOW : nil)
-  assessment = adapter.assess(release:, installed:, **options)
+  assessment = adapter.assess(release:, installed:, **)
   decision = BrewCooldown::Policy.new(compare_builds: BrewCooldown::HomebrewAdapter::BuildOrder)
-                                .evaluate(release:, installed:, now: NOW, security: assessment.evidence)
+                                 .evaluate(release:, installed:, now: NOW, security: assessment.evidence)
   [assessment, decision]
 end
 
@@ -71,7 +71,7 @@ mutations = [
   ->(row) { row["affected"][0]["ranges"][0]["events"] = [{ "fixed" => "2.55.0" }] },
   ->(row) { row["affected"][0]["ranges"][0]["events"] = [{ "introduced" => "3.0.0" }, { "fixed" => "2.55.0" }] },
   ->(row) { row["affected"][0]["ranges"][0]["events"][-1]["limit"] = "2.55.0" },
-  ->(row) { row["affected"][0]["ranges"][0]["events"][-1]["fixed"] = 255 },
+  ->(row) { row["affected"][0]["ranges"][0]["events"][-1]["fixed"] = 255 }
 ]
 mutations.each do |mutation|
   row = changed_record(&mutation)
@@ -86,7 +86,8 @@ end
 partial = changed_record do |row|
   row["affected"][0]["ranges"] << { "type" => "FUTURE", "events" => [{ "introduced" => "0" }] }
 end
-expect(:affected, assess(records: { "git" => [partial] }, after: "2.54.1").last.status, "partial record's known affected range")
+expect(:affected, assess(records: { "git" => [partial] }, after: "2.54.1").last.status,
+       "partial record's known affected range")
 expect(:cooldown, assess(records: { "git" => [partial] }).last.status, "partial negative evidence")
 ongoing = changed_record do |row|
   row["id"] = "BREW-git-another"
@@ -96,14 +97,15 @@ expect(:affected, assess(records: { "git" => [FIXTURE["git"][0], ongoing, partia
        "another advisory still affects the candidate")
 
 patch = changed_record { |row| row["affected"][0]["ecosystem_specific"]["fix"] = "patch" }
-expect(:cooldown, assess(records: { "git" => [patch] }).last.status, "today's patch annotation is not historical evidence")
+expect(:cooldown, assess(records: { "git" => [patch] }).last.status,
+       "today's patch annotation is not historical evidence")
 expect(:security_fix, assess(records: { "git" => [patch] }, candidate_patches: ["CVE-2025-40918"]).last.status,
        "verified recipe patch attribution")
 # An already patched installation must not be reported as still affected or
 # create an installed-affected-to-fixed exception for a later candidate.
 patched, patched_decision = assess(records: { "git" => [patch] }, before: "2.55.0", after: "2.55.1",
-                                  candidate_patches: ["CVE-2025-40918"],
-                                  installed_patches: ["CVE-2025-40918"])
+                                   candidate_patches: ["CVE-2025-40918"],
+                                   installed_patches: ["CVE-2025-40918"])
 expect(false, patched.evidence.installed_affected, "installed recipe patch attribution")
 expect(:cooldown, patched_decision.status, "already patched installation does not expedite")
 expect(:cooldown, assess(records: { "git" => [patch] }, candidate_patches: ["CVE-unrelated"]).last.status,
@@ -143,6 +145,7 @@ Dir.mktmpdir("cooldown-advisories-") do |directory|
   adapter = BrewCooldown::HomebrewAdapter::Advisories.refresh(now: NOW, log:, cache: directory, fetch: outage)
   expect(:no_records, adapter.assess(release:, installed:).coverage, "unreadable cache yields unknown coverage")
   raise "Cache error was silent" unless events.any? { |event| event[:operation] == "read_cached_advisories" }
+
   expect("{", path.read, "failed reads preserve native cache")
 end
 

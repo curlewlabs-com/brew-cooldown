@@ -23,7 +23,9 @@ end
 consumer = nil
 receipt = nil
 if phase == "baseline"
-  raise "Baseline requires fish and PCRE2 absent" unless candidates.all? { |candidate| candidate.formula.installed_kegs.empty? }
+  raise "Baseline requires fish and PCRE2 absent" unless candidates.all? do |candidate|
+    candidate.formula.installed_kegs.empty?
+  end
 else
   consumer = BrewCooldown::Executor::Retained.new(Keg.new(HOMEBREW_CELLAR/"fish/4.7.1"))
   receipt = (consumer.keg/"INSTALL_RECEIPT.json").binread
@@ -31,11 +33,12 @@ else
     before = (HOMEBREW_PREFIX/"opt/pcre2").readlink
     begin
       consumer.check_candidate!(candidates.fetch(0))
-    rescue BrewCooldown::Executor::Refused => error
-      raise "Wrong refusal: #{error}" unless error.message.include?("no compatibility evidence")
+    rescue BrewCooldown::Executor::Refused => e
+      raise "Wrong refusal: #{e}" unless e.message.include?("no compatibility evidence")
       raise "Refusal changed consumer" unless (consumer.keg/"INSTALL_RECEIPT.json").binread == receipt
       raise "Refusal changed dependency" unless (HOMEBREW_PREFIX/"opt/pcre2").readlink == before
-      puts "PASS: missing compatibility evidence reported before mutation: #{error}"
+
+      puts "PASS: missing compatibility evidence reported before mutation: #{e}"
       exit
     end
     raise "Accepted a dependency without consumer compatibility evidence"
@@ -48,8 +51,9 @@ map.activate
 if consumer
   begin
     FormulaInstaller.new(consumer.formula)
-  rescue BrewCooldown::Executor::Refused => error
-    raise "Wrong retained-consumer refusal" unless error.message.include?("retained consumer")
+  rescue BrewCooldown::Executor::Refused => e
+    raise "Wrong retained-consumer refusal" unless e.message.include?("retained consumer")
+
     puts "PASS: unplanned consumer installation rejected"
   else
     raise "Accepted an out-of-scope consumer installation"
@@ -66,11 +70,15 @@ end
 raise "Homebrew reported installation failure" if Homebrew.failed?
 raise "Changed retained receipt" if consumer && (consumer.keg/"INSTALL_RECEIPT.json").binread != receipt
 raise "Changed retained opt link" unless (HOMEBREW_PREFIX/"opt/fish").realpath == HOMEBREW_CELLAR/"fish/4.7.1"
+
 expected_version = phase == "baseline" ? "10.47_1" : "10.48"
-raise "Wrong dependency version" unless (HOMEBREW_PREFIX/"opt/pcre2").realpath == HOMEBREW_CELLAR/"pcre2"/expected_version
+unless (HOMEBREW_PREFIX/"opt/pcre2").realpath == HOMEBREW_CELLAR/"pcre2"/expected_version
+  raise "Wrong dependency version"
+end
 
 consumer ||= BrewCooldown::Executor::Retained.new(Keg.new(HOMEBREW_CELLAR/"fish/4.7.1"))
 consumer.check_linkage!
 output, status = Open3.capture2((HOMEBREW_PREFIX/"opt/fish/bin/fish").to_s, "-c", "string match -r 'a(?=b)' ab")
 raise "Shared consumer runtime failed" unless status.success? && output == "a\n"
+
 puts "PASS #{phase}: fish retained with working PCRE2 #{expected_version}"

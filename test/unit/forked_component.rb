@@ -5,6 +5,7 @@ require_relative "../../lib/brew_cooldown/executor/exact_map"
 
 log = ->(**_event) {}
 raise "Parent already has an execution map" if BrewCooldown::Executor.active_map
+
 result = BrewCooldown::ForkedComponent.call(log:) do
   # Native guards must not contaminate the next component or parent discovery.
   BrewCooldown::Executor.active_map = :child_only
@@ -12,8 +13,11 @@ result = BrewCooldown::ForkedComponent.call(log:) do
 end
 raise "Child result lost" unless result == { "status" => "completed", "operations" => ["selected"] }
 raise "Native map leaked into parent" if BrewCooldown::Executor.active_map
+
 result = BrewCooldown::ForkedComponent.call(log:) { raise "component failure" }
 raise "Worker exception hidden" unless result["status"] == "error" && result["error"].include?("component failure")
+
 result = BrewCooldown::ForkedComponent.call(log:) { Process.kill("KILL", Process.pid) }
 raise "Worker death looked successful" unless result["status"] == "interrupted"
+
 puts "PASS: component process isolation, errors and unconfirmed worker death"

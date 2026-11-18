@@ -9,8 +9,13 @@ require_relative "homebrew/advisories"
 module BrewCooldown
   class Planning
     attr_reader :inventory, :discovery, :resolutions
+
     def initialize(config:, scope:, now:, log:, state_directory:)
-      @config, @scope, @now, @log, @state_directory = config, scope, now, log, state_directory
+      @config = config
+      @scope = scope
+      @now = now
+      @log = log
+      @state_directory = state_directory
     end
 
     # Phase events mark the steps that log nothing of their own, so a run's
@@ -26,19 +31,27 @@ module BrewCooldown
         next if scope_results.any? { |entry| entry[:package] == package }
 
         entry = HomebrewAdapter::ScopeEntry.new(kind: package.kind, name: "#{package.tap}/#{package.name}", options: {})
-        result = resolve_entry(entry, inventory).merge(origin: :runtime_dependency, required_by: required_by.map(&:to_h))
-        result[:reason] = "Required runtime dependency is absent from readable installed inventory" if result[:status] == :missing
-        result[:reason] ||= "Runtime dependency of #{required_by.map { |consumer| "#{consumer.kind}:#{consumer.tap}/#{consumer.name}" }.join(', ')}"
+        result = resolve_entry(entry, inventory).merge(origin: :runtime_dependency,
+                                                       required_by: required_by.map(&:to_h))
+        if result[:status] == :missing
+          result[:reason] =
+            "Required runtime dependency is absent from readable installed inventory"
+        end
+        result[:reason] ||= "Runtime dependency of #{required_by.map do |consumer|
+          "#{consumer.kind}:#{consumer.tap}/#{consumer.name}"
+        end.join(", ")}"
         scope_results << result
         roots << package if %i[selected pinned].include?(result[:status])
       end
       errors = inventory.errors.dup
-      errors.concat(scope_results.select { |entry| %i[missing unsupported_executor ambiguous].include?(entry[:status]) })
+      errors.concat(scope_results.select do |entry|
+        %i[missing unsupported_executor ambiguous].include?(entry[:status])
+      end)
       advisory = HomebrewAdapter::Advisories.refresh(now: @now, log: @log)
       observations = Observations.new(@state_directory, prefix: HOMEBREW_PREFIX)
       @log.call(operation: "phase", phase: "discover")
       @discovery = HomebrewAdapter::Discovery.new(inventory:, config: @config, advisories: advisory,
-                                               observations:, now: @now, log: @log).collect(roots)
+                                                  observations:, now: @now, log: @log).collect(roots)
       errors.concat(discovery.errors)
       scope_results.each do |entry|
         reason = discovery.self_managed[entry[:package]]
@@ -54,7 +67,8 @@ module BrewCooldown
       @log.call(operation: "phase", phase: "resolve")
       @resolutions = planner.plan(domains: discovery.domains, roots:)
       errors.concat(resolutions.filter_map do |resolution|
-        { operation: "resolve", error: resolution.reason } if %i[resolution_limit no_compatible_solution].include?(resolution.status)
+        { operation: "resolve", error: resolution.reason } if %i[resolution_limit
+                                                                 no_compatible_solution].include?(resolution.status)
       end)
       warnings = []
       @log.call(operation: "phase", phase: "assess_installed")
@@ -64,7 +78,7 @@ module BrewCooldown
         formula = package.kind == :formula ? inventory.records.fetch(package).retained&.formula : nil
         patches = formula ? HomebrewAdapter::Advisories.patch_identifiers(formula) : []
         assessment = advisory.assess(release: retained.release, installed: baseline,
-                                    candidate_patches: patches, installed_patches: patches)
+                                     candidate_patches: patches, installed_patches: patches)
         selected = resolutions.filter_map { |result| result.selected[package] }.first
         candidates = discovery.domains.fetch(package).reject(&:retained)
         if (finding = Planning.security_finding(package:, assessment:, selected:, candidates:))
@@ -76,7 +90,8 @@ module BrewCooldown
       @log.call(operation: "phase", phase: "recheck_inventory")
       current = HomebrewAdapter::InstalledInventory.capture(log: @log)
       if current.fingerprint != inventory.fingerprint
-        errors << { operation: "inventory_drift", error: "Installed state changed during planning; rerun after package operations finish",
+        errors << { operation: "inventory_drift",
+                    error: "Installed state changed during planning; rerun after package operations finish",
                     changes: Executor::Inventory.differences(inventory.fingerprint, current.fingerprint),
                     recovery: roots.to_h do |package|
                       name = "#{package.tap}/#{package.name}"
@@ -90,7 +105,7 @@ module BrewCooldown
         inventory_digest: Digest::SHA256.hexdigest(JSON.generate(inventory.fingerprint)),
         scope: scope_results.map { |entry| entry.merge(package: entry[:package]&.to_h) },
         components: resolutions.map { |resolution| render_resolution(resolution) },
-        candidates: discovery.decisions, installed_security:, diagnostics: discovery.diagnostics, warnings:, errors:,
+        candidates: discovery.decisions, installed_security:, diagnostics: discovery.diagnostics, warnings:, errors:
       }
     end
 
@@ -108,7 +123,7 @@ module BrewCooldown
 
       advisories = assessment.advisories.select { |entry| entry.installed_state == :affected }.map(&:id).uniq
       { operation: "security", status: "unfixed_advisory", package: package.to_h, advisories:,
-        warning: "Installed version is affected by #{advisories.join(', ')}, and no published candidate fixes it yet" }
+        warning: "Installed version is affected by #{advisories.join(", ")}, and no published candidate fixes it yet" }
     end
 
     private
@@ -122,29 +137,45 @@ module BrewCooldown
         package = HomebrewAdapter::InstalledInventory.package(entry.name, kind: entry.kind)
         matches = inventory.records.keys.select { |installed| installed == package }
       else
-        matches = inventory.records.keys.select { |installed| installed.kind == entry.kind && installed.name == entry.name }
+        matches = inventory.records.keys.select do |installed|
+          installed.kind == entry.kind && installed.name == entry.name
+        end
         if matches.empty? && entry.kind == :formula
           opt = HOMEBREW_PREFIX/"opt"/entry.name
           if opt.symlink? && opt.exist?
             canonical_name = opt.realpath.parent.basename.to_s
-            matches = inventory.records.keys.select { |installed| installed.kind == :formula && installed.name == canonical_name }
+            matches = inventory.records.keys.select do |installed|
+              installed.kind == :formula && installed.name == canonical_name
+            end
           end
         end
-        package = matches.first || HomebrewAdapter::InstalledInventory.package(entry.name, kind: entry.kind,
-                                                                               default_tap: entry.kind == :cask ? "homebrew/cask" : "homebrew/core")
+        default_tap = entry.kind == :cask ? "homebrew/cask" : "homebrew/core"
+        package = matches.first ||
+                  HomebrewAdapter::InstalledInventory.package(entry.name, kind: entry.kind, default_tap:)
       end
       status, reason = if matches.length > 1
-        [:ambiguous, "More than one installed package matches this name; qualify the tap"]
-      elsif matches.empty?
-        [:missing, "Root package is not installed; scope does not install missing roots"]
-      elsif inventory.records.fetch(package).installed.pinned
-        [:pinned, "Explicit Homebrew pin"]
-      elsif !((package.kind == :formula && (package.tap == "homebrew/core" || @config.trusted_tap?(package.tap))) || (package.kind == :cask && package.tap == "homebrew/cask"))
-        [:unsupported_executor, "Historical execution needs a supported package type and an explicitly trusted tap (trusted_taps)"]
-      else
-        [:selected, nil]
-      end
+                         [:ambiguous, "More than one installed package matches this name; qualify the tap"]
+                       elsif matches.empty?
+                         [:missing, "Root package is not installed; scope does not install missing roots"]
+                       elsif inventory.records.fetch(package).installed.pinned
+                         [:pinned, "Explicit Homebrew pin"]
+                       elsif !executable?(package)
+                         [:unsupported_executor,
+                          "Historical execution needs a supported package type and an explicitly trusted tap " \
+                          "(trusted_taps)"]
+                       else
+                         [:selected, nil]
+                       end
       { requested: entry.name, package:, status:, reason: }
+    end
+
+    # Historical execution supports core and trusted-tap formulae and core casks.
+    def executable?(package)
+      if package.kind == :formula
+        package.tap == "homebrew/core" || @config.trusted_tap?(package.tap)
+      else
+        package.kind == :cask && package.tap == "homebrew/cask"
+      end
     end
 
     def render_resolution(resolution)

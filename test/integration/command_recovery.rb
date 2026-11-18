@@ -8,12 +8,15 @@ require_relative "../../lib/brew_cooldown/executor/journal"
 
 launcher = File.expand_path("../../bin/brew-cooldown", __dir__)
 before = BrewCooldown::Executor::Inventory.capture
-active = (HOMEBREW_PREFIX/"opt").children.find { |path| path.symlink? && path.exist? && (path/"INSTALL_RECEIPT.json").file? }
+active = (HOMEBREW_PREFIX/"opt").children.find do |path|
+  path.symlink? && path.exist? && (path/"INSTALL_RECEIPT.json").file?
+end
 raise "Needs an installed Homebrew formula" unless active
+
 keg = Keg.new(active.realpath)
 
-def command(launcher, *arguments)
-  stdout, stderr, status = Open3.capture3(launcher, "recover", *arguments, "--json")
+def command(launcher, *)
+  stdout, stderr, status = Open3.capture3(launcher, "recover", *, "--json")
   warn stderr unless stderr.empty?
   raise "No structured recovery result: #{stderr}" if stdout.empty?
 
@@ -28,6 +31,7 @@ Dir.mktmpdir("cooldown-recovery-state-") do |directory|
     warn "Expected journal: #{journal.path}"
     result, code = command(launcher)
     raise "Empty state not reported" unless code.zero? && result["status"] == "idle"
+
     operation = { "name" => keg.name, "version" => keg.version.to_s, "previous_keg" => keg.to_s,
                   "status" => "pending", "keg_only" => false }
     journal.with_lock do
@@ -36,21 +40,30 @@ Dir.mktmpdir("cooldown-recovery-state-") do |directory|
     end
     original = journal.path.read
     report, code = command(launcher)
-    raise "Expected unconfirmed work, got exit #{code}: #{report.inspect}" unless code == 1 &&
-      report.fetch("operations").first["status"] == "unconfirmed"
+    unless code == 1 &&
+           report.fetch("operations").first["status"] == "unconfirmed"
+      raise "Expected unconfirmed work, got exit #{code}: #{report.inspect}"
+    end
     raise "Inspection modified the journal" unless journal.path.read == original
     raise "Recovery commands omitted" unless report.fetch("operations").first.fetch("recovery").any?
+
     human, status = Open3.capture2(launcher, "recover")
-    raise "Terminal recovery omitted consequences" unless status.exitstatus == 1 && human.include?("outside the cooldown policy") &&
-      human.include?("hook completion remains unverified") && human.include?("--accept-current")
+    unless status.exitstatus == 1 && human.include?("outside the cooldown policy") &&
+           human.include?("hook completion remains unverified") && human.include?("--accept-current")
+      raise "Terminal recovery omitted consequences"
+    end
+
     stale = report.fetch("accept_current").fetch("digest")
     if ENV["HOMEBREW_COOLDOWN_DISPOSABLE"] == "1"
       # Only the expendable VM exercises a native package-state race.
       raise "Fixture is already pinned" if (HOMEBREW_PINNED_KEGS/keg.name).symlink?
       raise "Could not pin fixture" unless system(HOMEBREW_BREW_FILE.to_s, "pin", keg.name)
+
       begin
         rejected, code = command(launcher, "--accept-current", stale)
-        raise "Changed inventory accepted" unless code == 1 && rejected["status"] == "error" && journal.path.read == original
+        unless code == 1 && rejected["status"] == "error" && journal.path.read == original
+          raise "Changed inventory accepted"
+        end
       ensure
         raise "Could not restore pin state" unless system(HOMEBREW_BREW_FILE.to_s, "unpin", keg.name)
       end
@@ -58,26 +71,36 @@ Dir.mktmpdir("cooldown-recovery-state-") do |directory|
     journal.with_lock { journal.record(keg.name, "failed", error: "native installer failure") }
     failed_bytes = journal.path.read
     rejected, code = command(launcher, "--accept-current", stale)
-    raise "Old acknowledgment cleared new evidence" unless code == 1 && rejected["status"] == "error" && journal.path.read == failed_bytes
+    unless code == 1 && rejected["status"] == "error" && journal.path.read == failed_bytes
+      raise "Old acknowledgment cleared new evidence"
+    end
+
     report, = command(launcher)
     # Recovery must bind the complete unfinished set, not just the first file.
     earlier = report.fetch("accept_current").fetch("digest")
     component = BrewCooldown::Executor::Journal.new(BrewCooldown::StateDirectory.path/"components"/("a" * 64))
     component.with_lock { component.start([operation.merge("status" => "pending")], before) }
     rejected, code = command(launcher, "--accept-current", earlier)
-    raise "New component escaped acknowledgment identity" unless code == 1 && rejected["status"] == "error" && component.path.exist?
+    unless code == 1 && rejected["status"] == "error" && component.path.exist?
+      raise "New component escaped acknowledgment identity"
+    end
+
     report, = command(launcher)
-    raise "Component journal omitted" unless report.fetch("journals").sort == [journal.path.to_s, component.path.to_s].sort
+    raise "Component journal omitted" unless report.fetch("journals").sort == [journal.path.to_s,
+                                                                               component.path.to_s].sort
+
     accepted, code = command(launcher, "--accept-current", report.fetch("accept_current").fetch("digest"))
     raise "Explicit acknowledgment failed" unless code.zero? && accepted["status"] == "accepted_current" &&
-      !journal.path.exist? && !component.path.exist?
+                                                  !journal.path.exist? && !component.path.exist?
 
     # Corrupt state stays available for diagnosis and is never acknowledged.
     ["{", JSON.generate("schema" => 1, "prefix" => HOMEBREW_PREFIX.realpath.to_s,
-                        "inventory" => before, "operations" => [operation.reject { |key, _| key == "version" }])].each do |bytes|
+                        "inventory" => before, "operations" => [operation.except("version")])].each do |bytes|
       journal.path.write(bytes)
       result, code = command(launcher)
-      raise "Malformed journal not preserved" unless code == 1 && result["status"] == "error" && journal.path.read == bytes
+      unless code == 1 && result["status"] == "error" && journal.path.read == bytes
+        raise "Malformed journal not preserved"
+      end
     end
   end
   with_env(XDG_CONFIG_HOME: directory) do
@@ -86,8 +109,11 @@ Dir.mktmpdir("cooldown-recovery-state-") do |directory|
     config.write(JSON.generate("unknown_option" => true))
     stdout, status = Open3.capture2(launcher, "plan", "--json")
     result = JSON.parse(stdout)
-    raise "Launcher lost configured XDG directory" unless status.exitstatus == 1 && result.fetch("error").include?("Unknown configuration keys")
+    unless status.exitstatus == 1 && result.fetch("error").include?("Unknown configuration keys")
+      raise "Launcher lost configured XDG directory"
+    end
   end
 end
 raise "Recovery changed packages or pins" unless BrewCooldown::Executor::Inventory.capture == before
+
 puts "PASS: command recovery, unconfirmed work, stale acknowledgment, explicit acceptance and malformed journals"

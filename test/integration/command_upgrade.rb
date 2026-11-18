@@ -13,6 +13,7 @@ mixed = ARGV.first == "mixed"
 if mixed
   cask = BrewCooldown::Executor::CaskRetained.new("codex").cask
   raise "Mixed fixture cask is pinned" if cask.pinned?
+
   cask_version = cask.version.to_s
 end
 baseline["ruby@3.3"] = "3.3.11" if partial
@@ -22,8 +23,8 @@ baseline.each do |name, version|
 end
 launcher = File.expand_path("../../bin/brew-cooldown", __dir__)
 
-def brew!(*arguments)
-  raise "Fixture Homebrew operation failed" unless system(HOMEBREW_BREW_FILE.to_s, *arguments)
+def brew!(*)
+  raise "Fixture Homebrew operation failed" unless system(HOMEBREW_BREW_FILE.to_s, *)
 end
 
 # The fixture owns these formulae in the disposable VM. Remove only inactive
@@ -53,15 +54,20 @@ Dir.mktmpdir("cooldown-upgrade-command-") do |directory|
     end
     warn stderr
     raise "No upgrade result" if stdout.empty?
+
     result = JSON.parse(stdout)
     puts JSON.pretty_generate(result)
+    execution = result.fetch("execution")
     if partial
-      execution = result.fetch("execution")
-      raise "Independent component did not complete: #{status}" unless status.exitstatus == 1 && result["status"] == "incomplete" &&
-        execution.dig(0, "status") == "error" && execution.last&.fetch("status") == "completed"
+      unless status.exitstatus == 1 && result["status"] == "incomplete" &&
+             execution.dig(0, "status") == "error" && execution.last&.fetch("status") == "completed"
+        raise "Independent component did not complete: #{status}"
+      end
     else
-      raise "Upgrade did not complete: #{status}" unless status.success? && result["status"] == "completed" &&
-        result.fetch("execution").any? && result.fetch("execution").all? { |entry| entry["status"] == "completed" }
+      unless status.success? && result["status"] == "completed" &&
+             execution.any? && execution.all? { |entry| entry["status"] == "completed" }
+        raise "Upgrade did not complete: #{status}"
+      end
     end
     baseline.each do |name, version|
       active = Keg.new((HOMEBREW_PREFIX/"opt"/name).realpath)
@@ -73,23 +79,29 @@ Dir.mktmpdir("cooldown-upgrade-command-") do |directory|
       raise "Installed rebuild was invented" unless BrewCooldown::Executor::Retained.new(active).rebuild.nil?
     end
     raise "No actual package changes" if BrewCooldown::Executor::Inventory.capture == before
+
     output, check = Open3.capture2((HOMEBREW_PREFIX/"opt/ripgrep/bin/rg").to_s, "--pcre2", "a(?=b)", stdin_data: "ab\n")
     raise "Upgraded runtime is broken" unless check.success? && output == "ab\n"
+
     if mixed
       # Both installer adapters must share one durable component boundary.
       # A successful cask-only or formula-only run cannot establish this.
       component = result.fetch("execution").find do |entry|
         entry.fetch("operations").any? { |operation| operation["kind"] == "cask" }
       end
-      raise "Cask and formula upgrades did not share a component" unless component &&
-        component.fetch("operations").any? { |operation| operation["kind"] == "formula" }
+      unless component&.fetch("operations")&.any? { |operation| operation["kind"] == "formula" }
+        raise "Cask and formula upgrades did not share a component"
+      end
+
       path = cask.metadata_main_container_path/"INSTALL_RECEIPT.json"
       receipt = Cask::Tab.from_file_content(path.read, path)
       raise "Mixed cask did not advance" unless Version.new(receipt.version) > Version.new(cask_version)
+
       output, check = Open3.capture2((HOMEBREW_PREFIX/"bin/codex").to_s, "--version")
       raise "Mixed cask binary failed" unless check.success? && output.include?(receipt.version)
     end
     raise "Successful journal retained" unless state.glob("**/active.json").empty?
+
     recovery, check = Open3.capture2(launcher, "recover", "--json")
     raise "Completed upgrade needs recovery" unless check.success? && JSON.parse(recovery)["status"] == "idle"
   end

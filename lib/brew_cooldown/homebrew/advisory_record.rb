@@ -26,8 +26,8 @@ module BrewCooldown
         fixed = before == :affected && after == :fixed
         reasons = [before_reason, after_reason].compact.uniq
         result(before, after, fixed, reasons.empty? ? nil : reasons.join("; "))
-      rescue Invalid, Homebrew::Vulns::Vulnerability::Uncomparable => error
-        result(:unknown, :unknown, false, error.message)
+      rescue Invalid, Homebrew::Vulns::Vulnerability::Uncomparable => e
+        result(:unknown, :unknown, false, e.message)
       end
 
       private
@@ -49,15 +49,18 @@ module BrewCooldown
       def validate!
         raise Invalid, "Advisory must be an object with an identifier" unless
           @record.is_a?(Hash) && text?(@record["id"])
+
         schema = @record.fetch("schema_version", "1.0.0")
         raise Invalid, "Unsupported advisory schema #{schema.inspect}" unless
           schema.is_a?(String) && schema.match?(/\A1\.[0-9]+\.[0-9]+\z/)
+
         if @record.key?("withdrawn")
           raise Invalid, "Invalid withdrawal marker" unless text?(@record["withdrawn"])
+
           begin
             DateTime.rfc3339(@record.fetch("withdrawn"))
-          rescue Date::Error => error
-            raise Invalid, "Invalid withdrawal date: #{error.message}"
+          rescue Date::Error => e
+            raise Invalid, "Invalid withdrawal date: #{e.message}"
           end
           return
         end
@@ -77,19 +80,19 @@ module BrewCooldown
           strings!(entry.fetch("versions", []), "affected versions")
           ranges = entry.fetch("ranges", [])
           raise Invalid, "Affected ranges must be a list" unless ranges.is_a?(Array)
-          raise Invalid, "No comparable affected versions or ranges" if ranges.empty? && entry.fetch("versions", []).empty?
+          raise Invalid, "No comparable affected versions or ranges" if ranges.empty? && entry.fetch("versions",
+                                                                                                     []).empty?
+
           ecosystem = entry.fetch("ecosystem_specific", {})
           raise Invalid, "Invalid ecosystem metadata" unless ecosystem.is_a?(Hash)
           raise Invalid, "Unknown Homebrew fix method" unless [nil, "bump", "patch"].include?(ecosystem["fix"])
 
           valid_ranges = ranges.select do |range|
-            begin
-              validate_range!(range)
-              true
-            rescue Invalid, Homebrew::Vulns::Vulnerability::Uncomparable => error
-              @validation_errors << error.message
-              false
-            end
+            validate_range!(range)
+            true
+          rescue Invalid, Homebrew::Vulns::Vulnerability::Uncomparable => e
+            @validation_errors << e.message
+            false
           end
           entry.merge("ranges" => valid_ranges)
         end
@@ -101,6 +104,7 @@ module BrewCooldown
       def validate_range!(range)
         raise Invalid, "Unsupported version range" unless
           range.is_a?(Hash) && %w[ECOSYSTEM SEMVER].include?(range["type"])
+
         events = range["events"]
         raise Invalid, "Version range has no events" unless events.is_a?(Array) && !events.empty?
 
@@ -108,17 +112,21 @@ module BrewCooldown
         previous = nil
         previous_kind = nil
         comparator = Homebrew::Vulns::Vulnerability.new("id" => @record.fetch("id"))
-                                               .comparator_for(range.fetch("type"))
+                                                   .comparator_for(range.fetch("type"))
         events.each do |event|
           raise Invalid, "Invalid range event" unless event.is_a?(Hash) && event.size == 1
+
           kind, value = event.first
           raise Invalid, "Unknown or invalid range boundary" unless
             %w[introduced fixed last_affected limit].include?(kind) && text?(value)
+
           if kind == "introduced"
             raise Invalid, "Overlapping or repeated introduction" if open
+
             open = true
           else
             raise Invalid, "Terminal boundary without introduction" unless open
+
             open = false
           end
           if value == "*"
@@ -139,19 +147,17 @@ module BrewCooldown
         errors = @validation_errors.dup
         comparable = @entries.map do |entry|
           ranges = entry.fetch("ranges").select do |range|
-            begin
-              comparator = @vulnerability.comparator_for(range.fetch("type"))
-              range.fetch("events").each do |event|
-                boundary = event.values.first
-                next if boundary == "0" || boundary == "*"
+            comparator = @vulnerability.comparator_for(range.fetch("type"))
+            range.fetch("events").each do |event|
+              boundary = event.values.first
+              next if ["0", "*"].include?(boundary)
 
-                comparator.call(version, boundary)
-              end
-              true
-            rescue Homebrew::Vulns::Vulnerability::Uncomparable => error
-              errors << error.message
-              false
+              comparator.call(version, boundary)
             end
+            true
+          rescue Homebrew::Vulns::Vulnerability::Uncomparable => e
+            errors << e.message
+            false
           end
           entry.merge("ranges" => ranges)
         end
@@ -164,8 +170,10 @@ module BrewCooldown
           return [:unknown, "Ambiguous semantic prerelease boundary"]
         end
 
-        if comparable.any? { |entry| entry.dig("ecosystem_specific", "fix") == "patch" } && status.fixed?
-          return [:unknown, "Selected recipe has no matching patch evidence"] unless patch_confirmed?(patches)
+        if comparable.any? do |entry|
+          entry.dig("ecosystem_specific", "fix") == "patch"
+        end && status.fixed? && !patch_confirmed?(patches)
+          return [:unknown, "Selected recipe has no matching patch evidence"]
         end
         return [:fixed, nil] if status.fixed? && status.fixed_in
 
@@ -175,7 +183,7 @@ module BrewCooldown
       def patch_confirmed?(patches)
         direct = [@record.fetch("id"), *@record.fetch("aliases", [])]
         upstream = @record.fetch("upstream", [])
-        (direct & patches).any? || (!upstream.empty? && (upstream - patches).empty?)
+        direct.intersect?(patches) || (!upstream.empty? && (upstream - patches).empty?)
       end
     end
   end

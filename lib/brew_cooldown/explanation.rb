@@ -11,19 +11,23 @@ module BrewCooldown
 
         [entry.fetch(:requested), package.fetch(:name), "#{package.fetch(:tap)}/#{package.fetch(:name)}",
          canonical(package)].include?(requested)
-      end.map { |entry| entry.fetch(:package) }.uniq
+      end
+      matches = matches.map { |entry| entry.fetch(:package) }.uniq
 
       explanation = { requested:, matches: }
       case matches.length
       when 0
-        explanation.merge!(status: :outside_scope, reason: "Package is not a declared root or an installed runtime dependency in this scope")
+        explanation.merge!(status: :outside_scope,
+                           reason: "Package is not a declared root or an installed runtime dependency in this scope")
       when 1
         package = matches.first
         baseline = installed.find { |entry| entry.package.to_h == package }
         explanation.merge!(status: :matched, package:, installed: baseline&.to_h)
         explanation[:version_source] = :homebrew_receipt if package.fetch(:kind) == :cask
       else
-        explanation.merge!(status: :ambiguous, reason: "Use a canonical identity: #{matches.map { |package| canonical(package) }.join(', ')}")
+        explanation.merge!(status: :ambiguous, reason: "Use a canonical identity: #{matches.map do |package|
+          canonical(package)
+        end.join(", ")}")
       end
       result.merge(command: "explain", status: matches.length > 1 ? "incomplete" : result.fetch(:status), explanation:)
     end

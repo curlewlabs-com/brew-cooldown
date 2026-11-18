@@ -38,10 +38,14 @@ module BrewCooldownWorker
              formula.resource.checksum.hexdigest == record.fetch("archive_sha256")
         raise Refused, "release archive snapshot identity changed"
       end
+
       resource = formula.resource
       resource.verify_download_integrity(archive)
       resource.downloader.define_singleton_method(:cached_location) { archive }
-      resource.downloader.define_singleton_method(:fetch) { |timeout: nil| resource.verify_download_integrity(archive) }
+      # Homebrew passes the download a timeout; the snapshot is already here.
+      resource.downloader.define_singleton_method(:fetch) do |timeout: nil| # rubocop:disable Lint/UnusedBlockArgument
+        resource.verify_download_integrity(archive)
+      end
     end
 
     keys = [name, path.to_s, (HOMEBREW_CELLAR/token/formula.pkg_version.to_s/".brew/#{token}.rb").to_s,
@@ -51,8 +55,12 @@ module BrewCooldownWorker
   end.freeze
 
   module Resolver
+    # Homebrew's signature for this method, so every option a caller can pass
+    # is named and checked; `warn` changes nothing a plan depends on.
+    # rubocop:disable Lint/UnusedMethodArgument
     def factory(reference, spec = :stable, alias_path: nil, from: nil,
                 warn: false, force_bottle: false, flags: [], ignore_errors: false)
+      # rubocop:enable Lint/UnusedMethodArgument
       unless spec == :stable && alias_path.nil? && [nil, :rack, :keg].include?(from) &&
              !force_bottle && !ignore_errors
         raise Refused, "unplanned post-install recipe options"
@@ -61,13 +69,14 @@ module BrewCooldownWorker
       formula = FORMULAE.fetch(reference.to_s) { raise Refused, "unplanned post-install lookup: #{reference}" }
       # Native source post-install chooses the opt recipe when that release is
       # active. Accept its alias only while it points at the selected keg.
-      if reference.to_s.start_with?("#{HOMEBREW_PREFIX}/opt/") &&
-         Pathname(reference).realpath != HOMEBREW_CELLAR/formula.name/formula.pkg_version.to_s/".brew/#{formula.name}.rb"
+      selected = HOMEBREW_CELLAR/formula.name/formula.pkg_version.to_s/".brew/#{formula.name}.rb"
+      if reference.to_s.start_with?("#{HOMEBREW_PREFIX}/opt/") && Pathname(reference).realpath != selected
         raise Refused, "post-install opt recipe no longer selects the planned release: #{reference}"
       end
       unless flags.empty? || (flags == ["--build-from-source"] && RELEASE_ARCHIVES.include?(formula.full_name))
         raise Refused, "unplanned recipe flags: #{reference}"
       end
+
       formula
     end
 

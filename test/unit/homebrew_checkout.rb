@@ -19,8 +19,8 @@ end
 def refusal(directory, validated)
   BrewCooldown::Executor::Execution.check_checkout!(directory, validated:)
   nil
-rescue BrewCooldown::Executor::Refused => error
-  error.message
+rescue BrewCooldown::Executor::Refused => e
+  e.message
 end
 
 Dir.mktmpdir("cooldown-homebrew-checkout-") do |directory|
@@ -31,7 +31,8 @@ Dir.mktmpdir("cooldown-homebrew-checkout-") do |directory|
   git(directory, "tag", "7.0.9")
   qualified = git(directory, "rev-parse", "HEAD")
 
-  raise "Qualified clean checkout was refused: #{refusal(directory, qualified)}" unless refusal(directory, qualified).nil?
+  raise "Qualified clean checkout was refused: #{refusal(directory, qualified)}" unless refusal(directory,
+                                                                                                qualified).nil?
 
   # A local edit replaces adapter-guarded code just as surely as a new commit.
   File.write(File.join(directory, "brew.sh"), "edited\n")
@@ -44,6 +45,7 @@ Dir.mktmpdir("cooldown-homebrew-checkout-") do |directory|
   # This is what `brew update` produces in developer mode. Waiting for a
   # qualification would never end, so the refusal has to name the repair.
   raise "Checkout between releases was accepted" if between.nil?
+
   # `brew developer off` alone leaves developer mode on while HOMEBREW_DEVELOPER
   # is set, so the tag-pinned update is the repair and the variable is named.
   ["7.0.9-1-g", "not a Homebrew release", qualified, "plan and explain still work",

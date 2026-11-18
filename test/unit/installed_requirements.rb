@@ -6,28 +6,34 @@ native = { "full_name" => "python@3.14", "pkg_version" => "3.14.0_1", "bottle_re
            "compatibility_version" => 0 }
 requirement = BrewCooldown::HomebrewAdapter::InstalledInventory.requirements([native]).first
 raise "Revision lost from receipt" unless requirement.build.version == "3.14.0" && requirement.build.revision == 1
-raise "Explicit compatibility lost" unless requirement.compatibility_version == 0
-raise "Versioned package identity lost" unless requirement.package.name == "python@3.14" && requirement.package.tap == "homebrew/core"
-unknown = BrewCooldown::HomebrewAdapter::InstalledInventory.requirements([native.reject { |key, _| key == "bottle_rebuild" }]).first
+raise "Explicit compatibility lost" unless requirement.compatibility_version.zero?
+unless requirement.package.name == "python@3.14" && requirement.package.tap == "homebrew/core"
+  raise "Versioned package identity lost"
+end
+
+unknown = BrewCooldown::HomebrewAdapter::InstalledInventory.requirements([native.except("bottle_rebuild")]).first
 raise "Missing rebuild became zero" unless unknown.build.rebuild.nil?
-tapped = BrewCooldown::HomebrewAdapter::InstalledInventory.requirements([native.merge("full_name" => "example/tap/python@3.14")]).first
+
+tapped = BrewCooldown::HomebrewAdapter::InstalledInventory
+         .requirements([native.merge("full_name" => "example/tap/python@3.14")]).first
 raise "Third-party tap became core" unless tapped.package.tap == "example/tap"
 
 [nil, [nil], [native.merge("bottle_rebuild" => "2")], [native.merge("compatibility_version" => false)]].each do |rows|
-  begin
-    BrewCooldown::HomebrewAdapter::InstalledInventory.requirements(rows)
-    raise "Invalid receipt accepted"
-  rescue ArgumentError
-    # A malformed receipt cannot become an empty dependency list.
-  end
+  BrewCooldown::HomebrewAdapter::InstalledInventory.requirements(rows)
+  raise "Invalid receipt accepted"
+rescue ArgumentError
+  # A malformed receipt cannot become an empty dependency list.
 end
 
 # Cask receipts observe local dependencies, not the vendor's binary build.
 # Preserve package identity without inventing an exact bottle ABI constraint.
-presence = BrewCooldown::HomebrewAdapter::InstalledInventory.cask_requirements({ "formula" => [native],
-  "cask" => [{ "full_name" => "homebrew/cask/codex", "version" => "0.144.6" }] })
-raise "Cask dependency became a bottle ABI requirement" unless presence.all? { |entry| entry.is_a?(BrewCooldown::RuntimeRequirement) }
-raise "Cask dependency kind was lost" unless presence.last.package.kind == :cask && presence.last.package.tap == "homebrew/cask"
+receipt = { "formula" => [native], "cask" => [{ "full_name" => "homebrew/cask/codex", "version" => "0.144.6" }] }
+presence = BrewCooldown::HomebrewAdapter::InstalledInventory.cask_requirements(receipt)
+raise "Cask dependency became a bottle ABI requirement" unless presence.all?(BrewCooldown::RuntimeRequirement)
+unless presence.last.package.kind == :cask && presence.last.package.tap == "homebrew/cask"
+  raise "Cask dependency kind was lost"
+end
+
 [nil, { "formula" => nil }, { "formula" => [{ "full_name" => "../escape" }] }, { "cask" => [nil] }].each do |runtime|
   begin
     BrewCooldown::HomebrewAdapter::InstalledInventory.cask_requirements(runtime)
@@ -36,4 +42,5 @@ raise "Cask dependency kind was lost" unless presence.last.package.kind == :cask
   end
   raise "Invalid cask dependency evidence accepted"
 end
-puts "PASS: native dependency identities, formula revisions, explicit cohorts, unknown rebuilds and cask presence requirements"
+puts "PASS: native dependency identities, formula revisions, explicit cohorts, unknown rebuilds " \
+     "and cask presence requirements"

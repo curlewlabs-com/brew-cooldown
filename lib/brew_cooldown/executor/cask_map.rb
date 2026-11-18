@@ -60,11 +60,13 @@ module BrewCooldown
     end
 
     module CaskResolverGuard
-      def load(reference, config: nil, warn: true)
+      # The keywords are Homebrew's own signature for this method, so a call
+      # passing either still lands here; the planned map decides alone.
+      def load(reference, config: nil, warn: true) # rubocop:disable Lint/UnusedMethodArgument
         Executor.cask_map.resolve(reference)
       end
 
-      def load_from_installed_caskfile(path, **options)
+      def load_from_installed_caskfile(path, **_options)
         Executor.cask_map.installed(path)
       end
     end
@@ -76,6 +78,7 @@ module BrewCooldown
            options[:verify_download_integrity] == false || options[:installed_on_request] == false
           raise Refused, "cask installation options bypass the selected operation"
         end
+
         super
       end
 

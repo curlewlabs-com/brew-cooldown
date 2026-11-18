@@ -3,7 +3,9 @@
 module BrewCooldown
   # The adapter supplies immutable candidate identity and evaluated advisory
   # evidence. Policy decisions never fetch metadata or read the system clock.
-  PackageId = Data.define(:kind, :tap, :name)
+  # `tap` is Homebrew's name for the repository a package comes from, and
+  # nothing calls Object#tap on a package identity.
+  PackageId = Data.define(:kind, :tap, :name) # rubocop:disable Lint/DataDefineOverride
   Build = Data.define(:version, :revision, :rebuild, :scheme)
   Release = Data.define(:package, :build, :identity, :verified, :published_at, :publication_source)
   Installed = Data.define(:package, :build, :pinned)
@@ -24,7 +26,7 @@ module BrewCooldown
 
     def initialize(compare_builds:, delays: {})
       unknown = delays.keys - DEFAULT_DELAYS.keys
-      raise ArgumentError, "unknown cooldown classes: #{unknown.join(', ')}" unless unknown.empty?
+      raise ArgumentError, "unknown cooldown classes: #{unknown.join(", ")}" unless unknown.empty?
       raise ArgumentError, "cooldown days must be nonnegative integers" unless
         delays.values.all? { |days| days.is_a?(Integer) && days >= 0 }
 
@@ -43,7 +45,8 @@ module BrewCooldown
       if installed && installed.build.scheme == release.build.scheme &&
          installed.build.version == release.build.version && installed.build.revision == release.build.revision &&
          installed.build.rebuild.nil?
-        return decision(:unknown_installed_build, "Homebrew has no installed bottle rebuild identity to establish advancement")
+        return decision(:unknown_installed_build,
+                        "Homebrew has no installed bottle rebuild identity to establish advancement")
       end
       if installed && @compare_builds.call(release.build, installed.build) <= 0
         return decision(:not_newer, "Candidate does not advance the active installation")
@@ -51,21 +54,17 @@ module BrewCooldown
       if clock_floor && now < clock_floor
         return decision(:clock_regression, "Current UTC time precedes the last recorded observation")
       end
-      if security.candidate_affected
-        return decision(:affected, "Candidate remains affected by known advisory evidence")
-      end
+      return decision(:affected, "Candidate remains affected by known advisory evidence") if security.candidate_affected
 
       origin = release.published_at || first_seen
       source = release.published_at ? release.publication_source : :first_observation
-      if origin && origin > now
-        return decision(:invalid_time, "Candidate age evidence is in the future")
-      end
+      return decision(:invalid_time, "Candidate age evidence is in the future") if origin && origin > now
       if release.published_at && !release.publication_source
         return decision(:invalid_time, "Publication time has no evidence source")
       end
 
       kind = delay_kind(installed&.build, release.build)
-      eligible_at = origin && origin + @delays.fetch(kind) * SECONDS_PER_DAY
+      eligible_at = origin && (origin + (@delays.fetch(kind) * SECONDS_PER_DAY))
       if security_exception?(security, installed, now)
         return decision(:security_fix, "Fresh advisory evidence proves an installed vulnerability is fixed",
                         eligible_at: now, delay_kind: kind, age_source: source,
@@ -92,14 +91,16 @@ module BrewCooldown
     def unverified_cooldown(build:, installed:, published_at:, publication_source:, now:, security:)
       return if installed.nil? || installed.pinned || security.installed_affected == true
       return unless published_at && publication_source && published_at <= now
+
       advance = @compare_builds.call(build, installed.build)
       return if advance.nil? || advance <= 0
 
       kind = delay_kind(installed.build, build)
-      eligible_at = published_at + @delays.fetch(kind) * SECONDS_PER_DAY
+      eligible_at = published_at + (@delays.fetch(kind) * SECONDS_PER_DAY)
       return if now >= eligible_at
 
-      decision(:cooldown, "Candidate is still cooling down", eligible_at:, delay_kind: kind, age_source: publication_source)
+      decision(:cooldown, "Candidate is still cooling down", eligible_at:, delay_kind: kind,
+                                                             age_source: publication_source)
     end
 
     private

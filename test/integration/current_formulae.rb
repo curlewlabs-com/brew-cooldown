@@ -12,10 +12,13 @@ absent = "brew-cooldown-no-such-formula"
 results = adapter.fetch_all(["pcre2", "ruby@3.3", absent], log:)
 %w[pcre2 ruby@3.3].each do |name|
   current = results.fetch(name)
-  raise "Live batched read failed for #{name}: #{current.inspect}" unless current.is_a?(Hash) && current.fetch("name") == name
+  unless current.is_a?(Hash) && current.fetch("name") == name
+    raise "Live batched read failed for #{name}: #{current.inspect}"
+  end
   raise "Batched and single reads disagree for #{name}" unless current == adapter.fetch(name, log:)
 end
 missing = results.fetch(absent)
 raise "A missing formula was not reported on its own: #{missing.inspect}" unless
   missing.is_a?(BrewCooldown::HomebrewAdapter::RegistryError) && missing.message.include?("HTTP 404")
+
 puts "PASS: live batched current-formula reads with an isolated missing formula (no package changes)"

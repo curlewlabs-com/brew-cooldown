@@ -21,8 +21,9 @@ module BrewCooldown
         @rebuild = record.fetch("rebuild", 0)
         @tag = Utils::Bottles::Tag.from_symbol(record.fetch("platform", TAG).to_sym)
         @index_sha256 = record.fetch("index_sha256")
-        raise Refused, "expected canonical core formula name" unless @name.is_a?(String) &&
-          @name.match?(/\A[a-z0-9][a-z0-9+@._-]*\z/) && !@name.include?("..")
+        unless @name.is_a?(String) && @name.match?(/\A[a-z0-9][a-z0-9+@._-]*\z/) && !@name.include?("..")
+          raise Refused, "expected canonical core formula name"
+        end
         raise Refused, "invalid package version" unless @version.is_a?(String) && !@version.empty?
         raise Refused, "invalid index digest" unless @index_sha256.match?(/\A[0-9a-f]{64}\z/)
         raise Refused, "invalid bottle rebuild" unless rebuild.is_a?(Integer) && rebuild >= 0
@@ -136,7 +137,8 @@ module BrewCooldown
         resource = Resource.new("#{@name}-#{digest}")
         resource.url("#{DOMAIN}/#{GitHubPackages.image_formula_name(@name)}/#{kind}/sha256:#{digest}",
                      using: CurlGitHubPackagesDownloadStrategy,
-                     headers: ["Accept: application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json"])
+                     headers: ["Accept: application/vnd.oci.image.index.v1+json, " \
+                               "application/vnd.oci.image.manifest.v1+json"])
         resource.version(@version)
         resource.checksum = Checksum.new(digest)
         path = resource.fetch

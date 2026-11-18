@@ -23,7 +23,10 @@ phase = ARGV.fetch(0)
 if phase == "crash_check"
   output, status = Open3.capture2e(HOMEBREW_BREW_FILE.to_s, "ruby", "--", __FILE__, "interrupt")
   puts output
-  raise "Expected SIGKILL at a durable package boundary: #{status}" unless status.signaled? && status.termsig == Signal.list.fetch("KILL")
+  unless status.signaled? && status.termsig == Signal.list.fetch("KILL")
+    raise "Expected SIGKILL at a durable package boundary: #{status}"
+  end
+
   exit
 end
 
@@ -32,15 +35,22 @@ if phase == "recover"
   before = BrewCooldown::Executor::Inventory.capture
   recovery = BrewCooldown::Recovery.new(state_directory: STATE, log: LOG)
   report = recovery.call
-  raise "Interrupted release installation lost its journal: #{report}" unless report.fetch(:status) == "needs_reconciliation"
+  unless report.fetch(:status) == "needs_reconciliation"
+    raise "Interrupted release installation lost its journal: #{report}"
+  end
+
   operations = report.fetch(:operations)
-  raise "Started installation was certified completed" unless operations.any? { |operation| operation.fetch("status") == "unconfirmed" }
+  raise "Started installation was certified completed" unless operations.any? do |operation|
+    operation.fetch("status") == "unconfirmed"
+  end
   raise "Pending dependency/root was lost" unless operations.any? { |operation| operation.fetch("status") == "pending" }
   raise "Recovery omitted inspection choices" unless operations.all? { |operation| operation.fetch("recovery").any? }
+
   accepted = recovery.call(accept_current: report.fetch(:accept_current).fetch("digest"))
   raise "Explicit recovery failed: #{accepted}" unless accepted.fetch(:status) == "accepted_current"
   raise "Recovery changed installed packages" unless before == BrewCooldown::Executor::Inventory.capture
   raise "Recovery retained unfinished journal" unless journals.pending.empty?
+
   puts "PASS: interrupted trusted-tap installation remains unconfirmed until explicit recovery"
   exit
 end
@@ -48,15 +58,18 @@ end
 if phase == "baseline"
   candidates = BASELINE.map do |name, commit|
     history = BrewCooldown::HomebrewAdapter::TapHistory.new(package: PACKAGE.with(name:), log: LOG, now: NOW).refresh
-    candidate = history.candidate(BrewCooldown::HomebrewAdapter::TapHistoryEntry.new(commit:, published_at: nil)).prepare
+    candidate = history.candidate(BrewCooldown::HomebrewAdapter::TapHistoryEntry.new(commit:,
+                                                                                     published_at: nil)).prepare
     raise "Baseline package already installed" if candidate.formula.opt_prefix.exist?
+
     candidate
   end
   map = BrewCooldown::Executor::ExactMap.new(candidates)
   map.activate
   result = BrewCooldown::Executor::Execution.new(map, state_directory: STATE/"baseline")
-                                          .apply(expected_inventory: BrewCooldown::Executor::Inventory.capture)
+                                            .apply(expected_inventory: BrewCooldown::Executor::Inventory.capture)
   raise "Historical release baseline failed: #{result}" unless result.fetch("status") == "completed"
+
   puts "PASS: exact historical Tart and softnet installed with native recipes, receipts and links"
   exit
 end
@@ -66,15 +79,25 @@ scope = { installed: true }
 planning = BrewCooldown::Planning.new(config:, scope:, now: NOW, log: LOG, state_directory: STATE)
 plan = planning.call
 raise "Trusted tap assessment failed: #{plan[:errors]}" unless plan.fetch(:status) == "assessed"
+
 resolution = planning.resolutions.find { |entry| entry.selected.key?(PACKAGE) }
 raise "Tart is not selected" unless resolution
+
 selected = resolution.selected.fetch(PACKAGE)
-raise "Newer cooling release suppressed historical upgrade" unless selected.release.build.version == "2.37.0" && !selected.retained
-softnet = PACKAGE.with(name: "softnet")
-raise "Dependency failed its own historical cooldown" unless resolution.selected.fetch(softnet).release.build.version == "0.23.0"
-raise "Latest candidate not reported cooling" unless plan.fetch(:candidates).any? do |candidate|
-  candidate.fetch(:package) == PACKAGE.to_h && candidate.fetch(:build).fetch(:version) == "2.40.1" && candidate.fetch(:decision).fetch(:status) == :cooldown
+unless selected.release.build.version == "2.37.0" && !selected.retained
+  raise "Newer cooling release suppressed historical upgrade"
 end
+
+softnet = PACKAGE.with(name: "softnet")
+unless resolution.selected.fetch(softnet).release.build.version == "0.23.0"
+  raise "Dependency failed its own historical cooldown"
+end
+
+cooling = plan.fetch(:candidates).any? do |candidate|
+  candidate.fetch(:package) == PACKAGE.to_h && candidate.fetch(:build).fetch(:version) == "2.40.1" &&
+    candidate.fetch(:decision).fetch(:status) == :cooldown
+end
+raise "Latest candidate not reported cooling" unless cooling
 
 if phase == "assessment"
   # Native pins and trust affect actual command assessment, not just planner
@@ -83,15 +106,28 @@ if phase == "assessment"
   # reads the installed keg recipe instead of requiring today's tap formula.
   output, status = Open3.capture2e(HOMEBREW_BREW_FILE.to_s, "pin", "--formula", "tart")
   raise "Cannot pin Tart: #{output}" unless status.success?
+
   begin
     pinned = BrewCooldown::Planning.new(config:, scope:, now: NOW, log: LOG, state_directory: STATE).call
-    raise "Pin did not retain Tart" unless pinned.fetch(:scope).any? { |entry| entry[:package] == PACKAGE.to_h && entry[:status] == :pinned }
-    raise "Pin suppressed dependency assessment" unless pinned.fetch(:scope).any? { |entry| entry[:package] == softnet.to_h && entry[:status] == :selected }
+    raise "Pin did not retain Tart" unless pinned.fetch(:scope).any? do |entry|
+      entry[:package] == PACKAGE.to_h && entry[:status] == :pinned
+    end
+    raise "Pin suppressed dependency assessment" unless pinned.fetch(:scope).any? do |entry|
+      entry[:package] == softnet.to_h && entry[:status] == :selected
+    end
+
     untrusted = BrewCooldown::Config.new({}, directory: STATE)
-    untrusted_plan = BrewCooldown::Planning.new(config: untrusted, scope:, now: NOW, log: LOG, state_directory: STATE).call
-    raise "Untrusted dependency was accepted" unless untrusted_plan.fetch(:status) == "incomplete" &&
-      untrusted_plan.fetch(:scope).any? { |entry| entry[:package] == softnet.to_h && entry[:status] == :unsupported_executor }
-    raise "Unsupported pinned root required an executor" unless untrusted_plan.fetch(:scope).any? { |entry| entry[:package] == PACKAGE.to_h && entry[:status] == :pinned }
+    untrusted_plan = BrewCooldown::Planning.new(config: untrusted, scope:, now: NOW, log: LOG,
+                                                state_directory: STATE).call
+    unless untrusted_plan.fetch(:status) == "incomplete" &&
+           untrusted_plan.fetch(:scope).any? do |entry|
+             entry[:package] == softnet.to_h && entry[:status] == :unsupported_executor
+           end
+      raise "Untrusted dependency was accepted"
+    end
+    raise "Unsupported pinned root required an executor" unless untrusted_plan.fetch(:scope).any? do |entry|
+      entry[:package] == PACKAGE.to_h && entry[:status] == :pinned
+    end
   ensure
     output, status = Open3.capture2e(HOMEBREW_BREW_FILE.to_s, "unpin", "--formula", "tart")
     raise "Cannot unpin fixture: #{output}" unless status.success?
@@ -115,17 +151,22 @@ raise "Unknown phase #{phase}" unless phase == "upgrade"
 result = BrewCooldown::Upgrade.new(config:, scope:, state_directory: STATE, log: LOG, clock: -> { NOW }).call
 puts JSON.pretty_generate(BrewCooldown::Report.json_value(result))
 raise "Trusted historical upgrade failed" unless result.fetch(:status) == "completed"
+
 { "tart" => "2.37.0", "softnet" => "0.23.0" }.each do |name, version|
   opt = HOMEBREW_PREFIX/"opt"/name
   keg = Keg.new(opt.realpath)
   tab = Tab.for_keg(keg)
-  raise "Wrong native installed release" unless keg.version.to_s == version && tab.tap == "openai/tools" && !tab.poured_from_bottle
+  unless keg.version.to_s == version && tab.tap == "openai/tools" && !tab.poured_from_bottle
+    raise "Wrong native installed release"
+  end
   raise "Missing selected historical recipe" unless (keg/".brew/#{name}.rb").file?
   raise "Canonical link is missing" unless (HOMEBREW_LINKED_KEGS/name).realpath == opt.realpath
 end
 output, status = Open3.capture2e((HOMEBREW_PREFIX/"opt/tart/bin/tart").to_s, "--version")
 raise "Installed Tart did not execute: #{output}" unless status.success? && output.include?("2.37.0")
-raise "Tart native completion hook did not run" unless (HOMEBREW_PREFIX/"opt/tart/share/zsh/site-functions").glob("*").any?
+unless (HOMEBREW_PREFIX/"opt/tart/share/zsh/site-functions").glob("*").any?
+  raise "Tart native completion hook did not run"
+end
 raise "Completed upgrade retained journals" unless BrewCooldown::Journals.new(STATE).pending.empty?
 
 # A canonical opt path must not let a worker authorized for the older recipe
@@ -138,9 +179,10 @@ BrewCooldown::Executor::Postinstall.with_map(BrewCooldown::Executor::ExactMap.ne
   stage = BrewCooldown::Executor.worker_plan
   code = 'require "cmd/postinstall"; Homebrew::Cmd::Postinstall.new.args.named.to_resolved_formulae'
   output, status = Open3.capture2e(*HOMEBREW_RUBY_EXEC_ARGS, "-I", $LOAD_PATH.join(File::PATH_SEPARATOR),
-                                 "-r", (stage/"worker.rb").to_s, "-e", code,
-                                 (HOMEBREW_PREFIX/"opt/tart/.brew/tart.rb").to_s)
-  raise "Worker accepted another active release: #{output}" unless !status.success? &&
-    output.include?("post-install opt recipe no longer selects the planned release")
+                                   "-r", (stage/"worker.rb").to_s, "-e", code,
+                                   (HOMEBREW_PREFIX/"opt/tart/.brew/tart.rb").to_s)
+  if status.success? || !output.include?("post-install opt recipe no longer selects the planned release")
+    raise "Worker accepted another active release: #{output}"
+  end
 end
 puts "PASS: historical eligible release upgrades, dependency receipts, native hooks and journal cleanup"

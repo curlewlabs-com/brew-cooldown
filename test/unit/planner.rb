@@ -21,20 +21,22 @@ end
 def option(name, version, retained: false, dependencies: [], cohort: nil, status: :eligible,
            eligible_at: Time.iso8601("2026-09-01T00:00:00Z"), revision: 0)
   release = BrewCooldown::Release.new(package: package(name), build: build(version, revision:),
-                        identity: Digest::SHA256.hexdigest([name, version, revision, retained].join(":")),
-                        verified: true, published_at: nil, publication_source: nil)
+                                      identity: Digest::SHA256.hexdigest([name, version, revision, retained].join(":")),
+                                      verified: true, published_at: nil, publication_source: nil)
   decision = BrewCooldown::Decision.new(status:, reason: "test decision", eligible_at:, delay_kind: :patch,
-                          age_source: :first_observation, fixed_advisories: [])
+                                        age_source: :first_observation, fixed_advisories: [])
   BrewCooldown::Option.new(release:, decision:, dependencies:, compatibility_version: cohort, retained:)
 end
 
 def planner(budget: 100_000)
   BrewCooldown::Planner.new(compare_builds: BrewCooldown::HomebrewAdapter::BuildOrder, compatible: BrewCooldown::HomebrewAdapter::Compatibility,
-              max_assignments: budget)
+                            max_assignments: budget)
 end
 
 def resolve(options, roots:, budget: 100_000)
-  planner(budget:).plan(domains: options.group_by { |entry| entry.release.package }, roots: roots.map { |name| package(name) })
+  planner(budget:).plan(domains: options.group_by { |entry| entry.release.package }, roots: roots.map do |name|
+    package(name)
+  end)
 end
 
 def assert_version(result, name, version)
@@ -51,22 +53,26 @@ young_library = option("library", "1.0.2", status: :cooldown)
 
 # Recipe-only changes share the package version but have independent clocks.
 # Among mature recipes, publication order wins over arbitrary digest order.
-earlier = old_root.with(dependencies: [], release: old_root.release.with(identity: "a" * 64,
-  published_at: Time.iso8601("2026-08-01T00:00:00Z")))
+earlier = old_root.with(dependencies: [],
+                        release: old_root.release.with(identity: "a" * 64,
+                                                       published_at: Time.iso8601("2026-08-01T00:00:00Z")))
 later = earlier.with(release: earlier.release.with(identity: "f" * 64,
-  published_at: Time.iso8601("2026-08-02T00:00:00Z")))
+                                                   published_at: Time.iso8601("2026-08-02T00:00:00Z")))
 result = resolve([base_root.with(dependencies: []), earlier, later], roots: ["app"]).first
-raise "Newest eligible recipe was not selected" unless result.selected.fetch(package("app")).release.identity == later.release.identity
+unless result.selected.fetch(package("app")).release.identity == later.release.identity
+  raise "Newest eligible recipe was not selected"
+end
 
 # Runtime package presence cannot override another consumer's bottle contract.
 runtime_root = old_root.with(dependencies: [BrewCooldown::RuntimeRequirement.new(package: package("library"))])
 result = resolve([base_root.with(dependencies: []), runtime_root], roots: ["app"]).first
 raise "A missing cask runtime dependency became optional" unless result.status == :unchanged
+
 result = resolve([base_root, base_library, runtime_root, old_library], roots: ["app"]).first
 assert_version(result, "app", "1.0.1")
 assert_version(result, "library", "1.0.0")
-runtime_consumer = option("runtime-consumer", "1.0.0", retained: true,
-  dependencies: [BrewCooldown::RuntimeRequirement.new(package: package("library"))])
+runtime_dependency = BrewCooldown::RuntimeRequirement.new(package: package("library"))
+runtime_consumer = option("runtime-consumer", "1.0.0", retained: true, dependencies: [runtime_dependency])
 bottle_consumer = option("bottle-consumer", "1.0.0", retained: true, dependencies: [requirement("library", "1.0.0")])
 result = resolve([base_library, old_library, runtime_consumer, bottle_consumer], roots: ["library"]).first
 assert_version(result, "library", "1.0.0")
@@ -74,9 +80,12 @@ assert_version(result, "library", "1.0.0")
 # A newer root cannot strand an older eligible dependency closure.
 result = resolve([base_root, base_library, old_root, new_root, old_library, young_library], roots: ["app"]).fetch(0)
 raise "Historical closure did not resolve" unless result.status == :resolved
+
 assert_version(result, "app", "1.0.1")
 assert_version(result, "library", "1.0.1")
-raise "Rejected newest candidate lacks explanation" unless result.rejected_options.fetch(new_root.release.identity).include?("library")
+unless result.rejected_options.fetch(new_root.release.identity).include?("library")
+  raise "Rejected newest candidate lacks explanation"
+end
 
 # An unavailable optional dependency must not become a mandatory graph node
 # after the solver falls back to a candidate that never needed it.
@@ -89,28 +98,35 @@ raise "Unused absent dependency selected" if result.selected.key?(package("missi
 consumer = option("outside", "5.0.0", retained: true, dependencies: [requirement("library", "1.0.0")])
 result = resolve([base_root, base_library, old_root, old_library, consumer], roots: ["app"]).fetch(0)
 raise "Incompatible shared dependency changed" unless result.status == :unchanged
+
 assert_version(result, "outside", "5.0.0")
 
 # Matching native compatibility cohorts allow a dependency to advance while
 # the consumer remains fixed; a minimum version alone is insufficient.
 consumer = consumer.with(dependencies: [requirement("library", "1.0.0", cohort: 1)])
-result = resolve([base_root, base_library, old_root, old_library.with(compatibility_version: 1), consumer], roots: ["app"]).fetch(0)
+result = resolve([base_root, base_library, old_root, old_library.with(compatibility_version: 1), consumer],
+                 roots: ["app"]).fetch(0)
 assert_version(result, "app", "1.0.1")
 assert_version(result, "outside", "5.0.0")
 
 # A retained dependency at the recorded package version satisfies Homebrew's
 # native requirement without claiming to know its installed bottle rebuild.
-unknown_library = base_library.with(release: base_library.release.with(build: base_library.release.build.with(rebuild: nil)))
+unknown_build = base_library.release.build.with(rebuild: nil)
+unknown_library = base_library.with(release: base_library.release.with(build: unknown_build))
 exact_root = old_root.with(dependencies: [requirement("library", "1.0.0")])
 result = resolve([base_root, unknown_library, exact_root], roots: ["app"]).fetch(0)
 assert_version(result, "app", "1.0.1")
 zero_required = requirement("library", "1.0.0", cohort: 0)
-raise "Explicit cohort lost to unknown rebuild" unless BrewCooldown::HomebrewAdapter::Compatibility.call(zero_required, unknown_library.with(compatibility_version: 0))
+unless BrewCooldown::HomebrewAdapter::Compatibility.call(zero_required,
+                                                         unknown_library.with(compatibility_version: 0))
+  raise "Explicit cohort lost to unknown rebuild"
+end
 
 # Native compatibility identifiers are explicit integers, not positive counts.
 # Treating zero as absent would needlessly hold a compatible shared dependency.
 zero_consumer = consumer.with(dependencies: [requirement("library", "1.0.0", cohort: 0)])
-result = resolve([base_root, base_library, old_root, old_library.with(compatibility_version: 0), zero_consumer], roots: ["app"]).fetch(0)
+result = resolve([base_root, base_library, old_root, old_library.with(compatibility_version: 0), zero_consumer],
+                 roots: ["app"]).fetch(0)
 assert_version(result, "app", "1.0.1")
 assert_version(result, "outside", "5.0.0")
 
@@ -131,34 +147,45 @@ rebuilt_root = old_root.with(dependencies: [requirement("library", "1.0.0", coho
 if BrewCooldown::HomebrewAdapter::Compatibility.call(rebuilt_root.dependencies.first, installed_library)
   raise "An older build of the cohort satisfied a consumer built with a later one"
 end
+
 result = resolve([base_root, installed_library, rebuilt_root, rebuilt_library], roots: ["app"]).fetch(0)
 raise "Consumer advanced without the dependency build it records" unless result.status == :unchanged
 unless result.rejected_options.fetch(rebuilt_root.release.identity).include?("compatible with 1.0.0 (revision 1)")
   raise "Rejected consumer does not name the dependency revision it needs"
 end
+
 eligible_rebuild = rebuilt_library.with(decision: rebuilt_library.decision.with(status: :eligible))
 result = resolve([base_root, installed_library, rebuilt_root, eligible_rebuild], roots: ["app"]).fetch(0)
 assert_version(result, "app", "1.0.1")
-raise "Recorded dependency build was not selected" unless result.selected.fetch(package("library")).release.build.revision == 1
+unless result.selected.fetch(package("library")).release.build.revision == 1
+  raise "Recorded dependency build was not selected"
+end
 
 # An unrelated broken component must leave another root free to advance.
 broken = option("broken", "2.0.0", dependencies: [requirement("absent", "2.0.0")])
 independent = option("independent", "2.0.0")
 results = resolve([broken, independent], roots: %w[broken independent])
-raise "Independent components were coupled" unless results.map(&:status).sort == %i[no_compatible_solution resolved].sort
-raise "Missing dependency was hidden" unless results.find { |entry| entry.status == :no_compatible_solution }.reason.include?("absent")
+raise "Independent components were coupled" unless results.map(&:status).sort == %i[no_compatible_solution
+                                                                                    resolved].sort
+raise "Missing dependency was hidden" unless results.find do |entry|
+  entry.status == :no_compatible_solution
+end.reason.include?("absent")
 
 # Oldest eligible roots win shared-library tradeoffs. A security fix takes
 # priority over that waiting order, without waiving the dependency's policy.
 a_old = option("a", "1.0.0", retained: true, dependencies: [requirement("library", "1.0.0", cohort: 1)])
 b_old = option("b", "1.0.0", retained: true, dependencies: [requirement("library", "1.0.0", cohort: 1)])
 a_new = option("a", "1.0.1", dependencies: [requirement("library", "1.0.1")])
-b_new = option("b", "1.0.1", dependencies: [requirement("library", "1.0.0")], eligible_at: Time.iso8601("2026-08-01T00:00:00Z"))
-choices = [a_old, b_old, a_new, b_new, base_library.with(compatibility_version: 1), old_library.with(compatibility_version: 1)]
+b_new = option("b", "1.0.1", dependencies: [requirement("library", "1.0.0")],
+                             eligible_at: Time.iso8601("2026-08-01T00:00:00Z"))
+choices = [a_old, b_old, a_new, b_new, base_library.with(compatibility_version: 1),
+           old_library.with(compatibility_version: 1)]
 result = resolve(choices, roots: %w[a b]).fetch(0)
 assert_version(result, "b", "1.0.1")
 assert_version(result, "a", "1.0.0")
-result = resolve(choices.map { |entry| entry == a_new ? entry.with(decision: entry.decision.with(status: :security_fix)) : entry }, roots: %w[a b]).fetch(0)
+result = resolve(choices.map do |entry|
+  entry == a_new ? entry.with(decision: entry.decision.with(status: :security_fix)) : entry
+end, roots: %w[a b]).fetch(0)
 assert_version(result, "a", "1.0.1")
 assert_version(result, "b", "1.0.0")
 assert_version(result, "library", "1.0.1")
@@ -167,7 +194,9 @@ assert_version(result, "library", "1.0.1")
 cycle_a = option("cycle-a", "1.0.1", dependencies: [requirement("cycle-b", "1.0.1")])
 cycle_b = option("cycle-b", "1.0.1", dependencies: [requirement("cycle-a", "1.0.1")])
 result = resolve([cycle_a, cycle_b], roots: ["cycle-a"]).fetch(0)
-raise "Unexecutable cycle accepted" unless result.status == :no_compatible_solution && result.reason.include?("circular")
+unless result.status == :no_compatible_solution && result.reason.include?("circular")
+  raise "Unexecutable cycle accepted"
+end
 
 result = resolve([old_root, old_library], roots: ["app"], budget: 1).fetch(0)
 raise "Search limit misreported as incompatibility" unless result.status == :resolution_limit
@@ -177,5 +206,8 @@ raise "Budget exposed a partial assignment" unless result.selected.empty?
 cask = independent.with(release: independent.release.with(package: package("independent").with(kind: :cask)))
 domains = [independent, cask].group_by { |entry| entry.release.package }
 results = planner.plan(domains:, roots: domains.keys)
-raise "Formula/cask namespaces collided" unless results.length == 2 && results.all? { |entry| entry.status == :resolved }
+raise "Formula/cask namespaces collided" unless results.length == 2 && results.all? do |entry|
+  entry.status == :resolved
+end
+
 puts "PASS: historical closure, shared consumers, backtracking, independent components and search limits"

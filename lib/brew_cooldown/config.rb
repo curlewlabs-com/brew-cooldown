@@ -9,36 +9,44 @@ module BrewCooldown
   class ConfigurationError < StandardError; end
 
   class Config
-    FIELDS = { "patch_days" => :patch, "minor_days" => :minor, "major_days" => :major, "default_days" => :default }.freeze
-    IDENTITY = /\A(formula|cask):[a-z0-9_-]+\/[a-z0-9_-]+\/[a-z0-9][a-z0-9+@._-]*\z/
+    FIELDS = { "patch_days" => :patch, "minor_days" => :minor, "major_days" => :major,
+               "default_days" => :default }.freeze
+    IDENTITY = %r{\A(formula|cask):[a-z0-9_-]+/[a-z0-9_-]+/[a-z0-9][a-z0-9+@._-]*\z}
 
     attr_reader :scope, :max_assignments, :digest
 
     def self.load(path = nil, environment: ENV)
       explicit = !path.nil?
-      root = environment.fetch("HOMEBREW_COOLDOWN_CONFIG_HOME") { environment.fetch("XDG_CONFIG_HOME") { File.join(Dir.home, ".config") } }
+      root = environment.fetch("HOMEBREW_COOLDOWN_CONFIG_HOME") do
+        environment.fetch("XDG_CONFIG_HOME") do
+          File.join(Dir.home, ".config")
+        end
+      end
       path ||= Pathname(root)/"brew-cooldown/config.json"
       path = Pathname(path).expand_path
       data = if path.file?
-        JSON.parse(path.read)
-      elsif explicit
-        raise ConfigurationError, "Configuration file not found: #{path}"
-      else
-        {}
-      end
+               JSON.parse(path.read)
+             elsif explicit
+               raise ConfigurationError, "Configuration file not found: #{path}"
+             else
+               {}
+             end
       new(data, directory: path.dirname, source_path: path)
-    rescue JSON::ParserError, SystemCallError => error
-      raise ConfigurationError, "Cannot read configuration #{path}: #{error.message}"
+    rescue JSON::ParserError, SystemCallError => e
+      raise ConfigurationError, "Cannot read configuration #{path}: #{e.message}"
     end
 
     def initialize(data, directory:, source_path: nil)
       @source_path = source_path
       object!(data, %w[cooldown packages scope solver trusted_taps], "configuration")
       @trusted_taps = data.fetch("trusted_taps", [])
-      unless @trusted_taps.is_a?(Array) && @trusted_taps.all? { |tap| tap.is_a?(String) && tap.match?(/\A[a-z0-9_-]+\/[a-z0-9_-]+\z/) } &&
-             @trusted_taps.uniq == @trusted_taps && (@trusted_taps & %w[homebrew/core homebrew/cask]).empty?
+      unless @trusted_taps.is_a?(Array) && @trusted_taps.all? do |tap|
+        tap.is_a?(String) && tap.match?(%r{\A[a-z0-9_-]+/[a-z0-9_-]+\z})
+      end &&
+             @trusted_taps.uniq == @trusted_taps && !@trusted_taps.intersect?(%w[homebrew/core homebrew/cask])
         raise ConfigurationError, "trusted_taps must be unique canonical third-party tap names"
       end
+
       @trusted_taps = @trusted_taps.dup.freeze
       @global = cooldown(data.fetch("cooldown", {}))
       packages = data.fetch("packages", {})
@@ -74,8 +82,8 @@ module BrewCooldown
       unless Digest::SHA256.hexdigest(JSON.generate(current)) == digest
         raise ConfigurationError, "Configuration changed during planning; rerun with the current policy"
       end
-    rescue JSON::ParserError, SystemCallError => error
-      raise ConfigurationError, "Cannot revalidate configuration #{@source_path}: #{error.message}"
+    rescue JSON::ParserError, SystemCallError => e
+      raise ConfigurationError, "Cannot revalidate configuration #{@source_path}: #{e.message}"
     end
 
     def selected_scope(brewfile: nil, installed: false, directory: Pathname.pwd)
@@ -93,7 +101,7 @@ module BrewCooldown
       raise ConfigurationError, "#{label} must be an object" unless value.is_a?(Hash)
 
       unknown = value.keys - allowed
-      raise ConfigurationError, "Unknown #{label} keys: #{unknown.join(', ')}" unless unknown.empty?
+      raise ConfigurationError, "Unknown #{label} keys: #{unknown.join(", ")}" unless unknown.empty?
     end
 
     def cooldown(values)
@@ -109,6 +117,7 @@ module BrewCooldown
       object!(value, %w[brewfile installed], "scope")
       raise ConfigurationError, "Scope cannot contain both brewfile and installed" if value.size > 1
       return {} if value.empty?
+
       if value.key?("installed")
         raise ConfigurationError, "scope.installed must be true" unless value["installed"] == true
 

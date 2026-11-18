@@ -8,7 +8,7 @@ require_relative "../../lib/brew_cooldown/upgrade"
 # was refused as an unplanned inventory change although every link had pointed
 # at the replaced keg.
 formula = Data.define(:name, :rack, :aliases, :oldnames)
-                .new(name: "python@3.14", rack: HOMEBREW_CELLAR/"python@3.14", aliases: [], oldnames: [])
+              .new(name: "python@3.14", rack: HOMEBREW_CELLAR/"python@3.14", aliases: [], oldnames: [])
 operation = BrewCooldown::Executor::FormulaOperation.new(Data.define(:formula).new(formula:), map: nil)
 opt = HOMEBREW_PREFIX/"opt"
 change = ->(path, expected, observed) { { "path" => path.to_s, "expected" => expected, "observed" => observed } }
@@ -21,12 +21,12 @@ owned = [
   change.call(opt/"python@3.14", "../Cellar/python@3.14/3.14.7", "../Cellar/python@3.14/3.14.8"),
   change.call(HOMEBREW_CELLAR/"python@3.14/3.14.8/INSTALL_RECEIPT.json", nil, "0" * 64)
 ]
-owned.concat([
+owned.push(
   change.call(HOMEBREW_PREFIX/"bin/python3.14", "../Cellar/python@3.14/3.14.7/bin/python3.14", nil),
   change.call(HOMEBREW_PREFIX/"bin/python3.14", nil, "../Cellar/python@3.14/3.14.8/bin/python3.14"),
   change.call(HOMEBREW_PREFIX/"sbin/python-helper", "../Cellar/python@3.14/3.14.7/sbin/python-helper",
               "../Cellar/python@3.14/3.14.8/sbin/python-helper")
-])
+)
 owned.each { |entry| raise "Own link change refused: #{entry}" unless operation.owns_change?(entry) }
 
 # Each of these changes a link this keg did not hold before the upgrade, or
@@ -39,11 +39,12 @@ foreign = [
   change.call(HOMEBREW_PINNED_KEGS/"python@3.14", "../../../Cellar/python@3.14/3.14.7", nil),
   change.call(HOMEBREW_CELLAR/"python@3.15/3.15.0/INSTALL_RECEIPT.json", "0" * 64, "1" * 64)
 ]
-foreign.concat([
+foreign.push(
   change.call(HOMEBREW_PREFIX/"bin/python3", "../Cellar/python@3.15/3.15.0/bin/python3", nil),
   change.call(HOMEBREW_PREFIX/"bin/python3", "../Cellar/python@3.14/3.14.7/bin/python3", "/tmp/python3"),
-  change.call(HOMEBREW_PREFIX/"sbin/python-helper", nil, "../Cellar/python@3.14t/3.14.7/sbin/python-helper")
-])
+  change.call(HOMEBREW_PREFIX/"sbin/python-helper", nil,
+              "../Cellar/python@3.14t/3.14.7/sbin/python-helper")
+)
 foreign.each { |entry| raise "Foreign change accepted: #{entry}" if operation.owns_change?(entry) }
 
 # The upgrade rechecks the inventory after each component before starting the

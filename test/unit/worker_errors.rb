@@ -9,4 +9,5 @@ failure = BrewCooldownWorker::Refused.new("unplanned post-install lookup: other/
 failure.set_backtrace(["worker.rb:1"])
 decoded = Utils.rewrite_child_error(Utils.child_error_hash(failure))
 raise "Native parent lost worker refusal" unless decoded.message.include?(failure.message)
+
 puts "PASS: native child error reconstruction preserves the worker refusal"

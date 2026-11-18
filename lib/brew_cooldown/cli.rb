@@ -14,18 +14,25 @@ module BrewCooldown
   module CLI
     def self.run(arguments)
       log = EventLog.new
-      output = STDOUT.dup
       # Native subprocesses inherit descriptors, not Ruby's $stdout variable.
       # Keep their diagnostics off the result stream, including in JSON mode.
+      # rubocop:disable Style/GlobalStdStream
+      output = STDOUT.dup
       STDOUT.reopen(STDERR)
+      # rubocop:enable Style/GlobalStdStream
       options = { installed: false, json: false }
       parser = OptionParser.new do |flags|
-        flags.banner = "Usage: brew-cooldown plan|upgrade [scope options] | explain PACKAGE [scope options] | recover [--accept-current DIGEST] [--json]"
+        flags.banner = "Usage: brew-cooldown plan|upgrade [scope options] | explain PACKAGE [scope options] | " \
+                       "recover [--accept-current DIGEST] [--json]"
         flags.on("--brewfile PATH", "Installed roots from a trusted Brewfile") { |value| options[:brewfile] = value }
         flags.on("--installed", "All installed Homebrew packages") { options[:installed] = true }
         flags.on("--config PATH", "Read configuration from PATH") { |value| options[:config] = value }
-        flags.on("--security-only", "Upgrade only components with an evidenced installed security fix") { options[:security_only] = true }
-        flags.on("--accept-current DIGEST", "Acknowledge the journal and inventory shown by recover") { |value| options[:accept_current] = value }
+        flags.on("--security-only", "Upgrade only components with an evidenced installed security fix") do
+          options[:security_only] = true
+        end
+        flags.on("--accept-current DIGEST", "Acknowledge the journal and inventory shown by recover") do |value|
+          options[:accept_current] = value
+        end
         flags.on("--json", "Write the structured result to stdout") { options[:json] = true }
         flags.on("-h", "--help", "Show supported command options") do
           output.puts(flags)
@@ -36,12 +43,18 @@ module BrewCooldown
       parser.parse!(arguments)
       requested = arguments.shift if command == "explain"
       raise ConfigurationError, "explain requires a package name" if command == "explain" && !requested
-      raise ConfigurationError, "Unexpected arguments: #{arguments.join(' ')}" unless arguments.empty?
-      raise ConfigurationError, "Command #{command.inspect} is not available; this build supports plan, upgrade, explain and recover" unless %w[plan upgrade explain recover].include?(command)
+      raise ConfigurationError, "Unexpected arguments: #{arguments.join(" ")}" unless arguments.empty?
+      unless %w[
+        plan upgrade explain recover
+      ].include?(command)
+        raise ConfigurationError,
+              "Command #{command.inspect} is not available; this build supports plan, upgrade, explain and recover"
+      end
 
       if command == "recover"
         raise ConfigurationError, "recover does not take scope or configuration options" if
           options[:brewfile] || options[:installed] || options[:config] || options[:security_only]
+
         result = Recovery.new(state_directory: StateDirectory.path, log:).call(accept_current: options[:accept_current])
       else
         raise ConfigurationError, "--accept-current belongs to recover" if options[:accept_current]
@@ -72,11 +85,11 @@ module BrewCooldown
         end
       end
       %w[assessed completed idle accepted_current].include?(result[:status]) ? 0 : 1
-    rescue StandardError => error
-      diagnostic = { schema: 1, status: "error", operation: command || "parse_arguments", error: error.message,
-                     error_class: error.class.name, backtrace: error.backtrace }
+    rescue StandardError => e
+      diagnostic = { schema: 1, status: "error", operation: command || "parse_arguments", error: e.message,
+                     error_class: e.class.name, backtrace: e.backtrace }
       (log || EventLog.new).call(**diagnostic)
-      output.puts(options&.fetch(:json, false) ? JSON.pretty_generate(diagnostic) : "Error: #{error.message}")
+      output.puts(options&.fetch(:json, false) ? JSON.pretty_generate(diagnostic) : "Error: #{e.message}")
       1
     ensure
       output&.close

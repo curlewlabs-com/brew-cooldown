@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "github_packages"
-require "set"
 require_relative "registry_transport"
 require_relative "registry_metadata"
 
@@ -14,7 +13,10 @@ module BrewCooldown
 
       def tags(name, page_size: 1000)
         image = image_name(name)
-        raise ArgumentError, "Page size must be a positive integer" unless page_size.is_a?(Integer) && page_size.positive?
+        unless page_size.is_a?(Integer) && page_size.positive?
+          raise ArgumentError,
+                "Page size must be a positive integer"
+        end
 
         path = "/v2/homebrew/core/#{image}/tags/list"
         url = "https://ghcr.io#{path}?n=#{page_size}"
@@ -29,12 +31,13 @@ module BrewCooldown
                  body["tags"].all? { |tag| tag.is_a?(String) && tag.match?(/\A[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}\z/) }
             raise RegistryError, "Invalid tag list for #{name}"
           end
+
           tags.merge(body.fetch("tags"))
           url = next_page(response.headers["link"], current: url, path:)
         end
         tags.to_a.freeze
-      rescue JSON::ParserError => error
-        raise RegistryError, "Invalid registry tag JSON for #{name}: #{error.message}"
+      rescue JSON::ParserError => e
+        raise RegistryError, "Invalid registry tag JSON for #{name}: #{e.message}"
       end
 
       def resolve(name, tag, platform: nil)
@@ -42,12 +45,14 @@ module BrewCooldown
         unless tag.is_a?(String) && tag.match?(/\A[a-zA-Z0-9_][a-zA-Z0-9._-]{0,127}\z/)
           raise RegistryError, "Invalid registry tag"
         end
+
         response = @transport.fresh("#{RegistryTransport::ROOT}/#{image}/manifests/#{tag}")
         digest = response.headers["docker-content-digest"]
         unless digest.is_a?(String) && digest.match?(/\Asha256:[0-9a-f]{64}\z/) &&
                "sha256:#{Digest::SHA256.hexdigest(response.body)}" == digest
           raise RegistryError, "Mutable tag response has no matching immutable digest for #{name} #{tag}"
         end
+
         index_sha256 = digest.delete_prefix("sha256:")
         index = @transport.immutable(name:, digest: index_sha256)
         metadata = RegistryMetadata.new(name:, tag:, platform:, index:, index_sha256:)
@@ -76,9 +81,10 @@ module BrewCooldown
                uri.userinfo.nil? && uri.fragment.nil?
           raise RegistryError, "Registry pagination left the package's official history"
         end
+
         uri.to_s
-      rescue URI::InvalidURIError => error
-        raise RegistryError, "Invalid pagination destination: #{error.message}"
+      rescue URI::InvalidURIError => e
+        raise RegistryError, "Invalid pagination destination: #{e.message}"
       end
     end
   end

@@ -10,7 +10,8 @@ module BrewCooldown
   # forked component, which inherits the same start.
   class EventLog
     def initialize(io: $stderr, clock: -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) })
-      @io, @clock = io, clock
+      @io = io
+      @clock = clock
       @start = clock.call
     end
 

@@ -43,8 +43,8 @@ end
 begin
   Formulary.factory("lua@5.4")
   raise "Sibling inspection expanded candidate resolution"
-rescue BrewCooldown::Executor::Refused => error
-  raise unless error.message.include?("unplanned formula lookup")
+rescue BrewCooldown::Executor::Refused => e
+  raise unless e.message.include?("unplanned formula lookup")
 end
 
 inventory = BrewCooldown::Executor::Inventory.capture
@@ -56,7 +56,7 @@ assert(result.fetch("status") == "completed", "Sibling-family operation failed")
 keg = HOMEBREW_CELLAR/"lua"/record.fetch("version")
 assert((HOMEBREW_LINKED_KEGS/"lua").realpath == keg, "lua is not linked to the selected keg")
 output, status = Open3.capture2e((HOMEBREW_PREFIX/"bin/lua").to_s, "-v")
-assert(status.success? && output.include?("Lua #{record.fetch('version')}"), "Linked lua failed: #{output}")
+assert(status.success? && output.include?("Lua #{record.fetch("version")}"), "Linked lua failed: #{output}")
 if phase == "upgrade"
   assert(sibling_opt.readlink == sibling_target, "lua@5.4 opt link changed")
   assert(!(HOMEBREW_LINKED_KEGS/"lua@5.4").exist?, "lua@5.4 was linked")

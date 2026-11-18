@@ -27,12 +27,12 @@ module BrewCooldown
           return if selected.formula.pkg_version >= PkgVersion.parse(dependency.fetch("pkg_version"))
 
           raise Refused, "#{selected.formula.name} #{selected.formula.pkg_version}: older than " \
-                         "#{dependency.fetch('pkg_version')}, which the consumer was built with; " \
+                         "#{dependency.fetch("pkg_version")}, which the consumer was built with; " \
                          "compatibility cohort #{required} does not reach back to it"
         end
 
         raise Refused, "#{selected.formula.name} #{selected.formula.pkg_version}: " \
-                       "no compatibility evidence for consumer built with #{dependency.fetch('pkg_version')}"
+                       "no compatibility evidence for consumer built with #{dependency.fetch("pkg_version")}"
       end
     end
 
@@ -72,9 +72,9 @@ module BrewCooldown
         # This is the recipe in the installed keg, never today's API recipe.
         @compatibility_version = formula.compatibility_version
         recorded = tab.source.dig("versions", "compatibility_version")
-        if recorded && recorded != compatibility_version
-          raise Refused, "#{name}: installed recipe and receipt disagree about compatibility"
-        end
+        return unless recorded && recorded != compatibility_version
+
+        raise Refused, "#{name}: installed recipe and receipt disagree about compatibility"
       end
 
       def install?
@@ -83,7 +83,8 @@ module BrewCooldown
 
       def worker_record
         {
-          "name" => formula.full_name, "tap" => formula.tap.name, "version" => formula.pkg_version.to_s, "path" => formula.path.to_s,
+          "name" => formula.full_name, "tap" => formula.tap.name, "version" => formula.pkg_version.to_s,
+          "path" => formula.path.to_s,
           "recipe" => @contents, "recipe_sha256" => Digest::SHA256.hexdigest(@contents)
         }
       end

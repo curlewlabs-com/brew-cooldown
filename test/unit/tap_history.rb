@@ -4,7 +4,10 @@ require "tmpdir"
 require_relative "../../lib/brew_cooldown/planning"
 require_relative "../../lib/brew_cooldown/homebrew/tap_evidence"
 
-include BrewCooldown
+# Each unit test is its own Homebrew Ruby process (script/unit-tests), so the
+# namespace is included at the top level of this one script and nowhere else.
+include BrewCooldown # rubocop:disable Style/MixinUsage
+
 NOW = Time.iso8601("2026-10-08T06:30:00Z")
 FIXTURE = JSON.parse(File.read(File.join(__dir__, "../fixtures/tap_history.json")))
 PACKAGE = PackageId.new(kind: :formula, tap: "openai/tools", name: "tart")
@@ -13,9 +16,9 @@ PACKAGE = PackageId.new(kind: :formula, tap: "openai/tools", name: "tart")
 # named release repositories; only consumed fields and formula tree rows kept.
 # Native Ruby recipe evaluation, policy and planner remain real.
 class RecordedTapHistory < HomebrewAdapter::TapHistory
-  def initialize(package:, fixture: FIXTURE, **options)
+  def initialize(package:, fixture: FIXTURE, **)
     @fixture = fixture
-    super(package:, **options, request: method(:response))
+    super(package:, **, request: method(:response))
   end
 
   def response(url)
@@ -29,6 +32,7 @@ class RecordedTapHistory < HomebrewAdapter::TapHistory
     when %r{/commits/} then { "sha" => @fixture.fetch("head") }
     when %r{/commits\z}
       raise "Unanchored history" unless query.fetch("sha") == @fixture.fetch("head") && query.fetch("path") == path
+
       rows.fetch("commits")
     else @fixture.fetch("repository")
     end
@@ -38,15 +42,17 @@ class RecordedTapHistory < HomebrewAdapter::TapHistory
     record = source_record(entry)
     content = @fixture.fetch("packages").fetch(package.name).fetch("contents").fetch(entry.commit)
     bytes = content.fetch("content").delete("\n").unpack1("m0")
-    Executor::TapCandidate.new(record).send(:evaluate_recipe, bytes, path: Pathname("/recorded/#{entry.commit}/#{package.name}.rb"))
+    Executor::TapCandidate.new(record).send(:evaluate_recipe, bytes,
+                                            path: Pathname("/recorded/#{entry.commit}/#{package.name}.rb"))
   end
 end
 
 def refuses(fragment)
   yield
-rescue StandardError => error
-  raise unless error.message.include?(fragment)
-  return
+rescue StandardError => e
+  raise unless e.message.include?(fragment)
+
+  nil
 else
   raise "Expected refusal containing #{fragment}"
 end
@@ -55,8 +61,12 @@ history = RecordedTapHistory.new(package: PACKAGE, log: ->(**_event) {}, now: NO
 entries = history.entries.to_a
 latest = history.candidate(entries.first)
 eligible = history.candidate(entries.fetch(2))
-baseline = Installed.new(package: PACKAGE, build: history.candidate(entries.fetch(3)).build.with(rebuild: nil), pinned: false)
-raise "Wrong recorded recipe" unless latest.formula.version.to_s == "2.40.1" && eligible.formula.version.to_s == "2.37.0"
+baseline = Installed.new(package: PACKAGE, build: history.candidate(entries.fetch(3)).build.with(rebuild: nil),
+                         pinned: false)
+unless latest.formula.version.to_s == "2.40.1" && eligible.formula.version.to_s == "2.37.0"
+  raise "Wrong recorded recipe"
+end
+
 latest.verify_shape!
 eligible.verify_shape!
 raise "Historical hook was lost" unless eligible.formula.post_install_defined?
@@ -67,30 +77,40 @@ raise "Historical recipe provenance was lost" unless eligible.formula.tap_git_he
 # vendor clock, and a changed asset cannot inherit the earlier recipe clock.
 publication = history.publication(eligible, entries.fetch(2))
 raise "Recipe publication was ignored" unless publication == Time.iso8601("2026-09-09T22:22:43Z")
+
 mutated = Marshal.load(Marshal.dump(FIXTURE))
 asset = mutated.fetch("packages").fetch("tart").fetch("releases").fetch("2.37.0").fetch("assets").first
 asset["updated_at"] = "2026-10-07T01:00:00Z"
 changed = RecordedTapHistory.new(package: PACKAGE, fixture: mutated, log: ->(**_event) {}, now: NOW)
-raise "Changed asset borrowed old age" unless changed.publication(eligible, entries.fetch(2)) == Time.iso8601(asset["updated_at"])
+raise "Changed asset borrowed old age" unless changed.publication(eligible,
+                                                                  entries.fetch(2)) == Time.iso8601(asset["updated_at"])
+
 asset.delete("updated_at")
 raise "Missing artifact date invented publication" unless changed.publication(eligible, entries.fetch(2)).nil?
-asset["digest"] = "sha256:#{'0' * 64}"
+
+asset["digest"] = "sha256:#{"0" * 64}"
 refuses("digest differs") { changed.publication(eligible, entries.fetch(2)) }
 
-security = SecurityEvidence.new(installed_affected: nil, candidate_affected: nil, fixed_advisories: [], validated_at: nil)
+security = SecurityEvidence.new(installed_affected: nil, candidate_affected: nil, fixed_advisories: [],
+                                validated_at: nil)
 policy = Policy.new(compare_builds: HomebrewAdapter::BuildOrder)
 old_release = HomebrewAdapter::TapEvidence.release(PACKAGE, eligible, published_at: publication)
-new_release = HomebrewAdapter::TapEvidence.release(PACKAGE, latest, published_at: history.publication(latest, entries.first))
+new_release = HomebrewAdapter::TapEvidence.release(PACKAGE, latest,
+                                                   published_at: history.publication(latest, entries.first))
 old_decision = policy.evaluate(release: old_release, installed: baseline, now: NOW, security:)
 new_decision = policy.evaluate(release: new_release, installed: baseline, now: NOW, security:)
 raise "Older eligible release was hidden by latest" unless old_decision.eligible? && new_decision.status == :cooldown
 raise "Local date test lost its boundary" unless NOW.getlocal("-07:00").to_date != NOW.utc.to_date
+
 Dir.mktmpdir("cooldown-trusted-observation-") do |directory|
   observations = Observations.new(directory, prefix: directory, clock: -> { NOW })
   undated = old_release.with(published_at: nil, publication_source: nil)
   first_seen = observations.first_seen(undated, now: NOW)
-  raise "Undated release installed immediately" unless policy.evaluate(release: undated, installed: baseline, now: NOW, security:, first_seen:).status == :cooldown
-  raise "Verified observation did not finish cooldown" unless policy.evaluate(release: undated, installed: baseline, now: NOW + 21 * 86_400, security:, first_seen:).eligible?
+  early = policy.evaluate(release: undated, installed: baseline, now: NOW, security:, first_seen:)
+  raise "Undated release installed immediately" unless early.status == :cooldown
+
+  later = policy.evaluate(release: undated, installed: baseline, now: NOW + (21 * 86_400), security:, first_seen:)
+  raise "Verified observation did not finish cooldown" unless later.eligible?
 end
 
 # Availability requirements must not confer cooldown eligibility. An absent
@@ -99,37 +119,53 @@ end
 softnet = PACKAGE.with(name: "softnet")
 softnet_history = RecordedTapHistory.new(package: softnet, log: ->(**_event) {}, now: NOW).refresh
 softnet_candidate = softnet_history.candidate(softnet_history.entries.first)
-softnet_release = HomebrewAdapter::TapEvidence.release(softnet, softnet_candidate, published_at: Time.iso8601("2026-10-01T16:21:22Z"))
+softnet_release = HomebrewAdapter::TapEvidence.release(softnet, softnet_candidate,
+                                                       published_at: Time.iso8601("2026-10-01T16:21:22Z"))
 softnet_decision = policy.evaluate(release: softnet_release, installed: nil, now: NOW, security:)
-root = BrewCooldown::Option.new(release: old_release, decision: old_decision, dependencies: [RuntimeRequirement.new(package: softnet)], compatibility_version: nil, retained: false)
-dep = BrewCooldown::Option.new(release: softnet_release, decision: softnet_decision, dependencies: [], compatibility_version: nil, retained: false)
+root = BrewCooldown::Option.new(release: old_release, decision: old_decision,
+                                dependencies: [RuntimeRequirement.new(package: softnet)], compatibility_version: nil,
+                                retained: false)
+dep = BrewCooldown::Option.new(release: softnet_release, decision: softnet_decision, dependencies: [],
+                               compatibility_version: nil, retained: false)
 planner = Planner.new(compare_builds: HomebrewAdapter::BuildOrder, compatible: HomebrewAdapter::Compatibility)
-raise "Dependency bypassed its cooldown" unless planner.plan(domains: { PACKAGE => [root], softnet => [dep] }, roots: [PACKAGE]).first.status == :no_compatible_solution
+raise "Dependency bypassed its cooldown" unless planner.plan(domains: { PACKAGE => [root], softnet => [dep] },
+                                                             roots: [PACKAGE]).first.status == :no_compatible_solution
+
 kept = dep.with(retained: true)
 selection = planner.plan(domains: { PACKAGE => [root], softnet => [dep, kept] }, roots: [PACKAGE]).first.selected
-raise "Compatible retained dependency was replaced" unless selection.fetch(softnet).retained && !selection.fetch(PACKAGE).retained
+unless selection.fetch(softnet).retained && !selection.fetch(PACKAGE).retained
+  raise "Compatible retained dependency was replaced"
+end
 
 # Pinning unsupported packages intentionally retains them without requesting a
 # historical executor. Untrusted unpinned packages must still fail assessment.
-record = HomebrewAdapter::InstalledRecord.new(installed: baseline, dependencies: [], compatibility_version: nil, retained: nil, receipt: "receipt", identity: "installed")
+record = HomebrewAdapter::InstalledRecord.new(installed: baseline, dependencies: [], compatibility_version: nil,
+                                              retained: nil, receipt: "receipt", identity: "installed")
 config = Config.new({}, directory: Pathname.pwd)
 planning = Planning.new(config:, scope: {}, now: NOW, log: ->(**_event) {}, state_directory: Pathname.pwd)
 entry = HomebrewAdapter::ScopeEntry.new(kind: :formula, name: "openai/tools/tart", options: {})
 inventory = HomebrewAdapter::InventoryResult.new(records: { PACKAGE => record }, errors: [], fingerprint: {})
-raise "Untrusted package accepted" unless planning.send(:resolve_entry, entry, inventory).fetch(:status) == :unsupported_executor
+raise "Untrusted package accepted" unless planning.send(:resolve_entry, entry,
+                                                        inventory).fetch(:status) == :unsupported_executor
+
 pinned = inventory.with(records: { PACKAGE => record.with(installed: baseline.with(pinned: true)) })
 raise "Pin required historical executor" unless planning.send(:resolve_entry, entry, pinned).fetch(:status) == :pinned
+
 trusted = Config.new({ "trusted_taps" => ["openai/tools"] }, directory: Pathname.pwd)
 planning = Planning.new(config: trusted, scope: {}, now: NOW, log: ->(**_event) {}, state_directory: Pathname.pwd)
 raise "Trusted package refused" unless planning.send(:resolve_entry, entry, inventory).fetch(:status) == :selected
 
 corrupt = Marshal.load(Marshal.dump(FIXTURE))
-corrupt.fetch("packages").fetch("tart").fetch("contents").fetch(entries.first.commit)["content"] = ["changed recipe"].pack("m0")
+corrupt.fetch("packages").fetch("tart").fetch("contents").fetch(entries.first.commit)["content"] =
+  ["changed recipe"].pack("m0")
 refuses("blob differs") do
-  RecordedTapHistory.new(package: PACKAGE, fixture: corrupt, log: ->(**_event) {}, now: NOW).refresh.source_record(entries.first)
+  RecordedTapHistory.new(package: PACKAGE, fixture: corrupt, log: ->(**_event) {}, now: NOW)
+                    .refresh.source_record(entries.first)
 end
 truncated = FIXTURE.merge("tree" => FIXTURE.fetch("tree").merge("truncated" => true))
-refuses("tree is incomplete") { RecordedTapHistory.new(package: PACKAGE, fixture: truncated, log: ->(**_event) {}, now: NOW).refresh }
+refuses("tree is incomplete") do
+  RecordedTapHistory.new(package: PACKAGE, fixture: truncated, log: ->(**_event) {}, now: NOW).refresh
+end
 # A refreshed rollback bound cannot re-authorize the selected higher release.
 rolled_back = history.dup
 rolled_back.instance_variable_set(:@current, eligible)
@@ -144,7 +180,9 @@ class PlanningTapHistory < RecordedTapHistory
     loaded = super
     loaded.define_singleton_method(:prepare) do
       verify_shape!
-      @runtime_dependencies = formula.deps.reject(&:test?).map { |dependency| { "full_name" => dependency.name, "runtime_only" => true } }
+      @runtime_dependencies = formula.deps.reject(&:test?).map do |dependency|
+        { "full_name" => dependency.name, "runtime_only" => true }
+      end
       self
     end
     loaded
@@ -162,18 +200,25 @@ begin
   end
   HomebrewAdapter::TapHistory.define_singleton_method(:new) { |**options| recorded_history.call(**options, fixture: bounded_fixture) }
   Dir.mktmpdir("cooldown-tap-discovery-") do |directory|
-    softnet_baseline = Installed.new(package: softnet, build: softnet_history.candidate(softnet_history.entries.to_a.fetch(2)).build.with(rebuild: nil), pinned: false)
+    softnet_build = softnet_history.candidate(softnet_history.entries.to_a.fetch(2)).build.with(rebuild: nil)
+    softnet_baseline = Installed.new(package: softnet, build: softnet_build, pinned: false)
     softnet_record = record.with(installed: softnet_baseline, identity: "softnet-installed")
     inventory = inventory.with(records: { PACKAGE => record, softnet => softnet_record })
+    observations = Observations.new(directory, prefix: directory, clock: -> { NOW })
     result = HomebrewAdapter::Discovery.new(inventory:, config: trusted,
-      advisories: HomebrewAdapter::Advisories.new(records: {}, validated_at: NOW),
-      observations: Observations.new(directory, prefix: directory, clock: -> { NOW }), now: NOW, log: ->(**_event) {}).collect([PACKAGE, softnet])
+                                            advisories: HomebrewAdapter::Advisories.new(records: {}, validated_at: NOW),
+                                            observations:, now: NOW, log: ->(**_event) {}).collect([PACKAGE, softnet])
     raise "Production tap discovery failed: #{result.errors}" unless result.errors.empty?
+
     selected = planner.plan(domains: result.domains, roots: [PACKAGE, softnet]).first.selected
     raise "Discovery failed historical selection" unless selected.fetch(PACKAGE).release.build.version == "2.37.0" &&
-      selected.fetch(softnet).release.build.version == "0.23.0"
-    raise "Discovery erased unsupported advisory coverage" unless result.decisions.all? { |decision| decision.fetch(:security).fetch(:coverage) == :unsupported_package }
-    raise "Dependency was omitted from discovered option" unless selected.fetch(PACKAGE).dependencies.map(&:package) == [softnet]
+                                                         selected.fetch(softnet).release.build.version == "0.23.0"
+    raise "Discovery erased unsupported advisory coverage" unless result.decisions.all? do |decision|
+      decision.fetch(:security).fetch(:coverage) == :unsupported_package
+    end
+    unless selected.fetch(PACKAGE).dependencies.map(&:package) == [softnet]
+      raise "Dependency was omitted from discovered option"
+    end
 
     # A failed release lookup does not stop older evidence from being used,
     # but it must keep the assessment visibly incomplete and actionable.
@@ -182,15 +227,19 @@ begin
       original = history.method(:publication)
       history.define_singleton_method(:publication) do |candidate, entry|
         raise HomebrewAdapter::RegistryError, "Release archive is missing" if candidate.formula.version.to_s == "2.40.1"
+
         original.call(candidate, entry)
       end
       history
     end
+    observations = Observations.new(directory, prefix: directory, clock: -> { NOW })
     result = HomebrewAdapter::Discovery.new(inventory:, config: trusted,
-      advisories: HomebrewAdapter::Advisories.new(records: {}, validated_at: NOW),
-      observations: Observations.new(directory, prefix: directory, clock: -> { NOW }), now: NOW, log: ->(**_event) {}).collect([PACKAGE, softnet])
+                                            advisories: HomebrewAdapter::Advisories.new(records: {}, validated_at: NOW),
+                                            observations:, now: NOW, log: ->(**_event) {}).collect([PACKAGE, softnet])
     raise "Missing artifact was hidden" unless result.errors.one? && result.errors.first.fetch(:recovery).any?
-    raise "Missing latest artifact blocked independent historical evidence" unless planner.plan(domains: result.domains, roots: [PACKAGE, softnet]).first.selected.fetch(PACKAGE).release.build.version == "2.37.0"
+    raise "Missing latest artifact blocked independent historical evidence" unless planner.plan(
+      domains: result.domains, roots: [PACKAGE, softnet]
+    ).first.selected.fetch(PACKAGE).release.build.version == "2.37.0"
   end
 ensure
   HomebrewAdapter::TapHistory.define_singleton_method(:new, original_history)
@@ -199,28 +248,42 @@ puts "PASS: production trusted-tap discovery selects historical candidates and p
 
 # Native DSL evaluation, rather than a Ruby source matcher, owns rejection of
 # unsupported installers. Changed source bytes cannot inherit the old clock.
-bytes = FIXTURE.fetch("packages").fetch("tart").fetch("contents").fetch(entries.fetch(2).commit).fetch("content").delete("\n").unpack1("m0")
+content = FIXTURE.fetch("packages").fetch("tart").fetch("contents").fetch(entries.fetch(2).commit).fetch("content")
+bytes = content.delete("\n").unpack1("m0")
 def changed_recipe(candidate, contents)
   digest = Digest::SHA256.hexdigest(contents)
   record = candidate.record.merge("source_sha256" => digest)
   Executor::TapCandidate.new(record).send(:evaluate_recipe, contents, path: Pathname("/recorded/#{digest}/tart.rb"))
 end
-[bytes.sub('  sha256 ', '  # sha256 '), bytes.sub('  depends_on "openai/tools/softnet"', '  depends_on "openai/tools/softnet" => :build'),
- bytes.sub('/releases/download/2.37.0/', '/archive/refs/tags/2.37.0/')].each do |unsupported|
-  refuses(unsupported.include?("=> :build") ? "unsupported release installer" : "checksum-bound") { changed_recipe(eligible, unsupported).verify_shape! }
+[bytes.sub("  sha256 ", "  # sha256 "),
+ bytes.sub('  depends_on "openai/tools/softnet"', '  depends_on "openai/tools/softnet" => :build'),
+ bytes.sub("/releases/download/2.37.0/", "/archive/refs/tags/2.37.0/")].each do |unsupported|
+  refuses(unsupported.include?("=> :build") ? "unsupported release installer" : "checksum-bound") do
+    changed_recipe(eligible, unsupported).verify_shape!
+  end
 end
-changed = changed_recipe(eligible, bytes + "\n# Different authenticated recipe bytes.\n")
-raise "Changed recipe borrowed candidate age" if HomebrewAdapter::TapEvidence.release(PACKAGE, changed, published_at: publication).identity == old_release.identity
+changed = changed_recipe(eligible, "#{bytes}\n# Different authenticated recipe bytes.\n")
+if HomebrewAdapter::TapEvidence.release(PACKAGE, changed,
+                                        published_at: publication).identity == old_release.identity
+  raise "Changed recipe borrowed candidate age"
+end
+
 impossible = Marshal.load(Marshal.dump(FIXTURE))
 impossible.fetch("packages").fetch("tart").fetch("releases").fetch("2.37.0")["published_at"] = "2026-02-31T00:00:00Z"
-raise "Impossible publication date became trusted age" unless RecordedTapHistory.new(package: PACKAGE, fixture: impossible, log: ->(**_event) {}, now: NOW).publication(eligible, entries.fetch(2)).nil?
+impossible_history = RecordedTapHistory.new(package: PACKAGE, fixture: impossible, log: ->(**_event) {}, now: NOW)
+unless impossible_history.publication(eligible, entries.fetch(2)).nil?
+  raise "Impossible publication date became trusted age"
+end
+
 puts "PASS: unsupported native release shapes and invalid calendar evidence fail closed"
 
 # Homebrew's DSL derives disabled? from the machine's local date. The adapter
 # must instead respect its injected UTC assessment date, including scheduled
 # withdrawals not active on the machine yet.
 future_date = "2099-01-01"
-withdrawn = changed_recipe(eligible, bytes.sub('  license ', "  disable! date: \"#{future_date}\", because: \"withdrawn\"\n  license "))
+withdrawn = changed_recipe(eligible,
+                           bytes.sub("  license ",
+                                     "  disable! date: \"#{future_date}\", because: \"withdrawn\"\n  license "))
 withdrawal_history = history.dup
 withdrawal_history.instance_variable_set(:@current, withdrawn)
 withdrawal_history.instance_variable_set(:@now, Time.iso8601("2099-01-01T06:30:00Z"))
@@ -235,12 +298,15 @@ recorded_history = PlanningTapHistory.method(:new)
 begin
   HomebrewAdapter::TapHistory.define_singleton_method(:new) { |**options| recorded_history.call(**options) }
   Dir.mktmpdir("cooldown-tap-revalidation-") do |directory|
-    revalidation = HomebrewAdapter::Revalidation.new(config: trusted, inventory:, prepared: { old_release.identity => eligible },
-      state_directory: directory, log: ->(**_event) {}, clock: -> { NOW })
+    revalidation = HomebrewAdapter::Revalidation.new(config: trusted, inventory:,
+                                                     prepared: { old_release.identity => eligible },
+                                                     state_directory: directory, log: ->(**_event) {},
+                                                     clock: -> { NOW })
     refreshed = revalidation.send(:tap_release, PACKAGE, eligible, verify_payload: false)
     raise "Revalidation changed the exact selected identity" unless refreshed.identity == old_release.identity
+
     untrusted = HomebrewAdapter::Revalidation.new(config:, inventory:, prepared: {},
-      state_directory: directory, log: ->(**_event) {}, clock: -> { NOW })
+                                                  state_directory: directory, log: ->(**_event) {}, clock: -> { NOW })
     refuses("no longer explicitly trusted") { untrusted.send(:tap_release, PACKAGE, eligible, verify_payload: false) }
 
     # A force-pushed tap history cannot retain execution authority merely
@@ -248,7 +314,11 @@ begin
     HomebrewAdapter::TapHistory.define_singleton_method(:new) do |**options|
       loaded = recorded_history.call(**options)
       entries_method = loaded.method(:entries)
-      loaded.define_singleton_method(:entries) { entries_method.call.reject { |entry| entry.commit == eligible.record.fetch("commit") } }
+      loaded.define_singleton_method(:entries) do
+        entries_method.call.reject do |entry|
+          entry.commit == eligible.record.fetch("commit")
+        end
+      end
       loaded
     end
     refuses("no longer reachable") { revalidation.send(:tap_release, PACKAGE, eligible, verify_payload: false) }

@@ -33,9 +33,9 @@ def refuses(description)
   before = inventory
   begin
     yield
-  rescue BrewCooldown::Executor::Refused => error
+  rescue BrewCooldown::Executor::Refused => e
     assert(inventory == before, "#{description} mutated installed packages")
-    puts "Refused #{description} before mutation: #{error.message}"
+    puts "Refused #{description} before mutation: #{e.message}"
     return
   end
   raise "Accepted #{description}"
@@ -120,7 +120,7 @@ end
 before.each_with_index do |entries, index|
   entries.each do |path, value|
     next if expected_links.key?(path)
-    next if candidates.any? { |candidate| path.start_with?(candidate.formula.rack.to_s + "/") }
+    next if candidates.any? { |candidate| path.start_with?("#{candidate.formula.rack}/") }
 
     assert(after.fetch(index)[path] == value, "Changed out-of-scope package: #{path}")
   end

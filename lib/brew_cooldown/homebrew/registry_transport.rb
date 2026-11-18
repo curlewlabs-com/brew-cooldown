@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 # Reads historical core-registry responses with destination validation.
 
 require "utils/curl"
@@ -26,8 +27,8 @@ module BrewCooldown
         # This is Homebrew's anonymous public-registry credential. A configured
         # private mirror's authorization must never be sent to the public host.
         result = Utils::Curl.curl_output("--silent", "--show-error", "--dump-header", "-",
-                                        "--header", "Authorization: Bearer QQ==",
-                                        "--header", "Accept: #{ACCEPT}", url)
+                                         "--header", "Authorization: Bearer QQ==",
+                                         "--header", "Accept: #{ACCEPT}", url)
         parsed = Utils::Curl.parse_curl_output(result.stdout)
         response = parsed.fetch(:responses).last
         unless result.success? && response && response.fetch(:status_code) == "200"
@@ -48,11 +49,14 @@ module BrewCooldown
         resource.version(digest)
         resource.checksum = Checksum.new(digest)
         path = resource.fetch
-        raise RegistryError, "Immutable manifest checksum differs for #{name}" unless Digest::SHA256.file(path).hexdigest == digest
+        unless Digest::SHA256.file(path).hexdigest == digest
+          raise RegistryError,
+                "Immutable manifest checksum differs for #{name}"
+        end
 
         JSON.parse(path.read)
-      rescue JSON::ParserError => error
-        raise RegistryError, "Invalid immutable JSON for #{name}: #{error.message}"
+      rescue JSON::ParserError => e
+        raise RegistryError, "Invalid immutable JSON for #{name}: #{e.message}"
       end
 
       private
@@ -63,8 +67,8 @@ module BrewCooldown
                uri.userinfo.nil? && uri.fragment.nil? && uri.path.start_with?("/v2/homebrew/core/")
           raise RegistryError, "Unexpected registry destination"
         end
-      rescue URI::InvalidURIError => error
-        raise RegistryError, "Invalid registry destination: #{error.message}"
+      rescue URI::InvalidURIError => e
+        raise RegistryError, "Invalid registry destination: #{e.message}"
       end
     end
   end

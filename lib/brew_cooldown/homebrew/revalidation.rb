@@ -15,7 +15,12 @@ module BrewCooldown
   module HomebrewAdapter
     class Revalidation
       def initialize(config:, inventory:, prepared:, state_directory:, log:, clock:)
-        @config, @inventory, @prepared, @directory, @log, @clock = config, inventory, prepared, state_directory, log, clock
+        @config = config
+        @inventory = inventory
+        @prepared = prepared
+        @directory = state_directory
+        @log = log
+        @clock = clock
       end
 
       def check!(selected, verify_payload: true)
@@ -29,31 +34,36 @@ module BrewCooldown
 
           candidate = @prepared.fetch(option.release.identity)
           release = if package.kind == :cask
-            cask_release(package, candidate, verify_payload:)
-          elsif package.tap != "homebrew/core"
-            tap_release(package, candidate, verify_payload:)
-          else
-            formula_release(package, candidate, registry, verify_payload:)
-          end
+                      cask_release(package, candidate, verify_payload:)
+                    elsif package.tap != "homebrew/core"
+                      tap_release(package, candidate, verify_payload:)
+                    else
+                      formula_release(package, candidate, registry, verify_payload:)
+                    end
           unless release.identity == option.release.identity
-            raise Executor::Refused, "#{package.name}: selected artifact changed upstream; run again to select from current history"
+            raise Executor::Refused,
+                  "#{package.name}: selected artifact changed upstream; run again to select from current history"
           end
+
           installed = @inventory.records[package]
           candidate_patches = package.kind == :formula ? Advisories.patch_identifiers(candidate.formula) : []
           installed_patches = if package.kind == :formula && installed&.retained
-            Advisories.patch_identifiers(installed.retained.formula)
-          else
-            []
-          end
-          assessment = advisory.assess(release:, installed: installed&.installed, candidate_patches:, installed_patches:)
+                                Advisories.patch_identifiers(installed.retained.formula)
+                              else
+                                []
+                              end
+          assessment = advisory.assess(release:, installed: installed&.installed, candidate_patches:,
+                                       installed_patches:)
           now = @clock.call
           observations.remember_clock(now:)
           first_seen = observations.first_seen(release, now:) unless release.published_at
           decision = Policy.new(compare_builds: BuildOrder, delays: @config.delays(package))
-                           .evaluate(release:, installed: installed&.installed, now:, security: assessment.evidence, first_seen:)
+                           .evaluate(release:, installed: installed&.installed, now:, security: assessment.evidence,
+                                     first_seen:)
           raise Executor::Refused, "#{package.name}: #{decision.reason}" unless decision.eligible?
 
-          @log.call(operation: "revalidate_candidate", package: package.name, identity: release.identity, status: decision.status)
+          @log.call(operation: "revalidate_candidate", package: package.name, identity: release.identity,
+                    status: decision.status)
         end
       end
 
@@ -77,17 +87,24 @@ module BrewCooldown
       end
 
       def tap_release(package, candidate, verify_payload:)
-        raise Executor::Refused, "#{package.tap}: tap is no longer explicitly trusted" unless @config.trusted_tap?(package.tap)
+        unless @config.trusted_tap?(package.tap)
+          raise Executor::Refused,
+                "#{package.tap}: tap is no longer explicitly trusted"
+        end
 
         history = TapHistory.new(package:, log: @log, now: @clock.call).refresh
         history.verify_candidate!(candidate)
         entry = history.entries.find { |row| row.commit == candidate.record.fetch("commit") }
-        raise Executor::Refused, "#{package.name}: selected trusted recipe is no longer reachable in current history" unless entry
+        unless entry
+          raise Executor::Refused,
+                "#{package.name}: selected trusted recipe is no longer reachable in current history"
+        end
 
         source = history.source_record(entry)
         unless source == candidate.record
           raise Executor::Refused, "#{package.name}: selected trusted source changed upstream"
         end
+
         if verify_payload
           candidate.formula.resource.fetch
           candidate.verify!
@@ -102,12 +119,16 @@ module BrewCooldown
         CurrentCask.verify_candidate!(current, candidate.cask.version.to_s)
         history = CaskHistory.new(current:, log: @log)
         entry = history.entries.find { |row| row.commit == candidate.record.fetch("commit") }
-        raise Executor::Refused, "#{package.name}: selected recipe is no longer reachable in current Homebrew history" unless entry
+        unless entry
+          raise Executor::Refused,
+                "#{package.name}: selected recipe is no longer reachable in current Homebrew history"
+        end
 
         source = history.source_record(entry)
         unless source.all? { |key, value| candidate.record[key] == value }
           raise Executor::Refused, "#{package.name}: selected cask source changed upstream"
         end
+
         candidate.download.fetch if verify_payload
         candidate.verify!
         CaskEvidence.release(package, candidate, published_at: entry.published_at)

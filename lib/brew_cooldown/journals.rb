@@ -12,7 +12,7 @@ module BrewCooldown
     end
 
     def with_lock
-      File.open(@directory/"upgrade.lock", File::RDWR | File::CREAT, 0600) do |lock|
+      File.open(@directory/"upgrade.lock", File::RDWR | File::CREAT, 0o600) do |lock|
         raise Executor::Refused, "Another brew-cooldown upgrade or recovery owns #{@directory}" unless
           lock.flock(File::LOCK_EX | File::LOCK_NB)
 

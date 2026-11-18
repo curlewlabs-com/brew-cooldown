@@ -18,6 +18,7 @@ keg = HOMEBREW_CELLAR/"fish/4.0.6"
 pin = HOMEBREW_PINNED_KEGS/"fish"
 raise "Run hook_install.rb first" unless (keg/"bin/fish").executable?
 raise "Experiment requires fish unpinned" if pin.symlink?
+
 before_receipt = (keg/"INSTALL_RECEIPT.json").binread
 before_opt = (HOMEBREW_PREFIX/"opt/fish").readlink
 brew = HOMEBREW_BREW_FILE.to_s
@@ -30,6 +31,7 @@ begin
     output, status = Open3.capture2e(brew, "ruby", "--", peer, "contend")
     raise "Contending process acquired the package lock: #{output}" if status.success?
     raise "Contention failed for an unrelated reason: #{output}" unless output.include?("OperationInProgressError")
+
     puts "PASS: native package lock excludes a second lock holder"
 
     output, status = Open3.capture2e(brew, "pin", "--formula", "fish")
@@ -44,8 +46,10 @@ begin
     # Undo only the pin created by this experiment before the reinstall probe.
     if pin_created
       raise "Experiment pin target changed" unless pin.realpath == keg
+
       output, status = Open3.capture2e(brew, "unpin", "--formula", "fish")
       raise "Could not remove experiment pin: #{output}" unless status.success? && !pin.symlink?
+
       pin_created = false
     end
 
@@ -53,8 +57,10 @@ begin
     puts output
     raise "Contending reinstall unexpectedly succeeded" if status.success?
     raise "Reinstall failed for an unrelated reason" unless output.include?("already locked")
+
     observation = output.lines.find { |line| line.start_with?("LOCK_OBSERVATION ") }
     raise "Reinstall did not reach its native lock boundary" unless observation
+
     state = JSON.parse(observation.delete_prefix("LOCK_OBSERVATION "))
     unless state.fetch("keg_exists") && state.fetch("executable_exists")
       findings << "reinstall removed the active keg before failing to acquire its package lock"
@@ -70,11 +76,13 @@ end
 
 raise "Reinstall failed to restore the receipt" unless (keg/"INSTALL_RECEIPT.json").binread == before_receipt
 raise "Reinstall failed to restore the opt link" unless (HOMEBREW_PREFIX/"opt/fish").readlink == before_opt
+
 output, status = Open3.capture2((keg/"bin/fish").to_s, "-c", "string match -r 'a(?=b)' ab")
 raise "Reinstall failed to restore runnable fish" unless status.success? && output == "a\n"
+
 puts "PASS: native failure recovery restored the historical installation"
 if findings.empty?
   puts "PASS: observed peer operations respected the held package lock"
 else
-  puts "PASS: reproduced accepted concurrency limitation: #{findings.join('; ')}"
+  puts "PASS: reproduced accepted concurrency limitation: #{findings.join("; ")}"
 end
