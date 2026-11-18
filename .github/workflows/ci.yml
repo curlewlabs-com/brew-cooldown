@@ -22,6 +22,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # Pin shellcheck to an exact release rather than ubuntu's preinstalled,
       # floating version, so a new finding means a script changed.
       - name: shellcheck
@@ -43,6 +45,8 @@ jobs:
       HOMEBREW_NO_ANALYTICS: 1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # The suite runs inside Homebrew's Ruby against Homebrew's internal
       # libraries, which change without notice. Test against the commit the
       # executor is qualified on instead of whatever the image shipped with.
@@ -57,3 +61,14 @@ jobs:
           brew --version
       - name: syntax pass and unit tests
         run: script/unit-tests
+
+  baseline:
+    # The checks every Curlew Labs repository runs, in one place:
+    # https://github.com/curlewlabs-com/ci-baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: curlewlabs-com/ci-baseline@c82082df9a3c5e6dab047d9ddb92f130f1537d8e # v0.1.1
