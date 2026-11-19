@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+# Print each path read from standard input, one per line, that a Qualify run
+# reads; what it prints is what a change on main must not touch for an older
+# qualification to stand for the merged tree (script/merge-homebrew-release).
+# A run checks out the whole tree, and script/qualify reaches into bin/, lib/,
+# test/ and examples/ from there, so every path counts unless it is shown here
+# to be outside the run. Of .github/ the run reads only its own workflow:
+# qualify.yml uses no local action or reusable workflow, and the other
+# workflows and the issue and pull request templates never reach a track.
+while IFS= read -r path; do
+  case $path in
+  .github/workflows/qualify.yml) printf '%s\n' "$path" ;;
+  .github/workflows/* | .github/ISSUE_TEMPLATE/* | .github/pull_request_template.md) ;;
+  *) printf '%s\n' "$path" ;;
+  esac
+done

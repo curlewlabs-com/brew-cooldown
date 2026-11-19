@@ -30,11 +30,10 @@ on:
 
 # GitHub does not run a pull request's workflows unattended when the job token
 # opened it or moved its head: the runs wait for approval by someone with write
-# access, or never start. So the two calls that must start a proposal's CI and
-# Qualify runs - opening it and bringing it up to date with main - use
-# PROPOSAL_TOKEN, a fine-grained token limited to this repository's pull
-# requests (CONTRIBUTING.md). It can neither push nor merge; the job token does
-# both.
+# access, or never start. So the call that must start a proposal's CI and
+# Qualify runs, opening it, uses PROPOSAL_TOKEN, a fine-grained token limited
+# to this repository's pull requests (CONTRIBUTING.md). It can neither push nor
+# merge; the job token does both.
 permissions: {}
 
 concurrency:
@@ -50,11 +49,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
+          # script/merge-homebrew-release deletes a stale proposal's branch
+          # with this checkout's token, by a push that holds only while the
+          # branch is where the run read it.
+          persist-credentials: true
       - run: script/merge-homebrew-release
         env:
           GH_TOKEN: ${{ github.token }}
-          PROPOSAL_TOKEN: ${{ secrets.HOMEBREW_RELEASE_PR_TOKEN }}
 
   propose:
     needs: merge

@@ -89,13 +89,18 @@ first run after `qualified` passes: it runs every 15 minutes. A
 [github-cron-trigger](https://github.com/curlewlabs-com/github-cron-trigger)
 clock delivers that schedule on time, and GitHub's own schedule still runs it,
 later, when the clock is down. The workflow merges only a branch that still
-moves nothing but the constant, to the tag's commit, and is up to date with
-`main`. A draft, or any other change pushed to the branch, such as the adapter
-fix a failing track needs, leaves the merge to a person.
+moves nothing but the constant, to the tag's commit. A draft, or any other
+change pushed to the branch, such as the adapter fix a failing track needs,
+leaves the merge to a person. If `main` has moved since the branch was
+qualified, the qualification still stands when `main`'s changes touch only
+files no Qualify run reads, which
+[`script/qualification-reads`](script/qualification-reads) defines; otherwise
+the workflow closes the pull request and proposes the release again from
+`main`.
 
-The workflow opens that pull request, and brings it up to date with `main`, with
-a fine-grained personal access token in the `HOMEBREW_RELEASE_PR_TOKEN` secret;
-the workflow says why its own token cannot. Limit the token to this repository
+The workflow opens that pull request with a fine-grained personal access token
+in the `HOMEBREW_RELEASE_PR_TOKEN` secret; the workflow says why its own token
+cannot. Limit the token to this repository
 and grant only Pull requests: Read and write; GitHub adds read-only metadata
 access itself. It cannot push or merge, and the workflow's own token does both.
 Without the secret, or once the token expires, the workflow fails instead of
