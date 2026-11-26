@@ -4,6 +4,7 @@ require "formula_installer"
 require "attestation"
 require "digest"
 require_relative "errors"
+require_relative "recipe_source"
 
 module BrewCooldown
   module Executor
@@ -69,7 +70,7 @@ module BrewCooldown
         # does not establish that Homebrew's builders produced these bytes.
         Homebrew::Attestation.check_core_attestation(staged)
         staged.with_verified_snapshot(staged.cached_download) do |snapshot|
-          @contents = Utils::Bottles.formula_contents(snapshot, name: @name)
+          @contents = RecipeSource.from_bytes(Utils::Bottles.formula_contents(snapshot, name: @name))
           @formula = Formulary.from_contents(
             @name, HOMEBREW_CELLAR/@name/@version/".brew/#{@name}.rb", @contents,
             tap: CoreTap.instance, from_metadata: true

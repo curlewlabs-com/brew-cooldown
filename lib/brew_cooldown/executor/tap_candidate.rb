@@ -5,6 +5,7 @@ require "formula_installer"
 require "digest"
 require "uri"
 require_relative "errors"
+require_relative "recipe_source"
 
 module BrewCooldown
   module Executor
@@ -154,7 +155,7 @@ module BrewCooldown
                 "trusted source changed before evaluation"
         end
 
-        @contents = contents
+        @contents = RecipeSource.from_bytes(contents)
         tap = Tap.fetch(record.fetch("tap"))
         # The immutable cache path prevents a later historical evaluation from
         # reusing a class cached for today's live tap path.
